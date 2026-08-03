@@ -1,0 +1,16 @@
+# Conjunto completo de paquetes del entorno de producción (.venv, Windows),
+# incluyendo dependencias transitivas. Generado a partir de los metadatos
+# instalados, no de un pip freeze en esta máquina.
+#
+# Este archivo es la referencia para reproducir el entorno exacto.
+# Para instalar solo lo necesario usar requirements.txt.
+asgiref==3.11.1
+Django==5.2.12
+et-xmlfile==2.0.0
+openpyxl==3.1.5
+psycopg==3.3.3
+psycopg-binary==3.3.3
+pypdf==6.9.2
+sqlparse==0.5.5
+typing_extensions==4.15.0
+tzdata==2025.3

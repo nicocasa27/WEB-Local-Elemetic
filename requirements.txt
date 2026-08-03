@@ -1,0 +1,21 @@
+# Dependencias directas del MES de Elemetic.
+# Versiones tomadas del entorno que corre en producción (.venv, Windows).
+# Para el conjunto completo con dependencias transitivas ver requirements.lock.txt.
+#
+# Instalación:  pip install -r requirements.txt
+# Python:       3.12 (el sistema corre 3.12/3.13; Django 5.2 exige >= 3.10)
+
+Django==5.2.12
+
+# Driver de PostgreSQL. Django 5.2 prefiere psycopg 3 cuando está disponible.
+# El entorno de producción tiene además psycopg2-binary 2.9.9 instalado, que
+# quedó sin usarse: no hace falta reinstalarlo.
+psycopg[binary]==3.3.3
+
+# Exportación de reportes y expedientes a Excel.
+openpyxl==3.1.5
+
+# Lectura de PDF. Solo la usa el importador de vigas (produccion/views.py),
+# que hoy no tiene ruta en urls.py. Se importa con try/except, así que la app
+# arranca sin él, pero se fija la versión para no depender del azar.
+pypdf==6.9.2
