@@ -454,6 +454,95 @@ creen. Si esas dos condiciones no se pueden cumplir todavía, conviene dejarlo
 parado —no estorba— y hacer antes el módulo de calidad, que sólo necesita el
 celular del operador.
 
+## Costeo y rentabilidad
+
+Hoy el sistema no sabe lo que cuesta nada. Sabe kilos y sabe fechas, pero no
+hay ni una tarifa ni forma de responder «¿ganamos dinero con esta orden?».
+
+**Este módulo no pide capturar nada al operador.** El material sale del lote
+consumido, las horas salen del historial del núcleo y quién trabajó sale de las
+asignaciones. Lo único que hay que capturar es cuánto cuesta una hora.
+
+### Puesta en marcha
+
+```bat
+.venv\Scripts\python.exe manage.py migrate costeo --database=mes
+.venv\Scripts\python.exe manage.py sembrar_costeo
+.venv\Scripts\python.exe manage.py sembrar_costeo --tarifa herreria:180:95:120
+```
+
+El formato es `linea:hora_maquina:hora_mano_obra:indirectos_hora`. Las tarifas
+**no se editan**: para corregir una se captura otra con fecha nueva. Así, si
+mañana suben los sueldos, lo que costó una orden del año pasado sigue costando
+lo mismo, que es para lo único que sirve un histórico.
+
+Se puede afinar por persona o por rol desde el admin, en «Tarifas de mano de
+obra». Si no hay ninguna, se usa la del centro.
+
+### Calcular
+
+```bat
+.venv\Scripts\python.exe manage.py calcular_costos --linea herreria
+.venv\Scripts\python.exe manage.py calcular_costos --orden H-00020 --varianza
+```
+
+No es un asiento contable: es una foto derivada. Se puede recalcular cuando se
+quiera, y si aparece un consumo que faltaba, el número que sale es el bueno.
+
+### La columna que hay que mirar primero: cobertura
+
+Dice **qué parte de la orden se pudo medir de verdad**. Baja cuando una etapa
+no tiene a nadie asignado, cuando falta la tarifa, o cuando hubo que acotar las
+horas. Una cobertura del 20 % significa que el costo es real pero incompleto, y
+por tanto que **todavía no sirve para cotizar**.
+
+El módulo no se inventa un operador donde no hay ninguno asignado. Un costo que
+parece completo cuando midió la mitad es peor que no tener costo.
+
+### El tope de horas, y por qué existe
+
+> **Aviso importante.** El historial dice cuánto tiempo **pasó** una orden en
+> una etapa, no cuánto se **trabajó** en ella. Una orden puede quedarse en
+> pintura tres meses esperando material sin que nadie la toque.
+>
+> Al probarlo con los datos del taller, la orden H-00017 daba **671 horas de
+> pintura y 191.274 pesos**. Con el tope aplicado da 7.101 y sale marcada como
+> cota, no como medición.
+
+Cada centro de costo tiene un tope de horas por paso, por omisión una jornada
+(9 h). Las etapas que lo superan se cobran al tope, se marcan como topadas y no
+cuentan como cobertura. El tiempo transcurrido se guarda igual, aparte, porque
+es la medida real del flujo y dice cuánto de todo eso fue espera.
+
+El tope se ajusta por centro desde el admin. Se quita del todo capturando
+**tiempos estándar**, que es lo que permite distinguir el trabajo de la espera.
+
+### El informe que justifica el módulo
+
+`--varianza` compara lo real contra el tiempo estándar, etapa por etapa. No
+dice cuánto cuesta algo: dice **dónde se está perdiendo dinero**. Un costo
+absoluto sin nada con qué compararlo no acciona ninguna decisión.
+
+Necesita tiempos estándar capturados (admin → «Tiempos estándar»): cuántas
+horas debería llevar una pieza en cada etapa. Es lo siguiente que hay que
+capturar después de las tarifas.
+
+### Decisiones que ya están tomadas, y se pueden cambiar
+
+- **Absorbente por omisión**: los indirectos se reparten. `--directo` los deja
+  fuera.
+- **Los indirectos se prorratean por horas-máquina**, no por toneladas. Una
+  pieza pequeña y difícil ocupa la máquina igual que una grande y sencilla;
+  prorratear por peso se la regala al cliente equivocado.
+- **El material se valúa lote a lote** por antigüedad, no por promedio.
+
+### El margen
+
+`CostoOrden.precio_venta` se puede capturar a mano desde el admin y ya da
+margen por orden. Cuando llegue la integración con Cotizaciones, ese precio
+vendrá solo de la orden de compra, y entonces el margen real por orden, cliente
+y línea sale sin capturar nada.
+
 ## Volver atrás
 
 La configuración de entorno no toca la base de datos, así que revertir es

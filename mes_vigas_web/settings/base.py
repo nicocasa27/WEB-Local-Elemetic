@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "produccion",
     "nucleo",
     "inventario",
+    "costeo",
 ]
 
 MIDDLEWARE = [
