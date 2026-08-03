@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = [
+    ".venv",
+    ".venv-mac",
+    "*/migrations/*",
+    "staticfiles",
+    "media",
+]
+
+[tool.ruff.lint]
+# Conjunto deliberadamente corto. El objetivo no es imponer un estilo sobre
+# 15,000 líneas heredadas, sino impedir que vuelva a entrar la clase de error
+# que ya causó daño real en este proyecto:
+#   E9   errores de sintaxis
+#   F63  comparaciones siempre falsas o mal formadas
+#   F7   sentencias mal colocadas (break/return fuera de sitio)
+#   F82  nombres indefinidos  -> es el NameError que hacía imposible
+#                               registrar un paro de máquina
+select = ["E9", "F63", "F7", "F82"]
+
+# El resto se irá activando por módulo conforme se extraiga la capa de
+# servicios. Reglas candidatas para entonces: F841 (variables sin usar),
+# E501, I (orden de imports), B (bugbear).
+
+[tool.ruff.format]
+# El formateo automático solo se aplica a archivos nuevos. Reformatear
+# catalogos/views.py entero destruiría la posibilidad de revisar diffs.
+quote-style = "double"

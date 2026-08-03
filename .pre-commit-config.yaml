@@ -1,0 +1,29 @@
+# Instalación (una sola vez por máquina):
+#   pip install -r requirements-dev.txt
+#   pre-commit install
+#
+# A partir de ahí, cada commit ejecuta estas comprobaciones sobre los
+# archivos modificados. Para pasarlas sobre todo el proyecto a mano:
+#   pre-commit run --all-files
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      # Solo errores que rompen en ejecución. La configuración vive en
+      # pyproject.toml, en [tool.ruff.lint].
+      - id: ruff
+        name: ruff (errores de sintaxis y nombres indefinidos)
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-ast
+        name: el archivo es Python válido
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        name: finales de línea consistentes (LF)
+        args: [--fix=lf]
+      - id: check-added-large-files
+        args: [--maxkb=2048]
