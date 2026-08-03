@@ -20,22 +20,22 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="pedido_create">
             <div>
-              <label class="form-label">Cliente</label>
+              <label for="{{ pedido_form.cliente.id_for_label }}" class="form-label">Cliente</label>
               {{ pedido_form.cliente }}
               {% if pedido_form.cliente.errors %}<div class="invalid-feedback d-block">{{ pedido_form.cliente.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Teléfono / datos</label>
+              <label for="{{ pedido_form.telefono.id_for_label }}" class="form-label">Teléfono / datos</label>
               {{ pedido_form.telefono }}
               {% if pedido_form.telefono.errors %}<div class="invalid-feedback d-block">{{ pedido_form.telefono.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Fecha compromiso</label>
+              <label for="{{ pedido_form.fecha_compromiso.id_for_label }}" class="form-label">Fecha compromiso</label>
               {{ pedido_form.fecha_compromiso }}
               {% if pedido_form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ pedido_form.fecha_compromiso.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Comentarios</label>
+              <label for="{{ pedido_form.comentarios.id_for_label }}" class="form-label">Comentarios</label>
               {{ pedido_form.comentarios }}
               {% if pedido_form.comentarios.errors %}<div class="invalid-feedback d-block">{{ pedido_form.comentarios.errors }}</div>{% endif %}
             </div>
@@ -51,12 +51,12 @@
                 {% for f in formset %}
                   <div class="row g-2 align-items-end">
                     <div class="col-12 col-md-8">
-                      <label class="form-label mb-1">Producto</label>
+                      <label for="{{ f.producto.id_for_label }}" class="form-label mb-1">Producto</label>
                       {{ f.producto }}
                       {% if f.producto.errors %}<div class="invalid-feedback d-block">{{ f.producto.errors }}</div>{% endif %}
                     </div>
                     <div class="col-12 col-md-4">
-                      <label class="form-label mb-1">Cantidad</label>
+                      <label for="{{ f.cantidad_total.id_for_label }}" class="form-label mb-1">Cantidad</label>
                       {{ f.cantidad_total }}
                       {% if f.cantidad_total.errors %}<div class="invalid-feedback d-block">{{ f.cantidad_total.errors }}</div>{% endif %}
                     </div>

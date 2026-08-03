@@ -94,7 +94,7 @@
       </div>
 
       <div>
-        <label class="form-label">Observaciones</label>
+        <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
         {{ form.observaciones }}
         {% if form.observaciones.errors %}<div class="invalid-feedback d-block">{{ form.observaciones.errors }}</div>{% endif %}
       </div>
@@ -106,7 +106,7 @@
             <div class="text-muted small mb-2">Opcional al dar de alta. Puedes asignar después en Producción.</div>
             <div class="row g-3">
               <div class="col-12 col-lg-6">
-                <label class="form-label">Operador(es)</label>
+                <label for="corte_op_{{ c.id }}" class="form-label">Operador(es)</label>
                 <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
                   {% for c in corte_operadores %}
                     <div class="form-check">
@@ -117,7 +117,7 @@
                 </div>
               </div>
               <div class="col-12 col-lg-6">
-                <label class="form-label">Máquinas usadas (opcional)</label>
+                <label for="corte_mq_{{ m.id }}" class="form-label">Máquinas usadas (opcional)</label>
                 <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
                   {% for m in corte_maquinas %}
                     <div class="form-check">
@@ -165,7 +165,7 @@
               <div class="text-muted small mb-2">Opcional al dar de alta. Puedes asignar después en Producción.</div>
               <div class="row g-3">
                 <div class="col-12 col-lg-6">
-                  <label class="form-label">Operador(es)</label>
+                  <label for="corte_op2_{{ c.id }}" class="form-label">Operador(es)</label>
                   <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
                     {% for c in corte_operadores %}
                       <div class="form-check">
@@ -176,7 +176,7 @@
                   </div>
                 </div>
                 <div class="col-12 col-lg-6">
-                  <label class="form-label">Máquinas usadas (opcional)</label>
+                  <label for="corte_mq2_{{ m.id }}" class="form-label">Máquinas usadas (opcional)</label>
                   <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
                     {% for m in corte_maquinas %}
                       <div class="form-check">

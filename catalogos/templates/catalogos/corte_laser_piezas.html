@@ -27,17 +27,17 @@
           </div>
         {% endif %}
         <div class="col-12 col-md-5">
-          <label class="form-label">Nombre</label>
+          <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
           {{ form.nombre }}
           {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">PDF</label>
+          <label for="{{ form.pdf.id_for_label }}" class="form-label">PDF</label>
           {{ form.pdf }}
           {% if form.pdf.errors %}<div class="invalid-feedback d-block">{{ form.pdf.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">DXF</label>
+          <label for="{{ form.dxf.id_for_label }}" class="form-label">DXF</label>
           {{ form.dxf }}
           {% if form.dxf.errors %}<div class="invalid-feedback d-block">{{ form.dxf.errors }}</div>{% endif %}
         </div>

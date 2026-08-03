@@ -37,8 +37,8 @@
         <div class="text-muted small">Calcula por fecha de Terminado en la semana (incluye piezas aunque hoy ya estén Enviadas); además marca cuántas de esas ya fueron Enviadas.</div>
       </div>
       <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
-        <label class="form-label mb-0 text-muted small">Semana</label>
-        <input class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
+        <label for="campo-week_start" class="form-label mb-0 text-muted small">Semana</label>
+        <input id="campo-week_start" class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
         <button class="btn btn-sm btn-outline-secondary" type="submit">Ver</button>
         <button class="btn btn-sm btn-outline-danger js-weekly-recalc" type="submit" name="weekly_refresh" value="1">Recalcular (sobrescribe)</button>
       </form>

@@ -16,12 +16,12 @@
           <form method="post" class="row g-3">
             {% csrf_token %}
             <div class="col-12 col-md-6">
-              <label class="form-label">Nombre</label>
+              <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ form.nombre }}
               {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label d-block">Activo</label>
+              <label for="{{ form.activo.id_for_label }}" class="form-label d-block">Activo</label>
               <div class="form-check form-switch">
                 {{ form.activo }}
                 <label class="form-check-label" for="{{ form.activo.id_for_label }}">Sí</label>

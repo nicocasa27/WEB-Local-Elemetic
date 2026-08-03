@@ -170,11 +170,11 @@
           <div class="modal-body">
             <div class="text-muted small mb-2" id="startParoMaquinaNombre"></div>
             <div class="mb-3">
-              <label class="form-label">Motivo</label>
+              <label for="{{ paro_form.motivo.id_for_label }}" class="form-label">Motivo</label>
               {{ paro_form.motivo }}
             </div>
             <div>
-              <label class="form-label">Comentario</label>
+              <label for="{{ paro_form.comentario.id_for_label }}" class="form-label">Comentario</label>
               {{ paro_form.comentario }}
             </div>
           </div>
@@ -201,7 +201,7 @@
           <div class="modal-body">
             <div class="text-muted small mb-2" id="endParoMaquinaNombre"></div>
             <div>
-              <label class="form-label">Comentario (opcional)</label>
+              <label for="{{ comentario_form.comentario.id_for_label }}" class="form-label">Comentario (opcional)</label>
               {{ comentario_form.comentario }}
             </div>
           </div>
@@ -228,11 +228,11 @@
           <div class="modal-body">
             <div class="text-muted small mb-2" id="startFallaMaquinaNombre"></div>
             <div class="mb-3">
-              <label class="form-label">Tipo de falla</label>
+              <label for="{{ falla_form.tipo.id_for_label }}" class="form-label">Tipo de falla</label>
               {{ falla_form.tipo }}
             </div>
             <div>
-              <label class="form-label">Comentario</label>
+              <label for="{{ falla_form.comentario.id_for_label }}" class="form-label">Comentario</label>
               {{ falla_form.comentario }}
             </div>
           </div>
@@ -259,7 +259,7 @@
           <div class="modal-body">
             <div class="text-muted small mb-2" id="endFallaMaquinaNombre"></div>
             <div>
-              <label class="form-label">Comentario (opcional)</label>
+              <label for="{{ comentario_form.comentario.id_for_label }}" class="form-label">Comentario (opcional)</label>
               {{ comentario_form.comentario }}
             </div>
           </div>
@@ -285,24 +285,24 @@
           <div class="modal-body">
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label">Inicio (fecha)</label>
+                <label for="{{ energia_form.inicio_fecha.id_for_label }}" class="form-label">Inicio (fecha)</label>
                 {{ energia_form.inicio_fecha }}
               </div>
               <div class="col-6">
-                <label class="form-label">Inicio (hora)</label>
+                <label for="{{ energia_form.inicio_hora.id_for_label }}" class="form-label">Inicio (hora)</label>
                 {{ energia_form.inicio_hora }}
               </div>
               <div class="col-6">
-                <label class="form-label">Fin (fecha)</label>
+                <label for="{{ energia_form.fin_fecha.id_for_label }}" class="form-label">Fin (fecha)</label>
                 {{ energia_form.fin_fecha }}
               </div>
               <div class="col-6">
-                <label class="form-label">Fin (hora)</label>
+                <label for="{{ energia_form.fin_hora.id_for_label }}" class="form-label">Fin (hora)</label>
                 {{ energia_form.fin_hora }}
               </div>
             </div>
             <div class="mt-2">
-              <label class="form-label">Comentario</label>
+              <label for="{{ energia_form.comentario.id_for_label }}" class="form-label">Comentario</label>
               {{ energia_form.comentario }}
             </div>
             <div class="form-check mt-2">

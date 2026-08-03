@@ -19,24 +19,24 @@
     <div class="card-body">
       <form method="get" class="row g-2 align-items-end">
         <div class="col-12 col-md-3">
-          <label class="form-label">Estado</label>
-          <select class="form-select" name="estado">
+          <label for="campo-estado" class="form-label">Estado</label>
+          <select id="campo-estado" class="form-select" name="estado">
             {% for e in estados_filtro %}
               <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">Proyecto</label>
-          <select class="form-select" name="proyecto">
+          <label for="campo-proyecto" class="form-label">Proyecto</label>
+          <select id="campo-proyecto" class="form-select" name="proyecto">
             {% for p in proyectos %}
               <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="col-12 col-md-4">
-          <label class="form-label">Buscar</label>
-          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (folio / proyecto / descripción)…">
+          <label for="campo-q" class="form-label">Buscar</label>
+          <input id="campo-q" class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (folio / proyecto / descripción)…">
         </div>
         <div class="col-12 col-md-2 d-flex gap-2">
           <button class="btn btn-outline-primary w-100" type="submit">Buscar</button>
@@ -108,8 +108,8 @@
                       <div class="modal-body">
                         <div class="row g-3">
                           <div class="col-12 col-md-6">
-                            <label class="form-label">Proyecto</label>
-                            <select class="form-select" name="proyecto">
+                            <label for="campo-proyecto-2" class="form-label">Proyecto</label>
+                            <select id="campo-proyecto-2" class="form-select" name="proyecto">
                               {% for p in proyectos %}
                                 {% if p != "Todos" %}
                                   <option value="{{ p }}" {% if o.proyecto and o.proyecto.nombre == p %}selected{% endif %}>{{ p }}</option>
@@ -118,16 +118,16 @@
                             </select>
                           </div>
                           <div class="col-12 col-md-6">
-                            <label class="form-label">Nombre</label>
-                            <input class="form-control" name="nombre" value="{{ o.nombre }}">
+                            <label for="campo-nombre" class="form-label">Nombre</label>
+                            <input id="campo-nombre" class="form-control" name="nombre" value="{{ o.nombre }}">
                           </div>
                           <div class="col-12">
-                            <label class="form-label">Descripción</label>
-                            <input class="form-control" name="descripcion" value="{{ o.descripcion }}">
+                            <label for="campo-descripcion" class="form-label">Descripción</label>
+                            <input id="campo-descripcion" class="form-control" name="descripcion" value="{{ o.descripcion }}">
                           </div>
                           <div class="col-12 col-md-6">
-                            <label class="form-label">Pieza (catálogo)</label>
-                            <select class="form-select" name="pieza">
+                            <label for="campo-pieza" class="form-label">Pieza (catálogo)</label>
+                            <select id="campo-pieza" class="form-select" name="pieza">
                               <option value="" {% if not o.pieza_id %}selected{% endif %}>-</option>
                               {% for cp in create_form.pieza.field.queryset %}
                                 <option value="{{ cp.id }}" {% if o.pieza_id == cp.id %}selected{% endif %}>{{ cp.nombre }}</option>
@@ -135,16 +135,16 @@
                             </select>
                           </div>
                           <div class="col-12 col-md-6">
-                            <label class="form-label">Eventual (nombre)</label>
-                            <input class="form-control" name="pieza_custom_nombre" value="{{ o.custom_nombre }}">
+                            <label for="campo-pieza_custom_nombre" class="form-label">Eventual (nombre)</label>
+                            <input id="campo-pieza_custom_nombre" class="form-control" name="pieza_custom_nombre" value="{{ o.custom_nombre }}">
                           </div>
                           <div class="col-12 col-md-4">
-                            <label class="form-label">Kg/pza (eventual)</label>
-                            <input class="form-control" name="pieza_custom_peso_kg" value="{{ o.custom_peso|floatformat:3 }}">
+                            <label for="campo-pieza_custom_peso_kg" class="form-label">Kg/pza (eventual)</label>
+                            <input id="campo-pieza_custom_peso_kg" class="form-control" name="pieza_custom_peso_kg" value="{{ o.custom_peso|floatformat:3 }}">
                           </div>
                           <div class="col-12 col-md-8">
-                            <label class="form-label">Plano (PDF)</label>
-                            <input class="form-control" type="file" name="plano_pdf">
+                            <label for="campo-plano_pdf" class="form-label">Plano (PDF)</label>
+                            <input id="campo-plano_pdf" class="form-control" type="file" name="plano_pdf">
                           </div>
                         </div>
                       </div>
@@ -178,42 +178,42 @@
           <div class="modal-body">
             <div class="row g-3">
               <div class="col-12 col-md-4">
-                <label class="form-label">Tipo</label>
+                <label for="{{ create_form.tipo.id_for_label }}" class="form-label">Tipo</label>
                 {{ create_form.tipo }}
               </div>
               <div class="col-12 col-md-8">
-                <label class="form-label">Proyecto</label>
+                <label for="{{ create_form.proyecto.id_for_label }}" class="form-label">Proyecto</label>
                 {{ create_form.proyecto }}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label">Nombre</label>
+                <label for="{{ create_form.nombre.id_for_label }}" class="form-label">Nombre</label>
                 {{ create_form.nombre }}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label">Descripción</label>
+                <label for="{{ create_form.descripcion.id_for_label }}" class="form-label">Descripción</label>
                 {{ create_form.descripcion }}
               </div>
               <div class="col-12 col-md-4">
-                <label class="form-label">Cantidad (OP)</label>
+                <label for="{{ create_form.cantidad_objetivo.id_for_label }}" class="form-label">Cantidad (OP)</label>
                 {{ create_form.cantidad_objetivo }}
               </div>
               <div class="col-12 col-md-8">
-                <label class="form-label">Plano (PDF)</label>
+                <label for="{{ create_form.plano_pdf.id_for_label }}" class="form-label">Plano (PDF)</label>
                 {{ create_form.plano_pdf }}
               </div>
               <div class="col-12">
                 <div class="fw-semibold mb-1">Pieza</div>
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label">Catálogo</label>
+                <label for="{{ create_form.pieza.id_for_label }}" class="form-label">Catálogo</label>
                 {{ create_form.pieza }}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label">Eventual (nombre)</label>
+                <label for="{{ create_form.pieza_custom_nombre.id_for_label }}" class="form-label">Eventual (nombre)</label>
                 {{ create_form.pieza_custom_nombre }}
               </div>
               <div class="col-12 col-md-4">
-                <label class="form-label">Kg/pza (eventual)</label>
+                <label for="{{ create_form.pieza_custom_peso_kg.id_for_label }}" class="form-label">Kg/pza (eventual)</label>
                 {{ create_form.pieza_custom_peso_kg }}
               </div>
               <div class="col-12">
@@ -244,11 +244,11 @@
           </div>
           <div class="modal-body">
             <div class="mb-3">
-              <label class="form-label">Fecha de operación</label>
+              <label for="statusModalFecha" class="form-label">Fecha de operación</label>
               <input id="statusModalFecha" class="form-control" type="date" name="fecha_operacion" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Nuevo estado</label>
+              <label for="statusModalEstado" class="form-label">Nuevo estado</label>
               <select id="statusModalEstado" class="form-select" name="estado_nuevo" required>
                 {% for e in estados_filtro %}
                   {% if e != "Todos" %}
@@ -258,7 +258,7 @@
               </select>
             </div>
             <div class="mb-3">
-              <label class="form-label">Comentario</label>
+              <label for="statusModalComentario" class="form-label">Comentario</label>
               <textarea id="statusModalComentario" class="form-control" name="comentario" rows="2" placeholder="Ej.: Observación rápida"></textarea>
             </div>
           </div>

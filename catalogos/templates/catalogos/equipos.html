@@ -19,12 +19,12 @@
           <form method="post" class="vstack gap-3">
             {% csrf_token %}
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ form.nombre }}
               {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Estados que atiende el equipo</label>
+              <label for="{{ c.tag.id_for_label }}" class="form-label">Estados que atiende el equipo</label>
               <div class="row g-2">
                 {% for c in form.estados %}
                   <div class="col-6 col-md-4">
@@ -40,13 +40,13 @@
             </div>
             <div class="row g-2">
               <div class="col-12 col-md-6">
-                <label class="form-label">Colaboradores activos (auto)</label>
+                <label for="{{ form.integrantes.id_for_label }}" class="form-label">Colaboradores activos (auto)</label>
                 {{ form.integrantes }}
                 <div class="text-muted small mt-1">Se calcula con el número de colaboradores activos del equipo.</div>
                 {% if form.integrantes.errors %}<div class="invalid-feedback d-block">{{ form.integrantes.errors }}</div>{% endif %}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label d-block">Activo</label>
+                <label for="{{ form.activo.id_for_label }}" class="form-label d-block">Activo</label>
                 <div class="form-check form-switch">
                   {{ form.activo }}
                   <label class="form-check-label" for="id_activo">Sí</label>
@@ -65,18 +65,18 @@
             {% csrf_token %}
             <input type="hidden" name="form_type" value="colaborador_create">
             <div>
-              <label class="form-label">Equipo / Área</label>
+              <label for="{{ colab_form.equipo.id_for_label }}" class="form-label">Equipo / Área</label>
               {{ colab_form.equipo }}
               {% if colab_form.equipo.errors %}<div class="invalid-feedback d-block">{{ colab_form.equipo.errors }}</div>{% endif %}
             </div>
             <div class="row g-2">
               <div class="col-12 col-md-6">
-                <label class="form-label">Rol</label>
+                <label for="{{ colab_form.rol.id_for_label }}" class="form-label">Rol</label>
                 {{ colab_form.rol }}
                 {% if colab_form.rol.errors %}<div class="invalid-feedback d-block">{{ colab_form.rol.errors }}</div>{% endif %}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label d-block">Activo</label>
+                <label for="{{ colab_form.activo.id_for_label }}" class="form-label d-block">Activo</label>
                 <div class="form-check form-switch">
                   {{ colab_form.activo }}
                   <label class="form-check-label" for="{{ colab_form.activo.id_for_label }}">Sí</label>
@@ -84,7 +84,7 @@
               </div>
             </div>
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ colab_form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ colab_form.nombre }}
               {% if colab_form.nombre.errors %}<div class="invalid-feedback d-block">{{ colab_form.nombre.errors }}</div>{% endif %}
             </div>

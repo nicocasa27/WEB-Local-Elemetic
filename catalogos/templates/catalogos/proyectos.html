@@ -19,7 +19,7 @@
           <form method="post" class="vstack gap-3">
             {% csrf_token %}
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ form.nombre }}
             </div>
             <div class="form-check form-switch">

@@ -17,22 +17,22 @@
         {% csrf_token %}
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label">Cliente</label>
+            <label for="{{ form.cliente.id_for_label }}" class="form-label">Cliente</label>
             {{ form.cliente }}
             {% if form.cliente.errors %}<div class="invalid-feedback d-block">{{ form.cliente.errors }}</div>{% endif %}
           </div>
           <div class="col-12 col-md-3">
-            <label class="form-label">Teléfono / datos</label>
+            <label for="{{ form.telefono.id_for_label }}" class="form-label">Teléfono / datos</label>
             {{ form.telefono }}
             {% if form.telefono.errors %}<div class="invalid-feedback d-block">{{ form.telefono.errors }}</div>{% endif %}
           </div>
           <div class="col-12 col-md-3">
-            <label class="form-label">Fecha compromiso</label>
+            <label for="{{ form.fecha_compromiso.id_for_label }}" class="form-label">Fecha compromiso</label>
             {{ form.fecha_compromiso }}
             {% if form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_compromiso.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
-            <label class="form-label">Comentarios</label>
+            <label for="{{ form.comentarios.id_for_label }}" class="form-label">Comentarios</label>
             {{ form.comentarios }}
             {% if form.comentarios.errors %}<div class="invalid-feedback d-block">{{ form.comentarios.errors }}</div>{% endif %}
           </div>
@@ -47,12 +47,12 @@
               {{ f.item_id }}
               <div class="row g-2 align-items-end">
                 <div class="col-12 col-md-7">
-                  <label class="form-label mb-1">Producto</label>
+                  <label for="{{ f.producto.id_for_label }}" class="form-label mb-1">Producto</label>
                   {{ f.producto }}
                   {% if f.producto.errors %}<div class="invalid-feedback d-block">{{ f.producto.errors }}</div>{% endif %}
                 </div>
                 <div class="col-8 col-md-3">
-                  <label class="form-label mb-1">Cantidad</label>
+                  <label for="{{ f.cantidad_total.id_for_label }}" class="form-label mb-1">Cantidad</label>
                   {{ f.cantidad_total }}
                   {% if f.cantidad_total.errors %}<div class="invalid-feedback d-block">{{ f.cantidad_total.errors }}</div>{% endif %}
                 </div>

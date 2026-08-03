@@ -27,12 +27,12 @@
           </div>
         {% endif %}
         <div class="col-12 col-md-6">
-          <label class="form-label">Cliente o proyecto</label>
+          <label for="{{ form.nombre.id_for_label }}" class="form-label">Cliente o proyecto</label>
           {{ form.nombre }}
           {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">Tipo</label>
+          <label for="{{ form.tipo.id_for_label }}" class="form-label">Tipo</label>
           {{ form.tipo }}
           {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors }}</div>{% endif %}
         </div>

@@ -332,6 +332,7 @@
           </div>
         {% endif %}
         <div class="container-fluid content-wrap">
+          {% if not embedded %}{% include "produccion/_migas.html" %}{% endif %}
           {% block content %}{% endblock %}
         </div>
       </div>

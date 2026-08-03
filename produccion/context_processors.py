@@ -63,9 +63,51 @@ def seccion_de(nombre_ruta):
     return ""
 
 
+#: Nombre y pantalla principal de cada sección, para las migas de pan.
+#:
+#: Hasta ahora no había ninguna: desde una pantalla de detalle no se sabía de
+#: dónde se venía, y para volver al menú había que adivinar que el logotipo
+#: era un enlace. Lo que había en su lugar eran treinta variantes artesanales
+#: de «Volver», cada una con un destino escrito a mano, que muchas veces te
+#: sacaban de donde estabas.
+INICIO_DE_SECCION = {
+    "estructuras": ("Estructuras metálicas", "produccion:viga_list"),
+    "corta": ("Corta.mx", "catalogos:corte_laser_control"),
+    "corte": ("Corte", "produccion:area_corte"),
+    "soldadura": ("Soldadura", "produccion:area_soldadura"),
+    "robotica": ("Robótica", "catalogos:robotica"),
+    "herreria": ("Herrería", "catalogos:herreria_control"),
+    "pedidos": ("Pedidos", "catalogos:pedidos_ordenes"),
+    "paros": ("Paros", "catalogos:paros"),
+    "reportes": ("Reportes", "produccion:dashboard"),
+    "configuracion": ("Configuración de planta", "nucleo:configuracion"),
+}
+
+#: Pantallas que ya son la portada de su sección: repetirlas en las migas
+#: sería decir «Herrería › Herrería».
+SIN_MIGAS = {"home", "menu", "movil"}
+
+
 def navegacion(request):
+    from django.urls import NoReverseMatch, reverse
+
     resuelta = getattr(request, "resolver_match", None)
-    return {"seccion": seccion_de(getattr(resuelta, "url_name", ""))}
+    nombre = getattr(resuelta, "url_name", "") or ""
+    seccion = seccion_de(nombre)
+
+    migas = []
+    if nombre not in SIN_MIGAS:
+        migas.append({"texto": "Menú", "url": reverse("produccion:home")})
+        titulo, ruta = INICIO_DE_SECCION.get(seccion, (None, None))
+        if titulo:
+            try:
+                destino = reverse(ruta)
+            except NoReverseMatch:
+                destino = ""
+            # La portada de la sección no se enlaza a sí misma.
+            migas.append({"texto": titulo, "url": "" if destino == request.path else destino})
+
+    return {"seccion": seccion, "migas": migas}
 
 
 def user_access(request):

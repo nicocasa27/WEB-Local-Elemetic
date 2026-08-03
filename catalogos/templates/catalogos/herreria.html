@@ -24,11 +24,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="pieza_create">
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ pieza_form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ pieza_form.nombre }}
             </div>
             <div>
-              <label class="form-label">Peso (kg)</label>
+              <label for="{{ pieza_form.peso_kg.id_for_label }}" class="form-label">Peso (kg)</label>
               {{ pieza_form.peso_kg }}
             </div>
             <div class="form-check">

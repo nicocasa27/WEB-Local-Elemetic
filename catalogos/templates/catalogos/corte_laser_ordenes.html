@@ -36,34 +36,34 @@
               {% if form.cliente_proyecto.errors %}<div class="invalid-feedback d-block">{{ form.cliente_proyecto.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Nombre de la orden</label>
+              <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre de la orden</label>
               {{ form.nombre }}
               {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Material</label>
+              <label for="{{ form.material.id_for_label }}" class="form-label">Material</label>
               {{ form.material }}
               {% if form.material.errors %}<div class="invalid-feedback d-block">{{ form.material.errors }}</div>{% endif %}
             </div>
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label">Ancho pieza (mm)</label>
+                <label for="{{ form.pieza_ancho_mm.id_for_label }}" class="form-label">Ancho pieza (mm)</label>
                 {{ form.pieza_ancho_mm }}
                 {% if form.pieza_ancho_mm.errors %}<div class="invalid-feedback d-block">{{ form.pieza_ancho_mm.errors }}</div>{% endif %}
               </div>
               <div class="col-6">
-                <label class="form-label">Largo pieza (mm)</label>
+                <label for="{{ form.pieza_alto_mm.id_for_label }}" class="form-label">Largo pieza (mm)</label>
                 {{ form.pieza_alto_mm }}
                 {% if form.pieza_alto_mm.errors %}<div class="invalid-feedback d-block">{{ form.pieza_alto_mm.errors }}</div>{% endif %}
               </div>
             </div>
             <div>
-              <label class="form-label">Cantidad</label>
+              <label for="{{ form.cantidad_objetivo.id_for_label }}" class="form-label">Cantidad</label>
               {{ form.cantidad_objetivo }}
               {% if form.cantidad_objetivo.errors %}<div class="invalid-feedback d-block">{{ form.cantidad_objetivo.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Observaciones</label>
+              <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
               {{ form.observaciones }}
             </div>
             <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Crear</button>

@@ -29,12 +29,12 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="robot_create">
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ robot_form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ robot_form.nombre }}
               {% if robot_form.nombre.errors %}<div class="invalid-feedback d-block">{{ robot_form.nombre.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label d-block">Activo</label>
+              <label for="{{ robot_form.activo.id_for_label }}" class="form-label d-block">Activo</label>
               <div class="form-check form-switch">
                 {{ robot_form.activo }}
                 <label class="form-check-label" for="{{ robot_form.activo.id_for_label }}">Sí</label>
@@ -52,17 +52,17 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="pieza_create">
             <div>
-              <label class="form-label">Nombre</label>
+              <label for="{{ pieza_form.nombre.id_for_label }}" class="form-label">Nombre</label>
               {{ pieza_form.nombre }}
               {% if pieza_form.nombre.errors %}<div class="invalid-feedback d-block">{{ pieza_form.nombre.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Peso (kg)</label>
+              <label for="{{ pieza_form.peso_kg.id_for_label }}" class="form-label">Peso (kg)</label>
               {{ pieza_form.peso_kg }}
               {% if pieza_form.peso_kg.errors %}<div class="invalid-feedback d-block">{{ pieza_form.peso_kg.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label d-block">Activo</label>
+              <label for="{{ pieza_form.activo.id_for_label }}" class="form-label d-block">Activo</label>
               <div class="form-check form-switch">
                 {{ pieza_form.activo }}
                 <label class="form-check-label" for="{{ pieza_form.activo.id_for_label }}">Sí</label>
@@ -85,16 +85,16 @@
             <input type="hidden" name="action" value="prod_create">
             <div class="row g-2">
               <div class="col-12 col-md-6">
-                <label class="form-label">Fecha</label>
+                <label for="{{ prod_form.fecha.id_for_label }}" class="form-label">Fecha</label>
                 {{ prod_form.fecha }}
               </div>
               <div class="col-12 col-md-6">
-                <label class="form-label">Cantidad</label>
+                <label for="{{ prod_form.cantidad.id_for_label }}" class="form-label">Cantidad</label>
                 {{ prod_form.cantidad }}
               </div>
             </div>
             <div>
-              <label class="form-label">Robot</label>
+              <label for="{{ prod_form.robot.id_for_label }}" class="form-label">Robot</label>
               {{ prod_form.robot }}
             </div>
             <div>
@@ -114,15 +114,15 @@
               {% if prod_form.operadores.errors %}<div class="invalid-feedback d-block">{{ prod_form.operadores.errors }}</div>{% endif %}
             </div>
             <div>
-              <label class="form-label">Pieza</label>
+              <label for="{{ prod_form.pieza.id_for_label }}" class="form-label">Pieza</label>
               {{ prod_form.pieza }}
             </div>
             <div>
-              <label class="form-label">Máquina de corte (opcional)</label>
+              <label for="{{ prod_form.corte_maquina.id_for_label }}" class="form-label">Máquina de corte (opcional)</label>
               {{ prod_form.corte_maquina }}
             </div>
             <div>
-              <label class="form-label">Observaciones</label>
+              <label for="{{ prod_form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
               {{ prod_form.observaciones }}
             </div>
             <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Guardar</button>
@@ -139,8 +139,8 @@
             <div class="text-muted small">Calcula por fecha del registro de producción robótica.</div>
           </div>
           <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
-            <label class="form-label mb-0 text-muted small">Semana</label>
-            <input class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
+            <label for="campo-week_start" class="form-label mb-0 text-muted small">Semana</label>
+            <input id="campo-week_start" class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
             <button class="btn btn-sm btn-outline-secondary" type="submit">Ver</button>
           </form>
         </div>

@@ -17,7 +17,7 @@
         {% csrf_token %}
         <input type="hidden" name="stage" value="upload">
         <div>
-          <label class="form-label">Archivo (PDF / CSV / XLSX)</label>
+          <label for="{{ form.archivo.id_for_label }}" class="form-label">Archivo (PDF / CSV / XLSX)</label>
           {{ form.archivo }}
         </div>
         {% if pdf_notice %}
@@ -41,12 +41,12 @@
           <input type="hidden" name="template_id" value="{{ template_id }}">
           <div class="row g-3">
             <div class="col-12 col-lg-4">
-              <label class="form-label">Proyecto (para buscar/guardar plantilla)</label>
-              <input class="form-control text-uppercase" name="template_proyecto" value="{{ template_proyecto }}">
+              <label for="campo-template_proyecto" class="form-label">Proyecto (para buscar/guardar plantilla)</label>
+              <input id="campo-template_proyecto" class="form-control text-uppercase" name="template_proyecto" value="{{ template_proyecto }}">
             </div>
             <div class="col-12 col-lg-6">
-              <label class="form-label">Nombre de plantilla (opcional)</label>
-              <input class="form-control" name="template_nombre" placeholder="Ej. ALMAERA - Plano v1">
+              <label for="campo-template_nombre" class="form-label">Nombre de plantilla (opcional)</label>
+              <input id="campo-template_nombre" class="form-control" name="template_nombre" placeholder="Ej. ALMAERA - Plano v1">
             </div>
             <div class="col-12 col-lg-2 d-flex align-items-end">
               <div class="form-check">
@@ -58,24 +58,24 @@
 
           <div class="row g-3">
             <div class="col-12 col-xl-6">
-              <label class="form-label">Regex marca grande (código principal)</label>
-              <input class="form-control font-monospace" name="big_mark_regex" value="{{ template_cfg.big_mark_regex }}">
+              <label for="campo-big_mark_regex" class="form-label">Regex marca grande (código principal)</label>
+              <input id="campo-big_mark_regex" class="form-control font-monospace" name="big_mark_regex" value="{{ template_cfg.big_mark_regex }}">
             </div>
             <div class="col-12 col-xl-6">
-              <label class="form-label">Regex marca (por renglón)</label>
-              <input class="form-control font-monospace" name="mark_regex" value="{{ template_cfg.mark_regex }}">
+              <label for="campo-mark_regex" class="form-label">Regex marca (por renglón)</label>
+              <input id="campo-mark_regex" class="form-control font-monospace" name="mark_regex" value="{{ template_cfg.mark_regex }}">
             </div>
             <div class="col-12 col-xl-6">
-              <label class="form-label">Regex perfil</label>
-              <input class="form-control font-monospace" name="profile_regex" value="{{ template_cfg.profile_regex }}">
+              <label for="campo-profile_regex" class="form-label">Regex perfil</label>
+              <input id="campo-profile_regex" class="form-control font-monospace" name="profile_regex" value="{{ template_cfg.profile_regex }}">
             </div>
             <div class="col-12 col-xl-6">
-              <label class="form-label">Regex TOTAL</label>
-              <input class="form-control font-monospace" name="total_regex" value="{{ template_cfg.total_regex }}">
+              <label for="campo-total_regex" class="form-label">Regex TOTAL</label>
+              <input id="campo-total_regex" class="form-control font-monospace" name="total_regex" value="{{ template_cfg.total_regex }}">
             </div>
             <div class="col-12 col-xl-6">
-              <label class="form-label">Regex número de piezas</label>
-              <input class="form-control font-monospace" name="num_piezas_regex" value="{{ template_cfg.num_piezas_regex }}">
+              <label for="campo-num_piezas_regex" class="form-label">Regex número de piezas</label>
+              <input id="campo-num_piezas_regex" class="form-control font-monospace" name="num_piezas_regex" value="{{ template_cfg.num_piezas_regex }}">
             </div>
           </div>
 
@@ -147,8 +147,8 @@
             </table>
           </div>
           <div>
-            <label class="form-label">Observaciones (para todas)</label>
-            <textarea class="form-control" name="observaciones_global" rows="3"></textarea>
+            <label for="campo-observaciones_global" class="form-label">Observaciones (para todas)</label>
+            <textarea id="campo-observaciones_global" class="form-control" name="observaciones_global" rows="3"></textarea>
           </div>
           <div class="d-flex justify-content-end gap-2 mt-3">
             <a class="btn btn-outline-secondary" href="{% url 'produccion:viga_import' %}">Cancelar</a>

@@ -17,53 +17,53 @@
       <form id="vigaMainForm" method="post" enctype="multipart/form-data" class="row g-3">
         {% csrf_token %}
         <div class="col-12 col-md-6">
-          <label class="form-label">CÓDIGO</label>
+          <label for="{{ form.codigo_viga.id_for_label }}" class="form-label">CÓDIGO</label>
           {{ form.codigo_viga }}
           {% if form.codigo_viga.errors %}<div class="invalid-feedback d-block">{{ form.codigo_viga.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">PROYECTO</label>
+          <label for="{{ form.proyecto.id_for_label }}" class="form-label">PROYECTO</label>
           {{ form.proyecto }}
           {% if form.proyecto.errors %}<div class="invalid-feedback d-block">{{ form.proyecto.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">PERFIL</label>
+          <label for="{{ form.descripcion.id_for_label }}" class="form-label">PERFIL</label>
           {{ form.descripcion }}
           {% if form.descripcion.errors %}<div class="invalid-feedback d-block">{{ form.descripcion.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">PIEZA (CATÁLOGO)</label>
+          <label for="{{ form.pieza.id_for_label }}" class="form-label">PIEZA (CATÁLOGO)</label>
           {{ form.pieza }}
           {% if form.pieza.errors %}<div class="invalid-feedback d-block">{{ form.pieza.errors }}</div>{% endif %}
           <div class="text-muted small mt-1">Si seleccionas pieza, el KG se toma del catálogo.</div>
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">FECHA COMPROMISO</label>
+          <label for="{{ form.fecha_compromiso.id_for_label }}" class="form-label">FECHA COMPROMISO</label>
           {{ form.fecha_compromiso }}
           {% if form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_compromiso.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">ESTADO</label>
+          <label for="{{ form.estado.id_for_label }}" class="form-label">ESTADO</label>
           {{ form.estado }}
           {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">PRIORIDAD</label>
+          <label for="{{ form.prioridad.id_for_label }}" class="form-label">PRIORIDAD</label>
           {{ form.prioridad }}
           {% if form.prioridad.errors %}<div class="invalid-feedback d-block">{{ form.prioridad.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-3">
-          <label class="form-label">KG (PZA)</label>
+          <label for="{{ form.peso_kg.id_for_label }}" class="form-label">KG (PZA)</label>
           {{ form.peso_kg }}
           {% if form.peso_kg.errors %}<div class="invalid-feedback d-block">{{ form.peso_kg.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label class="form-label">CANTIDAD</label>
+          <label for="{{ form.total_piezas.id_for_label }}" class="form-label">CANTIDAD</label>
           {{ form.total_piezas }}
           {% if form.total_piezas.errors %}<div class="invalid-feedback d-block">{{ form.total_piezas.errors }}</div>{% endif %}
         </div>
         <div class="col-12">
-          <label class="form-label">Observaciones</label>
+          <label for="{{ form.observaciones.id_for_label }}" class="form-label">Observaciones</label>
           {{ form.observaciones }}
           {% if form.observaciones.errors %}<div class="invalid-feedback d-block">{{ form.observaciones.errors }}</div>{% endif %}
         </div>

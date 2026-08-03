@@ -39,28 +39,28 @@
     <div class="offcanvas-body">
       <form method="get" class="vstack gap-3">
         <div>
-          <label class="form-label">Estado</label>
-          <select class="form-select" name="estado">
+          <label for="campo-estado" class="form-label">Estado</label>
+          <select id="campo-estado" class="form-select" name="estado">
             {% for e in estados_filtro %}
               <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="form-label">Cliente/Proyecto</label>
-          <select class="form-select" name="cliente">
+          <label for="campo-cliente" class="form-label">Cliente/Proyecto</label>
+          <select id="campo-cliente" class="form-select" name="cliente">
             {% for p in clientes_proyectos %}
               <option value="{{ p }}" {% if filters.cliente == p %}selected{% endif %}>{{ p }}</option>
             {% endfor %}
           </select>
         </div>
         <div>
-          <label class="form-label">Buscar</label>
-          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Folio / Código / Cliente / Descripción" />
+          <label for="campo-q" class="form-label">Buscar</label>
+          <input id="campo-q" class="form-control" name="q" value="{{ filters.q }}" placeholder="Folio / Código / Cliente / Descripción" />
         </div>
         <div>
-          <label class="form-label">Orden</label>
-          <select class="form-select" name="order">
+          <label for="campo-order" class="form-label">Orden</label>
+          <select id="campo-order" class="form-select" name="order">
             <option value="ultimo_mov_desc" {% if filters.order == "ultimo_mov_desc" %}selected{% endif %}>Último movimiento (reciente)</option>
             <option value="ultimo_mov_asc" {% if filters.order == "ultimo_mov_asc" %}selected{% endif %}>Último movimiento (antiguo)</option>
             <option value="prioridad_asc" {% if filters.order == "prioridad_asc" %}selected{% endif %}>Prioridad (asc)</option>
@@ -105,7 +105,7 @@
     <datalist id="vigaSuggestions"></datalist>
     <div class="d-lg-none">
       <div class="p-3 border-bottom bg-white">
-        <label class="form-label mb-1">Fecha de operación (obligatoria)</label>
+        <label for="globalFechaOperacion" class="form-label mb-1">Fecha de operación (obligatoria)</label>
         <input id="globalFechaOperacion" class="form-control" type="date" required>
         <div class="text-muted small mt-1">Esta fecha se usa para registrar el cambio.</div>
       </div>
@@ -709,8 +709,8 @@
           <div class="mb-2"><span class="text-muted">Pedido:</span> <strong class="js-viga-codigo"></strong></div>
           <div class="mb-2"><span class="text-muted">Nuevo estado:</span> <strong class="js-viga-estado"></strong></div>
           <div class="mb-3"><span class="text-muted">Fecha:</span> <strong class="js-viga-fecha"></strong></div>
-          <label class="form-label">Comentario (opcional)</label>
-          <textarea class="form-control" name="comentario_modal" rows="2" placeholder="Ej.: Observación rápida"></textarea>
+          <label for="campo-comentario_modal" class="form-label">Comentario (opcional)</label>
+          <textarea id="campo-comentario_modal" class="form-control" name="comentario_modal" rows="2" placeholder="Ej.: Observación rápida"></textarea>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary js-cancel" data-bs-dismiss="modal">Cancelar</button>
@@ -734,11 +734,11 @@
           <div class="modal-body">
             {% csrf_token %}
             <div class="mb-3">
-              <label class="form-label">Fecha de operación</label>
+              <label for="statusModalFecha" class="form-label">Fecha de operación</label>
               <input id="statusModalFecha" class="form-control" type="date" name="fecha_operacion" required>
             </div>
             <div class="mb-3">
-              <label class="form-label">Nuevo estado</label>
+              <label for="statusModalEstado" class="form-label">Nuevo estado</label>
               <select id="statusModalEstado" class="form-select" name="estado_nuevo" required>
                 {% for e in estados_operables %}
                   <option value="{{ e }}">{{ e }}</option>
@@ -746,7 +746,7 @@
               </select>
             </div>
             <div class="mb-3" id="statusMotivoWrap" style="display:none;">
-              <label class="form-label">Motivo del retroceso</label>
+              <label for="statusModalMotivo" class="form-label">Motivo del retroceso</label>
               <select id="statusModalMotivo" class="form-select" name="motivo_retroceso">
                 <option value="">Seleccionar…</option>
                 <option value="error_dedo">Error de dedo</option>
@@ -755,7 +755,7 @@
               <div class="text-muted small mt-1">Solo aplica cuando regresas un pedido a una etapa anterior.</div>
             </div>
             <div class="mb-0">
-              <label class="form-label">Comentario (opcional)</label>
+              <label for="statusModalComentario" class="form-label">Comentario (opcional)</label>
               <textarea id="statusModalComentario" class="form-control" name="comentario" rows="2" placeholder="Ej.: Observación rápida"></textarea>
             </div>
           </div>
@@ -782,11 +782,11 @@
           <div class="modal-body">
             {% csrf_token %}
             <div class="mb-3">
-              <label class="form-label">Fecha compromiso</label>
+              <label for="metaModalFecha" class="form-label">Fecha compromiso</label>
               <input id="metaModalFecha" class="form-control" type="date" name="fecha_compromiso" required>
             </div>
             <div class="mb-0">
-              <label class="form-label">Prioridad</label>
+              <label for="metaModalPrioridad" class="form-label">Prioridad</label>
               <select id="metaModalPrioridad" class="form-select" name="prioridad" required>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -828,15 +828,15 @@
                 </div>
               </div>
               <div class="col-12 col-md-4">
-                <label class="form-label">Soldadas</label>
+                <label for="avanceModalSold" class="form-label">Soldadas</label>
                 <input id="avanceModalSold" class="form-control" type="number" name="cantidad_soldada" min="0" step="1">
               </div>
               <div class="col-12 col-md-4">
-                <label class="form-label">Pintadas</label>
+                <label for="avanceModalPint" class="form-label">Pintadas</label>
                 <input id="avanceModalPint" class="form-control" type="number" name="cantidad_pintada" min="0" step="1">
               </div>
               <div class="col-12 col-md-4">
-                <label class="form-label">Terminadas</label>
+                <label for="avanceModalTerm" class="form-label">Terminadas</label>
                 <input id="avanceModalTerm" class="form-control" type="number" name="cantidad_terminada" min="0" step="1">
               </div>
               <div class="col-12">

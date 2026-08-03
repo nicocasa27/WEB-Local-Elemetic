@@ -36,8 +36,8 @@
     <div class="card-body">
       <form class="row g-2 align-items-end" method="get">
         <div class="col-12 col-md-4">
-          <label class="form-label">Semana (elige cualquier día)</label>
-          <input class="form-control" type="date" name="week_start" value="{{ week_selected_start }}">
+          <label for="campo-week_start" class="form-label">Semana (elige cualquier día)</label>
+          <input id="campo-week_start" class="form-control" type="date" name="week_start" value="{{ week_selected_start }}">
           <div class="form-text">{{ week_start }} → {{ week_end }}</div>
         </div>
         <div class="col-12 col-md-2 d-grid">

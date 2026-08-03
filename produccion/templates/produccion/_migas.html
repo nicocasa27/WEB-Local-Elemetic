@@ -1,0 +1,20 @@
+{% comment %}
+  Dónde estoy y cómo subo un nivel.
+
+  Las arma produccion/context_processors.py a partir de la sección, así que
+  aparecen en todas las pantallas sin que cada una tenga que acordarse. Lo
+  que había antes eran treinta variantes de «Volver» con el destino escrito a
+  mano, que a menudo te sacaban de donde estabas.
+{% endcomment %}
+{% if migas %}
+  <nav class="mes-migas" aria-label="Ruta de navegación">
+    <ol class="breadcrumb">
+      {% for m in migas %}
+        <li class="breadcrumb-item {% if forloop.last %}active{% endif %}"
+            {% if forloop.last %}aria-current="page"{% endif %}>
+          {% if m.url %}<a href="{{ m.url }}">{{ m.texto }}</a>{% else %}{{ m.texto }}{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </nav>
+{% endif %}
