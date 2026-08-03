@@ -1,0 +1,14 @@
+# Normalizar finales de línea a LF dentro del repositorio.
+# El proyecto nació en Windows y quedó con archivos mezclados CRLF/LF, lo que
+# hacía que cualquier edición produjera diffs del archivo completo.
+* text=auto eol=lf
+
+# Binarios: no tocar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.xlsx binary
+*.dxf binary
+*.sqlite3 binary
+*.dump binary
