@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% block title %}Taller Elemetic - {{ proyecto.nombre }}{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -36,14 +37,14 @@
               <td class="text-muted">{{ v.pieza_no }}/{{ v.total_piezas }}</td>
               <td>{{ v.fecha_compromiso|date:"Y-m-d" }}</td>
               <td>
-                <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg {{ v.estado|estado_clase }}">{{ v.estado }}</span>
               </td>
               <td>
                 <div class="d-flex align-items-center justify-content-between">
                   <div class="text-muted small">{{ v.avance_pct }}%</div>
                 </div>
                 <div class="progress" style="height: 8px;">
-                  <div class="progress-bar js-avance js-bg" role="progressbar" data-pct="{{ v.avance_css }}" data-color="{{ v.estado_color }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ v.avance_css }}" style="width: 0%; transition: width .45s ease;">
+                  <div class="progress-bar js-avance js-bg {{ v.estado|estado_clase }}" role="progressbar" data-pct="{{ v.avance_css }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ v.avance_css }}" style="width: 0%; transition: width .45s ease;">
                     <span class="visually-hidden">{{ v.avance_pct }}%</span>
                   </div>
                 </div>

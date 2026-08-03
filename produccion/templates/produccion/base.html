@@ -9,121 +9,14 @@
     {# Servidos desde el propio equipo: el taller trabaja sin internet. #}
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
-    <style>
-      :root {
-        --argon-bg: #f8f9fe;
-        --argon-primary: #5e72e4;
-        --argon-dark: #172b4d;
-        --argon-soft: #e9ecef;
-        --section-accent: var(--argon-primary);
-        --section-accent-dark: #324cdd;
-        --section-on-accent: #fff;
-      }
-      body[data-section="corta"] { --section-accent: #d35400; --section-accent-dark: #b04a00; --section-on-accent: #fff; }
-      body[data-section="corte"] { --section-accent: #f1c40f; --section-accent-dark: #c9a007; --section-on-accent: #111; }
-      body[data-section="soldadura"] { --section-accent: #3498db; --section-accent-dark: #2c81ba; --section-on-accent: #fff; }
-      body[data-section="robotica"] { --section-accent: #8e44ad; --section-accent-dark: #763993; --section-on-accent: #fff; }
-      body[data-section="herreria"] { --section-accent: #2ecc71; --section-accent-dark: #25a95d; --section-on-accent: #fff; }
-      body[data-section="reportes"] { --section-accent: #6c757d; --section-accent-dark: #545b62; --section-on-accent: #fff; }
-      html, body { overflow-x: hidden; }
-      body { background: var(--argon-bg); }
-      .navbar-argon {
-        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
-      }
-      .navbar-argon .navbar-brand, .navbar-argon .nav-link { color: #fff !important; }
-      .content-wrap { padding-top: 1.25rem; padding-bottom: 2.5rem; }
-      .app-shell { min-height: 100vh; width: 100%; }
-      .app-main { min-width: 0; width: 100%; margin-left: 0; }
-      .sidebar-submenu .btn { min-height: 42px; }
-      @media (max-width: 767.98px) {
-        .content-wrap { padding-left: .75rem; padding-right: .75rem; }
-      }
-      .mobile-topbar {
-        position: sticky;
-        top: 0;
-        z-index: 1020;
-        background: var(--argon-bg);
-        border-bottom: 1px solid rgba(0,0,0,.06);
-      }
-      .mobile-topbar .brand-mark { box-shadow: none; padding: 0; background: transparent; }
-      .mobile-topbar .brand-mark img { height: 26px; }
-      .mobile-topbar a.d-flex > img[src$="produccion/elemetic.png"][alt="Elemetic"] { width: 30px; }
-      .sidebar-offcanvas {
-        --bs-offcanvas-width: min(86vw, 320px);
-        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
-        color: #fff;
-      }
-      .sidebar-offcanvas .offcanvas-header {
-        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
-        color: #fff;
-      }
-      .sidebar-offcanvas .btn-close { filter: invert(1); }
-      .sidebar-offcanvas .btn { min-height: 44px; }
-      @media (max-width: 767.98px) {
-        .sidebar-offcanvas { --bs-offcanvas-width: min(86vw, 360px); }
-      }
-      .sidebar-offcanvas .btn-outline-secondary { color: #fff; border-color: rgba(255,255,255,.65); }
-      .sidebar-offcanvas .btn-outline-secondary:hover { color: #fff; border-color: rgba(255,255,255,.85); background: rgba(255,255,255,.12); }
-      .sidebar-offcanvas .btn-outline-secondary i { color: #fff; }
-      .card { border: 0; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15); }
-      .card { border-top: 3px solid var(--section-accent); }
-      .card-header { background: #fff; border-bottom: 1px solid rgba(0,0,0,.05); }
-      .badge-soft { background: rgba(0, 0, 0, .05); color: var(--section-accent-dark); }
-      .table thead th { color: #8898aa; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid rgba(0,0,0,.05); }
-      .table td { vertical-align: middle; }
-      .btn-argon { background: var(--section-accent); border-color: var(--section-accent); color: var(--section-on-accent); }
-      .btn-argon:hover { background: var(--section-accent-dark); border-color: var(--section-accent-dark); color: var(--section-on-accent); }
-      .btn-outline-light.bg-white { color: #000 !important; }
-      .btn-outline-light.bg-white i { color: #000 !important; }
-      .kpi { font-size: 1.4rem; font-weight: 800; color: var(--argon-dark); }
-      .kpi-unit { font-size: .85rem; font-weight: 800; color: #8898aa; margin-left: .35rem; }
-      .kpi-label { color: var(--section-accent-dark); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
-      .offcanvas-argon .offcanvas-header { background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%); color: #fff; }
-      .offcanvas-argon .btn-close { filter: invert(1); }
-      .brand-logo { display: inline-flex; align-items: center; gap: .5rem; }
-      .brand-mark { background: rgba(255,255,255,.95); border-radius: .5rem; padding: .2rem .4rem; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
-      .brand-mark img { height: 26px; width: auto; display: block; }
-      .table-sm td, .table-sm th { font-size: .9rem; }
-      @media (max-width: 991.98px) {
-        input, select, textarea,
-        .form-control, .form-select {
-          font-size: 16px !important;
-        }
-      }
-      @media (min-width: 768px) and (max-width: 1399.98px) {
-        .js-action-wrap {
-          gap: .5rem !important;
-        }
-        .js-action-wrap form {
-          margin: 0;
-        }
-        .js-action-wrap .btn,
-        .js-action-buttons .btn {
-          padding: .55rem .7rem;
-          min-height: 44px;
-          min-width: 44px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .js-action-wrap .bi,
-        .js-action-buttons .bi {
-          font-size: 1.1rem;
-        }
-      }
-    </style>
+    <link href="{% static 'css/mes.css' %}" rel="stylesheet">
   </head>
-  <body
-    {% with rm=request.resolver_match %}
-      {% if rm.app_name == "catalogos" and rm.url_name == "corte_laser_control" %}data-section="corta"
-      {% elif rm.app_name == "produccion" and rm.url_name == "area_corte" %}data-section="corte"
-      {% elif rm.app_name == "produccion" and rm.url_name == "area_soldadura" %}data-section="soldadura"
-      {% elif rm.app_name == "catalogos" and rm.url_name == "robotica" %}data-section="robotica"
-      {% elif rm.app_name == "catalogos" and rm.url_name == "herreria_control" %}data-section="herreria"
-      {% elif rm.app_name == "produccion" and rm.url_name == "dashboard" %}data-section="reportes"
-      {% endif %}
-    {% endwith %}
-  >
+  {% comment %}
+    La sección la resuelve produccion/context_processors.py para todas las
+    rutas. Antes era una cadena de seis condiciones aquí dentro, y las otras
+    cuarenta pantallas se quedaban sin color de área.
+  {% endcomment %}
+  <body data-section="{{ seccion }}" data-url-login="{% url 'login' %}">
     <div class="app-shell {% block shell_class %}{% endblock %}">
       {% block navbar %}
         {% if not embedded %}
@@ -438,92 +331,7 @@
     </div>
     <script src="{% static 'vendor/qrcode/qrcode.min.js' %}"></script>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script>
-      const shareCanvasEl = document.getElementById("shareCanvas");
-      const shareQrEl = document.getElementById("shareQr");
-      const shareUrlInput = document.getElementById("shareUrl");
-      const copyShareUrlBtn = document.getElementById("copyShareUrl");
-      let shareQrInstance = null;
-
-      function getBaseUrl() {
-        return window.location.origin + "{% url 'login' %}";
-      }
-
-      function renderShareQr() {
-        const url = getBaseUrl();
-        shareUrlInput.value = url;
-        shareQrEl.innerHTML = "";
-        shareQrInstance = new QRCode(shareQrEl, {
-          text: url,
-          width: 220,
-          height: 220,
-          correctLevel: QRCode.CorrectLevel.M,
-        });
-      }
-
-      if (shareCanvasEl && shareQrEl && shareUrlInput && copyShareUrlBtn) {
-        shareCanvasEl.addEventListener("shown.bs.offcanvas", () => {
-          renderShareQr();
-        });
-
-        copyShareUrlBtn.addEventListener("click", async () => {
-          try {
-            await navigator.clipboard.writeText(shareUrlInput.value);
-            copyShareUrlBtn.textContent = "Copiado";
-            setTimeout(() => (copyShareUrlBtn.textContent = "Copiar"), 1200);
-          } catch (e) {
-            shareUrlInput.select();
-            document.execCommand("copy");
-          }
-        });
-      }
-
-      const scrollKey = () => `scroll:${window.location.pathname}${window.location.search}`;
-      function saveScrollFor(url) {
-        try {
-          const k = `scroll:${url.pathname}${url.search}`;
-          sessionStorage.setItem(k, String(window.scrollY || 0));
-        } catch (e) {}
-      }
-      document.addEventListener("submit", (e) => {
-        const form = e.target;
-        if (!form || form.tagName !== "FORM") return;
-        const nextEl = form.querySelector('input[name="next"]');
-        const nextVal = nextEl ? (nextEl.value || "").trim() : "";
-        if (nextVal && nextVal.startsWith("/")) {
-          saveScrollFor(new URL(nextVal, window.location.origin));
-        } else {
-          saveScrollFor(new URL(window.location.href));
-        }
-      }, true);
-      document.addEventListener("click", (e) => {
-        const a = e.target && e.target.closest ? e.target.closest("a") : null;
-        if (!a) return;
-        const href = (a.getAttribute("href") || "").trim();
-        if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
-        try {
-          const u = new URL(href, window.location.href);
-          if (u.origin === window.location.origin) saveScrollFor(u);
-        } catch (err) {}
-      }, true);
-      window.addEventListener("DOMContentLoaded", () => {
-        try {
-          const k = scrollKey();
-          const v = sessionStorage.getItem(k);
-          if (v !== null) {
-            sessionStorage.removeItem(k);
-            const y = parseInt(v, 10);
-            if (!Number.isNaN(y) && y > 0) window.scrollTo(0, y);
-          }
-        } catch (e) {}
-
-        document.querySelectorAll(".toast").forEach((el) => {
-          try {
-            bootstrap.Toast.getOrCreateInstance(el).show();
-          } catch (e) {}
-        });
-      });
-    </script>
+    <script src="{% static 'js/mes-base.js' %}"></script>
     {% block extra_scripts %}{% endblock %}
   </body>
 </html>

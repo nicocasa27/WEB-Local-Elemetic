@@ -25,6 +25,7 @@ from openpyxl.utils import get_column_letter
 from produccion.models import ESTADOS, Viga
 
 from core.excepciones import ErrorDeDominio
+from core.estados import clase as clase_de_estado
 from core.servicios import almacen as servicio_almacen
 from core.servicios import cierres as servicio_cierres
 
@@ -4062,6 +4063,7 @@ def herreria_change_status_json(request, pk: int):
             "id": int(orden.id),
             "estado": estado_nuevo,
             "estado_color": status_colors.get(estado_nuevo, "#8898aa"),
+            "estado_clase": clase_de_estado(estado_nuevo),
             "next_estado": next_estado,
             "ultimo_mov": ultimo_mov,
         }
@@ -6185,6 +6187,7 @@ def corte_laser_change_status_json(request, pk: int):
             "id": int(orden.id),
             "estado": estado_nuevo,
             "estado_color": status_colors.get(estado_nuevo, "#8898aa"),
+            "estado_clase": clase_de_estado(estado_nuevo),
             "next_estado": next_estado,
             "ultimo_mov": ultimo_mov,
         }

@@ -1,0 +1,272 @@
+/* Sistema de diseño del MES de Elemetic.
+ *
+ * Hasta ahora no existía ni un solo archivo de estilos propio: todo vivía
+ * dentro de las plantillas, en unos cien bloques <style> sueltos. Este archivo
+ * recoge lo que estaba en produccion/base.html y añade lo que faltaba.
+ *
+ * Tres decisiones que conviene no deshacer sin querer:
+ *
+ * 1. **Táctil primero.** Los botones grandes se aplican por defecto y se
+ *    compactan en pantallas anchas. Antes era al revés: la regla estaba en
+ *    `min-width: 768px`, de modo que los botones cómodos existían en la PC de
+ *    la oficina y no en el celular del piso, que es justo donde se usa con
+ *    guantes.
+ *
+ * 2. **Los estados son clases, no colores inyectados.** El color venía en un
+ *    `data-color` y lo pintaba el JavaScript; si el JavaScript no cargaba, la
+ *    etiqueta quedaba blanca sobre blanco y el estado de la orden
+ *    desaparecía. Ahora el color lo pone esta hoja.
+ *
+ * 3. **Un solo acento por sección**, en `--section-accent`. El color de área
+ *    lo decide el servidor (produccion/context_processors.py), no una cadena
+ *    de `{% elif %}` en la plantilla.
+ */
+
+/* ============================================================== fichas */
+
+:root {
+  /* Marca */
+  --argon-bg: #f8f9fe;
+  --argon-primary: #5e72e4;
+  --argon-primary-2: #825ee4;
+  --argon-dark: #172b4d;
+  --argon-soft: #e9ecef;
+  --argon-muted: #8898aa;
+
+  /* Acento de la sección. Lo sobreescribe body[data-section]. */
+  --section-accent: var(--argon-primary);
+  --section-accent-dark: #324cdd;
+  --section-on-accent: #fff;
+
+  /* Superficie */
+  --mes-card-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15);
+  --mes-hairline: rgba(0, 0, 0, .05);
+  --mes-radius: .5rem;
+
+  /* Tamaño mínimo de un objetivo táctil. 44px es lo que se puede pulsar con
+   * el dedo, y con guantes de soldador es el mínimo que funciona. */
+  --mes-touch: 44px;
+  --mes-touch-grande: 56px;
+
+  /* Semáforo */
+  --mes-ok: #2dce89;
+  --mes-aviso: #fb6340;
+  --mes-error: #f5365c;
+  --mes-info: #11cdef;
+}
+
+/* ====================================================== acento por área */
+
+body[data-section="estructuras"] { --section-accent: #5e72e4; --section-accent-dark: #324cdd; --section-on-accent: #fff; }
+body[data-section="corta"]       { --section-accent: #d35400; --section-accent-dark: #b04a00; --section-on-accent: #fff; }
+body[data-section="corte"]       { --section-accent: #f1c40f; --section-accent-dark: #c9a007; --section-on-accent: #111; }
+body[data-section="soldadura"]   { --section-accent: #3498db; --section-accent-dark: #2c81ba; --section-on-accent: #fff; }
+body[data-section="robotica"]    { --section-accent: #8e44ad; --section-accent-dark: #763993; --section-on-accent: #fff; }
+body[data-section="herreria"]    { --section-accent: #2ecc71; --section-accent-dark: #25a95d; --section-on-accent: #fff; }
+body[data-section="pedidos"]     { --section-accent: #11cdef; --section-accent-dark: #0da5c0; --section-on-accent: #fff; }
+body[data-section="paros"]       { --section-accent: #f5365c; --section-accent-dark: #c62a49; --section-on-accent: #fff; }
+body[data-section="reportes"]    { --section-accent: #6c757d; --section-accent-dark: #545b62; --section-on-accent: #fff; }
+body[data-section="configuracion"] { --section-accent: #344767; --section-accent-dark: #233252; --section-on-accent: #fff; }
+
+/* ============================================================ estructura */
+
+html, body { overflow-x: hidden; }
+body { background: var(--argon-bg); }
+
+.app-shell { min-height: 100vh; width: 100%; }
+.app-main { min-width: 0; width: 100%; margin-left: 0; }
+.content-wrap { padding-top: 1.25rem; padding-bottom: 2.5rem; }
+
+@media (max-width: 767.98px) {
+  .content-wrap { padding-left: .75rem; padding-right: .75rem; }
+}
+
+/* ========================================================== navegación */
+
+.navbar-argon {
+  background: linear-gradient(87deg, var(--argon-primary) 0, var(--argon-primary-2) 100%);
+}
+.navbar-argon .navbar-brand,
+.navbar-argon .nav-link { color: #fff !important; }
+
+.mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  background: var(--argon-bg);
+  border-bottom: 1px solid rgba(0, 0, 0, .06);
+}
+.mobile-topbar .brand-mark { box-shadow: none; padding: 0; background: transparent; }
+.mobile-topbar .brand-mark img { height: 26px; }
+.mobile-topbar a.d-flex > img[src$="produccion/elemetic.png"][alt="Elemetic"] { width: 30px; }
+
+.sidebar-offcanvas {
+  --bs-offcanvas-width: min(86vw, 320px);
+  background: linear-gradient(87deg, var(--argon-primary) 0, var(--argon-primary-2) 100%);
+  color: #fff;
+}
+.sidebar-offcanvas .offcanvas-header {
+  background: linear-gradient(87deg, var(--argon-primary) 0, var(--argon-primary-2) 100%);
+  color: #fff;
+}
+.sidebar-offcanvas .btn-close { filter: invert(1); }
+.sidebar-offcanvas .btn { min-height: var(--mes-touch); }
+.sidebar-offcanvas .btn-outline-secondary { color: #fff; border-color: rgba(255, 255, 255, .65); }
+.sidebar-offcanvas .btn-outline-secondary:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .85);
+  background: rgba(255, 255, 255, .12);
+}
+.sidebar-offcanvas .btn-outline-secondary i { color: #fff; }
+.sidebar-submenu .btn { min-height: 42px; }
+
+@media (max-width: 767.98px) {
+  .sidebar-offcanvas { --bs-offcanvas-width: min(86vw, 360px); }
+}
+
+.offcanvas-argon .offcanvas-header {
+  background: linear-gradient(87deg, var(--argon-primary) 0, var(--argon-primary-2) 100%);
+  color: #fff;
+}
+.offcanvas-argon .btn-close { filter: invert(1); }
+
+.brand-logo { display: inline-flex; align-items: center; gap: .5rem; }
+.brand-mark {
+  background: rgba(255, 255, 255, .95);
+  border-radius: var(--mes-radius);
+  padding: .2rem .4rem;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
+}
+.brand-mark img { height: 26px; width: auto; display: block; }
+
+/* Migas de pan: dónde estoy y cómo subo un nivel. */
+.mes-migas {
+  font-size: .85rem;
+  padding: .35rem 0 .1rem;
+}
+.mes-migas .breadcrumb { margin-bottom: .25rem; }
+.mes-migas a { color: var(--section-accent-dark); text-decoration: none; }
+.mes-migas a:hover { text-decoration: underline; }
+
+/* ============================================================= tarjetas */
+
+.card {
+  border: 0;
+  border-top: 3px solid var(--section-accent);
+  box-shadow: var(--mes-card-shadow);
+}
+.card-header { background: #fff; border-bottom: 1px solid var(--mes-hairline); }
+
+.badge-soft { background: rgba(0, 0, 0, .05); color: var(--section-accent-dark); }
+
+.table thead th {
+  color: var(--argon-muted);
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--mes-hairline);
+}
+.table td { vertical-align: middle; }
+.table-sm td, .table-sm th { font-size: .9rem; }
+
+.btn-argon {
+  background: var(--section-accent);
+  border-color: var(--section-accent);
+  color: var(--section-on-accent);
+}
+.btn-argon:hover {
+  background: var(--section-accent-dark);
+  border-color: var(--section-accent-dark);
+  color: var(--section-on-accent);
+}
+.btn-outline-light.bg-white { color: #000 !important; }
+.btn-outline-light.bg-white i { color: #000 !important; }
+
+.kpi { font-size: 1.4rem; font-weight: 800; color: var(--argon-dark); }
+.kpi-unit { font-size: .85rem; font-weight: 800; color: var(--argon-muted); margin-left: .35rem; }
+.kpi-label {
+  color: var(--section-accent-dark);
+  font-weight: 600;
+  font-size: .85rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ====================================================== estados de orden
+ *
+ * Los mismos colores que core/estados.py. Están en los dos sitios porque el
+ * servidor también los necesita para el HTML que se exporta y para las
+ * gráficas; tests/test_diseno.py comprueba que no se separen.
+ */
+
+.est-espera-corte     { background-color: #ff8f00; color: #fff; }
+.est-corte            { background-color: #f39c12; color: #fff; }
+.est-espera-armado    { background-color: #d35400; color: #fff; }
+.est-armado           { background-color: #3498db; color: #fff; }
+.est-espera-soldadura { background-color: #5d6d7e; color: #fff; }
+.est-soldadura        { background-color: #9b59b6; color: #fff; }
+.est-espera-pintura   { background-color: #7f8c8d; color: #fff; }
+.est-pintura          { background-color: #16a085; color: #fff; }
+.est-cierre-pendiente { background-color: #fb6340; color: #fff; }
+.est-terminado        { background-color: #2dce89; color: #fff; }
+.est-enviado          { background-color: #11cdef; color: #fff; }
+.est-desconocido      { background-color: #8898aa; color: #fff; }
+
+/* ======================================================= táctil primero
+ *
+ * Por defecto los objetivos son grandes. En pantallas anchas —donde se usa
+ * ratón y caben más filas— se compactan. Antes esta regla estaba escrita al
+ * revés y el celular era el que se quedaba con los botones pequeños.
+ */
+
+.js-action-wrap { gap: .5rem; }
+.js-action-wrap form { margin: 0; }
+
+.js-action-wrap .btn,
+.js-action-buttons .btn {
+  min-height: var(--mes-touch);
+  min-width: var(--mes-touch);
+  padding: .55rem .7rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.js-action-wrap .bi,
+.js-action-buttons .bi { font-size: 1.1rem; }
+
+/* El zoom automático de iOS al enfocar un campo de menos de 16px descoloca
+ * toda la pantalla y obliga a volver a encuadrar con los dedos. */
+@media (max-width: 991.98px) {
+  input, select, textarea,
+  .form-control, .form-select { font-size: 16px !important; }
+}
+
+/* Ratón y pantalla ancha: se puede apretar la interfaz. */
+@media (min-width: 1400px) {
+  .js-action-wrap .btn,
+  .js-action-buttons .btn {
+    min-height: 38px;
+    min-width: 38px;
+    padding: .35rem .6rem;
+  }
+  .js-action-wrap .bi,
+  .js-action-buttons .bi { font-size: 1rem; }
+}
+
+/* ===================================================== ayudas generales */
+
+/* Un contenedor ancho —una tabla, una gráfica— se desplaza dentro de su
+ * caja. Sin esto, la página entera se mueve a los lados en el celular. */
+.mes-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+.mes-oculto-visualmente {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

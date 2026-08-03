@@ -198,3 +198,39 @@ COLOR_POR_DEFECTO = "#8898aa"
 def color(valor):
     """Color de un estado, tolerante con las variantes de escritura."""
     return COLORES.get(normalizar(valor), COLOR_POR_DEFECTO)
+
+
+# -------------------------------------------------------------------- clases
+#
+# El color del estado llegaba a la página en un `data-color` y lo aplicaba el
+# JavaScript. Si el JavaScript no cargaba —y hasta ahora venía de internet—,
+# la etiqueta quedaba con texto blanco sobre fondo blanco: el estado de la
+# orden desaparecía de la pantalla. Con una clase, el color lo pone la hoja de
+# estilos y no hace falta que se ejecute nada.
+
+#: Nombre de clase por estado. Se escriben a mano en vez de derivarlas del
+#: texto para que renombrar una etiqueta no cambie silenciosamente el CSS.
+CLASES = {
+    ESPERA_CORTE: "espera-corte",
+    CORTE: "corte",
+    ESPERA_ARMADO: "espera-armado",
+    ARMADO: "armado",
+    ESPERA_SOLDADURA: "espera-soldadura",
+    SOLDADURA: "soldadura",
+    ESPERA_PINTURA: "espera-pintura",
+    PINTURA: "pintura",
+    CIERRE_PENDIENTE: "cierre-pendiente",
+    TERMINADO: "terminado",
+    ENVIADO: "enviado",
+}
+
+CLASE_POR_DEFECTO = "desconocido"
+
+
+def clase(valor):
+    """Clase CSS del estado, para pintarlo sin JavaScript.
+
+    Un estado que no esté en la lista se pinta gris y se ve: es preferible a
+    que no se vea nada y nadie sepa que falta.
+    """
+    return "est-" + CLASES.get(normalizar(valor), CLASE_POR_DEFECTO)

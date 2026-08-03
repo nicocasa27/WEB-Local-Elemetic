@@ -31,3 +31,17 @@ def hours_hm(value):
     if mm <= 0:
         return f"{hh} h"
     return f"{hh} h {mm} min"
+
+
+@register.filter
+def estado_clase(valor):
+    """Clase CSS del estado de una orden.
+
+    El color venía en un `data-color` y lo aplicaba el JavaScript. Si el
+    JavaScript no cargaba —y hasta la fase anterior venía de internet—, la
+    etiqueta quedaba con texto blanco sobre fondo blanco y el estado de la
+    orden desaparecía de la pantalla. Con esto lo pinta la hoja de estilos.
+    """
+    from core import estados
+
+    return estados.clase(valor)

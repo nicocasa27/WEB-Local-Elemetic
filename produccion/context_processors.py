@@ -1,3 +1,73 @@
+"""Datos que necesitan todas las plantillas.
+
+`user_access` resuelve qué puede ver cada quien; `navegacion` resuelve dónde
+está.
+"""
+
+# ---------------------------------------------------------------- secciones
+#
+# Cada sección tiene su color de acento en produccion/static/css/mes.css. El
+# reparto se hace por el nombre de la ruta, que ya viene con un prefijo
+# limpio, en vez de enumerarlas una por una.
+#
+# Antes esto era una cadena de seis `{% elif %}` dentro de la plantilla, así
+# que unas cuarenta pantallas se quedaban sin acento y navegar de Herrería
+# (verde) a «Órdenes de herrería» cambiaba el color de la aplicación sin que
+# hubiera pasado nada.
+
+#: Rutas concretas, cuando el prefijo no basta.
+SECCION_POR_RUTA = {
+    "area_corte": "corte",
+    "area_soldadura": "soldadura",
+    "solo_lectura_robotica": "robotica",
+    "solo_lectura_herreria": "herreria",
+    "solo_lectura_corte_laser": "corta",
+    "solo_lectura_produccion": "estructuras",
+    "logistica_corta": "corta",
+    "proyectos": "configuracion",
+    "proyecto_detalle": "configuracion",
+    "equipos": "configuracion",
+    "maquinas": "configuracion",
+}
+
+#: Prefijos del nombre de la ruta, del más específico al más general. El orden
+#: importa: "corte_laser_" tiene que mirarse antes que "corte".
+SECCION_POR_PREFIJO = [
+    ("corte_laser", "corta"),
+    ("corta_", "corta"),
+    ("herreria", "herreria"),
+    ("robotica", "robotica"),
+    ("robot_", "robotica"),
+    ("viga", "estructuras"),
+    ("export_vigas", "estructuras"),
+    ("pedidos_", "pedidos"),
+    ("dashboard", "reportes"),
+    ("paros", "paros"),
+    ("equipo_", "configuracion"),
+    ("colaborador_", "configuracion"),
+    ("maquina_", "configuracion"),
+    ("configuracion", "configuracion"),
+]
+
+
+def seccion_de(nombre_ruta):
+    """Sección a la que pertenece una ruta, o cadena vacía."""
+    nombre = (nombre_ruta or "").strip()
+    if not nombre:
+        return ""
+    if nombre in SECCION_POR_RUTA:
+        return SECCION_POR_RUTA[nombre]
+    for prefijo, seccion in SECCION_POR_PREFIJO:
+        if nombre.startswith(prefijo):
+            return seccion
+    return ""
+
+
+def navegacion(request):
+    resuelta = getattr(request, "resolver_match", None)
+    return {"seccion": seccion_de(getattr(resuelta, "url_name", ""))}
+
+
 def user_access(request):
     user = getattr(request, "user", None)
     is_auth = bool(user and getattr(user, "is_authenticated", False))

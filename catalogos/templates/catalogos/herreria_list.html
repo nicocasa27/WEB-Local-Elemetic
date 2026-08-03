@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% load l10n %}
 {% block title %}Taller Elemetic - Herrería{% endblock %}
 {% block content %}
@@ -238,7 +239,7 @@
               </div>
               <div class="text-end">
                 <div class="text-muted small">Estado actual</div>
-                <span class="badge text-white js-bg px-3 py-2" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg px-3 py-2 {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
               </div>
             </div>
@@ -282,7 +283,7 @@
                   <input type="hidden" name="fecha_operacion" value="">
                   <input type="hidden" name="comentario" value="">
                   <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="btn text-white btn-lg js-next-btn" data-color="{{ v.estado_color }}">
+                  <button type="submit" class="btn text-white btn-lg js-next-btn {{ v.estado|estado_clase }}">
                     <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
                   </button>
                 </form>
@@ -419,7 +420,7 @@
               </div>
               <div class="text-end">
                 <div class="text-muted small">Estado actual</div>
-                <span class="badge text-white js-bg px-3 py-2" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg px-3 py-2 {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
               </div>
             </div>
@@ -463,7 +464,7 @@
                   <input type="hidden" name="fecha_operacion" value="">
                   <input type="hidden" name="comentario" value="">
                   <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="btn text-white btn-lg js-next-btn" data-color="{{ v.estado_color }}">
+                  <button type="submit" class="btn text-white btn-lg js-next-btn {{ v.estado|estado_clase }}">
                     <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
                   </button>
                 </form>
@@ -611,7 +612,7 @@
               </div>
               <div class="text-end">
                 <div class="text-muted small">Estado actual</div>
-                <span class="badge text-white js-bg px-3 py-2" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg px-3 py-2 {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
               </div>
             </div>
@@ -655,7 +656,7 @@
                   <input type="hidden" name="fecha_operacion" value="">
                   <input type="hidden" name="comentario" value="">
                   <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="btn text-white btn-lg js-next-btn" data-color="{{ v.estado_color }}">
+                  <button type="submit" class="btn text-white btn-lg js-next-btn {{ v.estado|estado_clase }}">
                     <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
                   </button>
                 </form>
@@ -824,7 +825,7 @@
                   <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
                 </td>
                 <td>
-                  <span class="badge text-white js-bg js-estado-badge" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                  <span class="badge text-white js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                   <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
                 </td>
                 <td class="text-end">
@@ -969,7 +970,7 @@
                   <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
                 </td>
                 <td>
-                  <span class="badge text-white js-bg js-estado-badge" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                  <span class="badge text-white js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                   <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
                 </td>
                 <td class="text-end">
@@ -1095,7 +1096,7 @@
                   <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
                 </td>
                 <td>
-                  <span class="badge text-white js-bg js-estado-badge" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                  <span class="badge text-white js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                   <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
                 </td>
                 <td class="text-end">
@@ -1908,20 +1909,16 @@
       }
     }
 
-    function updateVigaUI(vid, estado, color, nextEstado, ultimoMov) {
+    function updateVigaUI(vid, estado, claseEstado, nextEstado, ultimoMov) {
       document.querySelectorAll(`.js-viga-item[data-viga='${vid}']`).forEach((container) => {
+        // El color va en la clase, no en un estilo suelto: así el estado se
+        // ve igual aunque este script no llegue a correr.
         container.querySelectorAll(".js-bg").forEach((b) => {
           b.textContent = estado;
-          b.setAttribute("data-color", color || "");
-          if (color) b.style.background = color;
+          window.MES.aplicarClaseDeEstado(b, claseEstado);
         });
         container.querySelectorAll(".js-next-btn").forEach((btn) => {
-          const c = color || btn.getAttribute("data-color") || "";
-          if (c) {
-            btn.style.background = c;
-            btn.style.borderColor = c;
-            btn.setAttribute("data-color", c);
-          }
+          window.MES.aplicarClaseDeEstado(btn, claseEstado);
         });
         if (ultimoMov) {
           container.querySelectorAll(".js-ultimo-mov").forEach((el) => {
@@ -1939,17 +1936,6 @@
       fechaInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
-    document.querySelectorAll(".js-bg").forEach((el) => {
-      const c = el.getAttribute("data-color");
-      if (c) el.style.background = c;
-    });
-    document.querySelectorAll(".js-next-btn").forEach((el) => {
-      const c = el.getAttribute("data-color");
-      if (c) {
-        el.style.background = c;
-        el.style.borderColor = c;
-      }
-    });
 
     document.querySelectorAll("form.js-require-fecha").forEach((form) => {
       form.addEventListener("submit", (e) => {

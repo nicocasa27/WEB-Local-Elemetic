@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% block title %}Taller Elemetic - Herrería Control{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -69,7 +70,7 @@
                 <td class="text-muted">{{ o.descripcion|default:o.nombre }}</td>
                 <td class="text-muted">{{ o.creado_en|date:"Y-m-d" }}</td>
                 <td>
-                  <span class="badge text-white js-bg js-estado-badge" data-color="{{ o.estado_color }}">{{ o.estado_etapa }}</span>
+                  <span class="badge text-white js-bg js-estado-badge {{ o.estado_etapa|estado_clase }}">{{ o.estado_etapa }}</span>
                 </td>
                 <td class="text-end">{{ o.kg|floatformat:2 }}</td>
                 <td class="text-end">
@@ -269,19 +270,11 @@
     </div>
   </div>
 
-  {{ status_colors|json_script:"statusColors" }}
 {% endblock %}
 
 {% block extra_scripts %}
   {{ block.super }}
   <script>
-    const colorsEl = document.getElementById("statusColors");
-    const colors = colorsEl ? JSON.parse(colorsEl.textContent) : {};
-    document.querySelectorAll(".js-bg").forEach((el) => {
-      const raw = (el.getAttribute("data-color") || "").trim();
-      const c = raw || colors[(el.textContent || "").trim()] || "";
-      if (c) el.style.background = c;
-    });
 
     function getCookie(name) {
       const v = `; ${document.cookie}`;
@@ -313,8 +306,9 @@
           const badge = row.querySelector(".js-estado-badge");
           if (badge) {
             badge.textContent = data.estado || "";
-            badge.setAttribute("data-color", data.estado_color || "");
-            if (data.estado_color) badge.style.background = data.estado_color;
+            // El color va en la clase, no en un estilo suelto: así la
+            // etiqueta se ve igual aunque este script no llegue a correr.
+            window.MES.aplicarClaseDeEstado(badge, data.estado_clase);
           }
           const btn = row.querySelector(".js-open-status-modal");
           if (btn) btn.setAttribute("data-estado", data.estado || "");

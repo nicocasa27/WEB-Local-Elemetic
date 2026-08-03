@@ -31,6 +31,7 @@ try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
     PdfReader = None
+from core.estados import clase as clase_de_estado
 
 from catalogos.models import Proyecto
 from catalogos.models import EquipoTrabajo
@@ -2623,6 +2624,7 @@ def viga_change_status_json(request, pk: int):
                 "id": int(viga.internal_id),
                 "estado": cur_estado,
                 "estado_color": STATUS_COLORS.get(cur_estado, "#8898aa"),
+                "estado_clase": clase_de_estado(cur_estado),
                 "next_estado": next_estado,
                 "next_label": next_label,
                 "ultimo_mov": ultimo_mov,
@@ -2685,6 +2687,7 @@ def viga_change_status_json(request, pk: int):
             "id": int(viga.internal_id),
             "estado": viga.estado,
             "estado_color": STATUS_COLORS.get(viga.estado, "#8898aa"),
+            "estado_clase": clase_de_estado(viga.estado),
             "next_estado": next_estado,
             "next_label": next_label,
             "ultimo_mov": ultimo_mov,

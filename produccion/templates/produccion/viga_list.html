@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% block title %}Taller Elemetic - Producción{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -116,7 +117,7 @@
               </div>
               <div class="text-end">
                 <div class="text-muted small">Estado actual</div>
-                <span class="badge text-white js-bg js-estado-badge px-3 py-2" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg js-estado-badge px-3 py-2 {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
               </div>
             </div>
@@ -136,7 +137,7 @@
                   <input type="hidden" name="fecha_operacion" value="">
                   <input type="hidden" name="comentario" value="">
                   <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="btn text-white btn-lg js-next-btn" data-color="{{ v.estado_color }}">
+                  <button type="submit" class="btn text-white btn-lg js-next-btn {{ v.estado|estado_clase }}">
                     <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
                   </button>
                 </form>
@@ -264,7 +265,7 @@
                 <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
               </td>
               <td>
-                <span class="badge text-white js-bg js-estado-badge" data-color="{{ v.estado_color }}">
+                <span class="badge text-white js-bg js-estado-badge {{ v.estado|estado_clase }}">
                   {{ v.estado }}
                 </span>
                 <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
@@ -348,7 +349,7 @@
                     <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
                     <div class="text-muted small">{{ v.proyecto }}</div>
                   </div>
-                  <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                  <span class="badge text-white js-bg {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 </div>
                 <div class="d-flex justify-content-between text-muted small mt-2">
                   <div><i class="bi bi-calendar3 me-1"></i> {{ v.enviado_fecha|date:"Y-m-d" }}</div>
@@ -457,7 +458,7 @@
                 <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
                 <div class="text-muted small">{{ v.proyecto }}</div>
               </div>
-              <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+              <span class="badge text-white js-bg {{ v.estado|estado_clase }}">{{ v.estado }}</span>
             </div>
             <div class="d-flex justify-content-between text-muted small mt-2">
               <div><i class="bi bi-calendar3 me-1"></i> {{ v.enviado_fecha|date:"Y-m-d" }}</div>
@@ -575,17 +576,6 @@
       fechaInput.value = `${yyyy}-${mm}-${dd}`;
     }
 
-    document.querySelectorAll(".js-bg").forEach((el) => {
-      const c = el.getAttribute("data-color");
-      if (c) el.style.background = c;
-    });
-    document.querySelectorAll(".js-next-btn").forEach((el) => {
-      const c = el.getAttribute("data-color");
-      if (c) {
-        el.style.background = c;
-        el.style.borderColor = c;
-      }
-    });
 
     document.querySelectorAll("form.js-require-fecha").forEach((form) => {
       form.addEventListener("submit", (e) => {
@@ -842,19 +832,20 @@
           alert((data && data.error) ? data.error : "No se pudo cambiar el estado.");
           return;
         }
-        updateVigaUI(String(data.id), data.estado, data.estado_color, data.next_estado || "", data.ultimo_mov || "", data.next_label || "");
+        updateVigaUI(String(data.id), data.estado, data.estado_clase, data.next_estado || "", data.ultimo_mov || "", data.next_label || "");
       } catch (err) {
         alert("No se pudo cambiar el estado.");
       }
     }
 
-    function updateVigaUI(vid, estado, color, nextEstado, ultimoMov, nextLabel) {
+    function updateVigaUI(vid, estado, claseEstado, nextEstado, ultimoMov, nextLabel) {
       document.querySelectorAll(`.js-viga-item[data-viga='${vid}']`).forEach((container) => {
         const badges = container.querySelectorAll(".js-bg");
         badges.forEach((b) => {
           b.textContent = estado;
-          b.setAttribute("data-color", color || "");
-          if (color) b.style.background = color;
+          // El color va en la clase, no en un estilo suelto: así la etiqueta
+          // se ve igual aunque este script no llegue a correr.
+          window.MES.aplicarClaseDeEstado(b, claseEstado);
         });
         container.querySelectorAll(".js-open-status-modal").forEach((btn) => {
           btn.setAttribute("data-estado", estado);
@@ -873,11 +864,7 @@
           if (nextEstado) {
             if (estadoInput) estadoInput.value = nextEstado;
             if (btn) btn.innerHTML = `<i class=\"bi bi-arrow-right-circle me-1\"></i> Pasar a ${nextEstado}`;
-            if (btn && color) {
-              btn.style.background = color;
-              btn.style.borderColor = color;
-              btn.setAttribute("data-color", color);
-            }
+            window.MES.aplicarClaseDeEstado(btn, claseEstado);
             quickForm.style.display = "";
           } else {
             quickForm.style.display = "none";

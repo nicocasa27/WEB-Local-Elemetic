@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% block title %}Taller Elemetic - Vista global{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -55,7 +56,7 @@
               <td class="fw-semibold">{{ v.proyecto }}</td>
               <td>{{ v.fecha_compromiso|date:"Y-m-d" }}</td>
               <td>
-                <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <span class="badge text-white js-bg {{ v.estado|estado_clase }}">{{ v.estado }}</span>
                 <div class="text-muted small">{{ v.ultimo_mov_str }}</div>
               </td>
               <td class="text-end">{{ v.peso_kg }}</td>
@@ -75,18 +76,10 @@
     </div>
   </div>
 
-  {{ status_colors|json_script:"statusColors" }}
 {% endblock %}
 
 {% block extra_scripts %}
   {{ block.super }}
   <script>
-    const colorsEl = document.getElementById("statusColors");
-    const colors = colorsEl ? JSON.parse(colorsEl.textContent) : {};
-    document.querySelectorAll(".js-bg").forEach((el) => {
-      const raw = (el.getAttribute("data-color") || "").trim();
-      const c = raw || colors[(el.textContent || "").trim()] || "";
-      if (c) el.style.background = c;
-    });
   </script>
 {% endblock %}
