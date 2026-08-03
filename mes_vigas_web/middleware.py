@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger("mes.middleware")
+
+
 class NoStoreAuthenticatedMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -11,6 +16,6 @@ class NoStoreAuthenticatedMiddleware:
                 response.headers["Pragma"] = "no-cache"
                 response.headers["Expires"] = "0"
         except Exception:
-            pass
+            logger.exception("Error ignorado en __call__()")
         return response
 

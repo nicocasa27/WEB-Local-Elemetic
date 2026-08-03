@@ -1,4 +1,5 @@
 import json
+import logging
 import zipfile
 from datetime import datetime, time, timedelta
 from functools import wraps
@@ -22,6 +23,8 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
 from produccion.models import ESTADOS, Viga
+
+logger = logging.getLogger("mes.catalogos")
 
 STATUS_COLORS = {
     "Corte": "#f39c12",
@@ -4836,7 +4839,7 @@ def corte_laser_control(request):
                     LaserOrdenProduccion.objects.filter(id=int(v.id)).update(peso_kg=calc)
                     v.peso_kg = calc
         except Exception:
-            pass
+            logger.exception("Error ignorado en corte_laser_control()")
         estados_flow = estados_op if bool(getattr(v, "es_op", False)) else estados
         try:
             idx = estados_flow.index(v.estado)
@@ -7610,7 +7613,7 @@ def pedidos_logistica(request):
                             if getattr(e, "comprobante_pdf", None):
                                 e.comprobante_pdf.delete(save=False)
                         except Exception:
-                            pass
+                            logger.exception("Error ignorado en pedidos_logistica()")
                     LogisticaEnvioItem.objects.using("mes").filter(envio__pedido_id=int(pedido.id)).delete()
                     LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
                     LogisticaMovimiento.objects.using("mes").filter(pedido_item__pedido_id=int(pedido.id)).delete()
@@ -7999,7 +8002,7 @@ def logistica_corta(request):
                             if getattr(e, "comprobante_pdf", None):
                                 e.comprobante_pdf.delete(save=False)
                         except Exception:
-                            pass
+                            logger.exception("Error ignorado en logistica_corta()")
                     LogisticaMovimientoCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
                     LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
                     LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()
@@ -8040,7 +8043,7 @@ def logistica_corta(request):
                                     if getattr(e, "comprobante_pdf", None):
                                         e.comprobante_pdf.delete(save=False)
                                 except Exception:
-                                    pass
+                                    logger.exception("Error ignorado en logistica_corta()")
                             LogisticaMovimientoCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
                             LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
                             LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()

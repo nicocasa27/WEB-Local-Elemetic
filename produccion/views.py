@@ -1,5 +1,6 @@
 import json
 import csv
+import logging
 import io
 import base64
 import re
@@ -61,6 +62,8 @@ from catalogos.models import WeeklyReportSnapshot
 
 from .forms import StatusChangeForm, VigaBatchCreateForm, VigaForm, VigaImportUploadForm
 from .models import ESTADOS, ProductionLog, Viga
+
+logger = logging.getLogger("mes.produccion")
 
 STATUS_COLORS = {
     "Espera de corte": "#ff8f00",
@@ -651,7 +654,7 @@ def _save_plano_for_vigas(internal_ids, uploaded_file):
             try:
                 plano.archivo_pdf.delete(save=False)
             except Exception:
-                pass
+                logger.exception("Error ignorado en _save_plano_for_vigas()")
         plano.nombre_original = getattr(uploaded_file, "name", "") or ""
         plano.archivo_pdf.save(filename, ContentFile(data), save=True)
 
@@ -665,11 +668,11 @@ def _delete_plano_for_vigas(internal_ids):
             if plano.archivo_pdf:
                 plano.archivo_pdf.delete(save=False)
         except Exception:
-            pass
+            logger.exception("Error ignorado en _delete_plano_for_vigas()")
         try:
             plano.delete()
         except Exception:
-            pass
+            logger.exception("Error ignorado en _delete_plano_for_vigas()")
 
 
 @login_required
@@ -1796,7 +1799,7 @@ def _normalize_row(row, map_, today):
             fecha = datetime.strptime(fecha_txt, fmt).date()
             break
         except Exception:
-            pass
+            logger.exception("Error ignorado en _normalize_row()")
     if not proyecto:
         proyecto = "SIN PROYECTO"
     return {
@@ -1910,7 +1913,7 @@ def _extract_rows_from_lines(lines, config):
                     total_doc = float(m.group(1).replace(",", "."))
                     break
                 except Exception:
-                    pass
+                    logger.exception("Error ignorado en _extract_rows_from_lines()")
 
     num_piezas = None
     for ln in lines:
@@ -1922,7 +1925,7 @@ def _extract_rows_from_lines(lines, config):
                     num_piezas = int(m.group(1))
                     break
                 except Exception:
-                    pass
+                    logger.exception("Error ignorado en _extract_rows_from_lines()")
 
     keywords = ("IPR", "IPE", "IPN", "HEB", "HEA", "W ")
     seen = set()
@@ -2029,7 +2032,7 @@ def _extract_rows_from_pdf(content: bytes):
                 try:
                     current_num_piezas = int(ints[-1])
                 except Exception:
-                    pass
+                    logger.exception("Error ignorado en _extract_rows_from_pdf()")
 
         sm = mark_re.search(up)
         if sm and current_num_piezas is None and "EMBARQUE" in up_all:
@@ -2038,7 +2041,7 @@ def _extract_rows_from_pdf(content: bytes):
                 try:
                     current_num_piezas = int(ints[0])
                 except Exception:
-                    pass
+                    logger.exception("Error ignorado en _extract_rows_from_pdf()")
 
         if "TOTAL" in up:
             nums = re.findall(r"\d+(?:[.,]\d+)?", up)
@@ -2046,7 +2049,7 @@ def _extract_rows_from_pdf(content: bytes):
                 try:
                     current_total = float(nums[-1].replace(",", "."))
                 except Exception:
-                    pass
+                    logger.exception("Error ignorado en _extract_rows_from_pdf()")
 
         if "LISTA DE MATERIALES" not in up_all and not any(k in up for k in keywords):
             continue
@@ -2315,7 +2318,7 @@ def viga_import(request):
                                 fecha = datetime.strptime(fecha_txt, fmt).date()
                                 break
                             except Exception:
-                                pass
+                                logger.exception("Error ignorado en viga_import()")
 
                     if not first_code:
                         first_code = codigo
@@ -3094,7 +3097,7 @@ def dashboard(request):
             parsed = datetime.strptime(selected_week_start, "%Y-%m-%d").date()
             week_start = _to_thursday_start(parsed)
         except Exception:
-            pass
+            logger.exception("Error ignorado en dashboard()")
     week_end = week_start + timedelta(days=7)
     week_start_local = timezone.make_aware(datetime.combine(week_start, time.min), timezone.get_default_timezone())
     week_end_local = timezone.make_aware(datetime.combine(week_end, time.min), timezone.get_default_timezone())
@@ -3547,7 +3550,7 @@ def dashboard(request):
         try:
             planned_per_machine_seconds += max(0.0, (b - a).total_seconds())
         except Exception:
-            pass
+            logger.exception("Error ignorado en dashboard()")
 
     maquinas_activas = list(Maquina.objects.filter(activo=True).values("id", "nombre", "tipo", "es_robot"))
     ids_total = {int(m["id"]) for m in maquinas_activas}
