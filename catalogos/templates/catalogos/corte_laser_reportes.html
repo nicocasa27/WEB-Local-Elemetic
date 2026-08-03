@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load static %}
 {% block title %}Taller Elemetic - Reportes · Corta.mx{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -181,7 +182,7 @@
   {% if export_static %}
     {{ export_detail_map|json_script:"cortaExportDetail" }}
   {% endif %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
   <script>
     (function () {
       const modalEl = document.getElementById("terminadoModal");

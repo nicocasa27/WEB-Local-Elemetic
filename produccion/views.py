@@ -5,8 +5,8 @@ import io
 import base64
 import re
 import statistics
-import urllib.request
 from datetime import datetime, time, timedelta, timezone as dt_timezone
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -163,67 +163,125 @@ def _safe_next(value: str) -> str:
     return ""
 
 
-_REMOTE_ASSET_CACHE = {}
+#: Tipos por extensión, para incrustar un archivo dentro del HTML exportado.
+_TIPOS_MIME = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "webp": "image/webp",
+    "gif": "image/gif",
+    "svg": "image/svg+xml",
+    "woff2": "font/woff2",
+    "woff": "font/woff",
+    "ttf": "font/ttf",
+}
 
 
-def _fetch_remote_text(url: str) -> str:
-    cached = _REMOTE_ASSET_CACHE.get(url)
-    if isinstance(cached, str) and cached:
-        return cached
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = resp.read()
-    text = data.decode("utf-8", errors="ignore")
-    _REMOTE_ASSET_CACHE[url] = text
-    return text
+def _ruta_de_estatico(url: str):
+    """Del `/static/...` de una página al archivo en disco, o `None`.
+
+    Se prueban las dos formas porque conviven: con `collectstatic` el archivo
+    está en `STATIC_ROOT` y su nombre lleva un hash; sin él, hay que buscarlo
+    en las carpetas `static/` de las aplicaciones.
+    """
+    ruta = (url or "").split("?", 1)[0].split("#", 1)[0]
+    prefijo = (settings.STATIC_URL or "/static/").rstrip("/")
+    if prefijo and ruta.startswith(prefijo):
+        ruta = ruta[len(prefijo) :]
+    ruta = ruta.lstrip("/")
+    if not ruta:
+        return None
+
+    recogido = Path(settings.STATIC_ROOT or "") / ruta
+    if settings.STATIC_ROOT and recogido.is_file():
+        return recogido
+
+    encontrado = finders.find(ruta)
+    return Path(encontrado) if encontrado else None
+
+
+def _leer_estatico(url: str) -> str:
+    """Contenido de texto de un archivo estático propio.
+
+    Antes esto descargaba el CSS y el JavaScript de un CDN **durante la
+    petición**, con quince segundos de espera. Ahora todo está en el disco del
+    servidor, que es lo que permite que el taller trabaje sin internet.
+    """
+    ruta = _ruta_de_estatico(url)
+    if ruta is None:
+        return ""
+    try:
+        return ruta.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        logger.exception("No se pudo leer el estático %s", url)
+        return ""
 
 
 def _static_data_uri(static_path: str) -> str:
-    path = (static_path or "").lstrip("/")
-    if path.startswith("static/"):
-        path = path[len("static/") :]
-    abs_path = finders.find(path)
-    if not abs_path:
+    ruta = _ruta_de_estatico(static_path)
+    if ruta is None:
         return ""
     try:
-        with open(abs_path, "rb") as f:
-            raw = f.read()
-    except Exception:
+        crudo = ruta.read_bytes()
+    except OSError:
+        logger.exception("No se pudo leer el estático %s", static_path)
         return ""
-    ext = (abs_path.rsplit(".", 1)[-1] or "").lower()
-    mime = "application/octet-stream"
-    if ext in {"png"}:
-        mime = "image/png"
-    elif ext in {"jpg", "jpeg"}:
-        mime = "image/jpeg"
-    elif ext in {"webp"}:
-        mime = "image/webp"
-    b64 = base64.b64encode(raw).decode("ascii")
-    return f"data:{mime};base64,{b64}"
+    mime = _TIPOS_MIME.get(ruta.suffix.lstrip(".").lower(), "application/octet-stream")
+    return f"data:{mime};base64,{base64.b64encode(crudo).decode('ascii')}"
+
+
+def _incrustar_urls_de_css(css: str, ruta_css: Path) -> str:
+    """Mete las fuentes dentro del propio CSS.
+
+    El HTML que se exporta se abre fuera de la aplicación, muchas veces desde
+    una carpeta o un correo. Ahí una `url(fonts/...)` relativa no resuelve, y
+    sin esto el archivo exportado sale sin ningún icono.
+    """
+
+    def sustituir(m):
+        destino = m.group(1).strip("\"'")
+        if destino.startswith(("data:", "http://", "https://", "#")):
+            return m.group(0)
+        archivo = (ruta_css.parent / destino.split("?", 1)[0].split("#", 1)[0]).resolve()
+        if not archivo.is_file():
+            return m.group(0)
+        mime = _TIPOS_MIME.get(archivo.suffix.lstrip(".").lower(), "application/octet-stream")
+        datos = base64.b64encode(archivo.read_bytes()).decode("ascii")
+        return f'url("data:{mime};base64,{datos}")'
+
+    return re.sub(r"url\(([^)]+)\)", sustituir, css)
 
 
 def _inline_html_assets(html: str) -> str:
+    """Convierte una página en un HTML suelto que se abre sin servidor.
+
+    Se usa para los reportes que el taller descarga y manda por correo. Lo que
+    la página pide con un enlace, aquí se mete dentro del archivo.
+    """
     if not html:
         return html
 
     def repl_link(m):
         tag = m.group(0)
         href = m.group(1)
-        if not href or "rel=\"stylesheet\"" not in tag:
+        if not href or 'rel="stylesheet"' not in tag:
             return tag
-        if href.startswith("https://") or href.startswith("http://"):
-            css = _fetch_remote_text(href)
-            return f"<style>\n{css}\n</style>"
-        return tag
+        ruta = _ruta_de_estatico(href)
+        if ruta is None:
+            return tag
+        css = _incrustar_urls_de_css(_leer_estatico(href), ruta)
+        return f"<style>\n{css}\n</style>"
 
     def repl_script(m):
         src = m.group(1)
         if not src:
             return m.group(0)
-        if src.startswith("https://") or src.startswith("http://"):
-            js = _fetch_remote_text(src)
-            return f"<script>\n{js}\n</script>"
-        return m.group(0)
+        js = _leer_estatico(src)
+        if not js:
+            return m.group(0)
+        # Un `</script>` dentro del código cerraría la etiqueta que lo envuelve
+        # y partiría el archivo por la mitad.
+        return "<script>\n" + js.replace("</script>", "<\\/script>") + "\n</script>"
 
     def repl_img(m):
         before = m.group(1)
@@ -231,10 +289,9 @@ def _inline_html_assets(html: str) -> str:
         after = m.group(3)
         if not src:
             return m.group(0)
-        if src.startswith("/static/"):
-            data_uri = _static_data_uri(src)
-            if data_uri:
-                return f"<img{before}src=\"{data_uri}\"{after}>"
+        data_uri = _static_data_uri(src)
+        if data_uri:
+            return f'<img{before}src="{data_uri}"{after}>'
         return m.group(0)
 
     html = re.sub(r'<meta name="viewport" content="[^"]*"\s*/?>', '<meta name="viewport" content="width=1200, initial-scale=1" />', html)

@@ -15,7 +15,7 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
-from .base import DATABASES, env_bool, env_lista
+from .base import DATABASES, STORAGES, env_bool, env_lista
 
 
 def requerido(nombre):
@@ -35,6 +35,13 @@ SECRET_KEY = requerido("DJANGO_SECRET_KEY")
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,192.168.50.92")
 
 DATABASES["mes"]["PASSWORD"] = requerido("MES_DB_PASSWORD")
+
+# Archivos estáticos con hash en el nombre y comprimidos. Exige haber
+# ejecutado `collectstatic`; si falta, el arranque avisa en vez de servir la
+# aplicación sin estilos y que nadie sepa por qué.
+STORAGES["staticfiles"] = {
+    "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+}
 
 # Origenes de confianza para CSRF. Con DEBUG apagado y peticiones que no vengan
 # de 127.0.0.1, Django los exige para aceptar formularios.

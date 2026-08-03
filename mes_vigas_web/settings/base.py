@@ -42,6 +42,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Sirve los archivos estáticos desde el propio Django. Va inmediatamente
+    # después del middleware de seguridad, como pide whitenoise.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -137,6 +140,20 @@ STATIC_URL = "static/"
 # Destino de collectstatic. Sin esto, con DEBUG apagado la aplicación se queda
 # sin CSS ni JavaScript.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Bootstrap, los iconos, Chart.js y el generador de códigos QR viven en
+# `produccion/static/vendor/` y están versionados en git. Antes venían de un
+# CDN: sin internet el taller veía la aplicación sin estilos y sin JavaScript,
+# es decir, no podía trabajar. No hay proceso de compilación ni npm a
+# propósito: en un equipo sin Node, añadirlo es añadir algo que nadie va a
+# mantener.
+# En prod.py se cambia por la variante con hash en el nombre. Aquí no, porque
+# ésa exige haber ejecutado collectstatic y dejaría el servidor de desarrollo
+# sin arrancar hasta hacerlo.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
