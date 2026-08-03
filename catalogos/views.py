@@ -730,9 +730,9 @@ def proyectos(request):
             activo = request.POST.get("activo") == "1"
             Proyecto.objects.filter(pk=pk).update(activo=activo)
             if activo:
-                    messages.success(request, "Proyecto activado. Se mostrará de nuevo en Producción.")
+                messages.success(request, "Proyecto activado. Se mostrará de nuevo en Producción.")
             else:
-                    messages.success(request, "Proyecto desactivado. Se ocultará en Producción, pero no se elimina.")
+                messages.success(request, "Proyecto desactivado. Se ocultará en Producción, pero no se elimina.")
             return redirect("catalogos:proyectos")
 
         form = ProyectoForm(request.POST)
@@ -2273,16 +2273,23 @@ def herreria_catalogo(request):
                 return redirect("catalogos:herreria_catalogo")
         if action == "pieza_delete":
             pid = int(request.POST.get("pieza_id") or 0)
-            if pid:
-                used = HerrOrdenItem.objects.filter(pieza_id=pid).exists()
-                if used:
-                    messages.error(request, "No se puede eliminar: la pieza ya está usada en una orden.")
+            if not pid:
+                messages.error(request, "No se indicó qué pieza eliminar.")
+            elif HerrOrdenItem.objects.filter(pieza_id=pid).exists():
+                messages.error(request, "No se puede eliminar: la pieza ya está usada en una orden.")
             else:
-                    try:
-                        HerrPiezaCatalogo.objects.filter(id=pid).delete()
+                try:
+                    borradas, _ = HerrPiezaCatalogo.objects.filter(id=pid).delete()
+                    if borradas:
                         messages.success(request, "Pieza eliminada.")
-                    except Exception:
-                        messages.error(request, "No se pudo eliminar.")
+                    else:
+                        messages.error(request, "Esa pieza ya no existe.")
+                except ProtectedError:
+                    messages.error(
+                        request,
+                        "No se puede eliminar: la pieza tiene stock o movimientos de logística. "
+                        "Desactívala en su lugar.",
+                    )
             if next_url:
                 return redirect(f"{reverse('catalogos:herreria_catalogo')}?next={quote(next_url)}")
             return redirect("catalogos:herreria_catalogo")
@@ -4485,16 +4492,23 @@ def corte_laser_materiales(request):
                     messages.error(request, "No se pudo actualizar: ya existe otro material con la misma cédula/espesor/tamaño.")
         if action == "material_delete":
             mid = int(request.POST.get("material_id") or 0)
-            if mid:
-                used = LaserOrdenProduccion.objects.filter(material_id=mid).exists()
-                if used:
-                    messages.error(request, "No se puede eliminar: el material ya está usado en un pedido.")
+            if not mid:
+                messages.error(request, "No se indicó qué material eliminar.")
+            elif LaserOrdenProduccion.objects.filter(material_id=mid).exists():
+                messages.error(request, "No se puede eliminar: el material ya está usado en un pedido.")
             else:
-                    try:
-                        LaserMaterialPlaca.objects.filter(id=mid).delete()
+                try:
+                    borrados, _ = LaserMaterialPlaca.objects.filter(id=mid).delete()
+                    if borrados:
                         messages.success(request, "Material eliminado.")
-                    except Exception:
-                        messages.error(request, "No se pudo eliminar.")
+                    else:
+                        messages.error(request, "Ese material ya no existe.")
+                except ProtectedError:
+                    messages.error(
+                        request,
+                        "No se puede eliminar: el material tiene registros dependientes. "
+                        "Desactívalo en su lugar.",
+                    )
             return redirect("catalogos:corte_laser_materiales")
 
     materiales_qs = list(
@@ -4574,7 +4588,7 @@ def corte_laser_catalogos(request):
                     target.activo = bool(form.cleaned_data.get("activo"))
                     target.save(update_fields=["nombre", "nombre_normalizado", "tipo", "activo", "actualizado_en"])
                     messages.success(request, "Actualizado.")
-            else:
+                else:
                     CortaClienteProyecto.objects.create(
                         nombre=nombre,
                         nombre_normalizado=nombre_norm,
@@ -4582,6 +4596,8 @@ def corte_laser_catalogos(request):
                         activo=bool(form.cleaned_data.get("activo")),
                     )
                     messages.success(request, "Guardado.")
+            else:
+                messages.error(request, "Revisa los datos del formulario.")
             return redirect("catalogos:corte_laser_catalogos")
         if action == "toggle":
             cid = int(request.POST.get("cp_id") or 0)
@@ -4642,13 +4658,23 @@ def corte_laser_piezas(request):
             return redirect("catalogos:corte_laser_piezas")
         if action == "delete":
             pid = int(request.POST.get("pieza_id") or 0)
-            if pid:
-                used = LaserOrdenProduccion.objects.filter(corta_pieza_id=pid).exists()
-                if used:
-                    messages.error(request, "No se puede eliminar: ya está usada en pedidos. Mejor desactiva.")
+            if not pid:
+                messages.error(request, "No se indicó qué pieza eliminar.")
+            elif LaserOrdenProduccion.objects.filter(corta_pieza_id=pid).exists():
+                messages.error(request, "No se puede eliminar: ya está usada en pedidos. Mejor desactiva.")
             else:
-                    CortaPiezaCatalogo.objects.filter(id=pid).delete()
-                    messages.success(request, "Eliminado.")
+                try:
+                    borradas, _ = CortaPiezaCatalogo.objects.filter(id=pid).delete()
+                    if borradas:
+                        messages.success(request, "Eliminado.")
+                    else:
+                        messages.error(request, "Esa pieza ya no existe.")
+                except ProtectedError:
+                    messages.error(
+                        request,
+                        "No se puede eliminar: la pieza tiene registros dependientes. "
+                        "Desactívala en su lugar.",
+                    )
             return redirect("catalogos:corte_laser_piezas")
 
     rows = list(CortaPiezaCatalogo.objects.order_by("-activo", "nombre")[:2000])
@@ -6809,11 +6835,19 @@ def paros(request):
         maquina_id = int(request.POST.get("maquina_id") or 0)
         if action == "start_paro":
             paro_form = ParoStartForm(request.POST)
-            if paro_form.is_valid() and maquina_id:
-                maquina = get_object_or_404(Maquina, pk=maquina_id)
-                if MaquinaParo.objects.filter(maquina=maquina, fin__isnull=True).exists():
+            if not (paro_form.is_valid() and maquina_id):
+                messages.error(request, "Faltan datos para registrar el paro: elige máquina y motivo.")
+                return redirect_back()
+            # El bloqueo evita que dos operadores registren a la vez dos paros
+            # abiertos sobre la misma máquina, que es lo que la comprobación
+            # exists() por sí sola no impide.
+            with transaction.atomic(using="mes"):
+                maquina = get_object_or_404(
+                    Maquina.objects.using("mes").select_for_update(), pk=maquina_id
+                )
+                if MaquinaParo.objects.using("mes").filter(maquina=maquina, fin__isnull=True).exists():
                     messages.error(request, "Esa máquina ya está en paro.")
-            else:
+                else:
                     MaquinaParo.objects.create(
                         maquina=maquina,
                         motivo=paro_form.cleaned_data["motivo"],
