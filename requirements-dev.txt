@@ -1,5 +1,14 @@
 # Herramientas de desarrollo. No se instalan en producción.
 -r requirements.txt
 
+# Calidad de código
 ruff==0.16.1
 pre-commit==4.4.0
+
+# Pruebas. La base `mes` de la suite es PostgreSQL de verdad, no SQLite:
+# el código usa select_for_update, DISTINCT ON y restricciones con condición,
+# y ninguna se comporta igual en otro motor.
+pytest==9.1.1
+pytest-django==4.12.0
+pytest-cov==7.1.0
+factory-boy==3.3.3

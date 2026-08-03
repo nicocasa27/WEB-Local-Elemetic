@@ -28,3 +28,14 @@ select = ["E9", "F63", "F7", "F82"]
 # El formateo automático solo se aplica a archivos nuevos. Reformatear
 # catalogos/views.py entero destruiría la posibilidad de revisar diffs.
 quote-style = "double"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "mes_vigas_web.settings.test"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "caracterizacion: congela el comportamiento actual, incluidos sus defectos, para poder refactorizar sin cambiarlo",
+    "flujo: recorre un flujo completo de negocio de punta a punta",
+    "guardia: comprueba una propiedad estructural del código, no una funcionalidad",
+]
