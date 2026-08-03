@@ -118,6 +118,40 @@ que **exige sesión iniciada**. Antes sólo se servían con `DEBUG` activo (o se
 dejaban de funcionar en producción) y sin comprobar nada: un acuse de entrega
 firmado era accesible para quien acertara la dirección.
 
+## Tarea programada: consolidar los cierres
+
+Cuando una orden llega a su objetivo de piezas queda en «Terminado (bloqueo
+pend.)» unos minutos, para poder deshacer un error de dedo. Pasado ese plazo el
+cierre debe volverse firme.
+
+Hasta ahora eso sólo ocurría **al abrir la pantalla de control**, así que un
+cierre que vencía un viernes a las 17:05 seguía pendiente el lunes por la
+mañana, y figuraba como tal en todos los informes.
+
+Hay que programar este comando cada minuto:
+
+```bat
+.venv\Scripts\python.exe manage.py consolidar_cierres
+```
+
+En Windows, con el Programador de tareas: tarea nueva, repetir cada 1 minuto
+indefinidamente, acción «iniciar programa» apuntando al `python.exe` del
+entorno virtual, con `manage.py consolidar_cierres` como argumentos y la
+carpeta `DJANGO WEB` como directorio de inicio. Conviene marcar «no iniciar una
+nueva instancia si ya se está ejecutando».
+
+Para ver qué haría sin tocar nada:
+
+```bat
+.venv\Scripts\python.exe manage.py consolidar_cierres --simular
+```
+
+El comando no imprime nada cuando no hay trabajo, para no llenar el registro.
+
+Mientras la tarea no esté configurada, la pantalla de control sigue
+consolidando los cierres al cargarse, igual que antes: no se rompe nada por
+no hacerlo, sólo se mantiene el retraso.
+
 ## Registro de actividad
 
 Los registros van a `logs/`, con rotación a los 10 MB y cinco archivos de

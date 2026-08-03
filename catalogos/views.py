@@ -26,6 +26,7 @@ from produccion.models import ESTADOS, Viga
 
 from core.excepciones import ErrorDeDominio
 from core.servicios import almacen as servicio_almacen
+from core.servicios import cierres as servicio_cierres
 
 logger = logging.getLogger("mes.catalogos")
 
@@ -99,67 +100,21 @@ from produccion.views import _build_participantes_payload
 
 
 def _finalize_herreria_cierres_expirados():
-    now = timezone.now()
-    with transaction.atomic(using="mes"):
-        qs = (
-            HerrOrdenProduccion.objects.using("mes")
-            .select_for_update()
-            .filter(
-                estado="Abierta",
-                estado_etapa=CIERRE_PENDIENTE_LABEL,
-                cierre_pendiente_hasta__isnull=False,
-                cierre_pendiente_hasta__lte=now,
-            )
-            .order_by("cierre_pendiente_hasta", "id")[:200]
-        )
-        rows = list(qs)
-        for o in rows:
-            prev = (o.estado_etapa or "").strip()
-            o.estado_etapa = CIERRE_FINAL_LABEL
-            o.ultimo_cambio = now
-            o.cierre_bloqueado_en = now
-            o.cierre_pendiente_hasta = None
-            o.save(update_fields=["estado_etapa", "ultimo_cambio", "cierre_bloqueado_en", "cierre_pendiente_hasta", "actualizado_en"])
-            HerrEstadoCambio.objects.create(
-                orden=o,
-                estado_anterior=prev,
-                estado_nuevo=CIERRE_FINAL_LABEL,
-                fecha_operacion=timezone.localdate(),
-                actor_username="system",
-                comentario="auto_bloqueo",
-            )
+    """Compatibilidad: la consolidación vive ahora en core.servicios.cierres.
+
+    Se conserva la llamada desde la pantalla de control para que las órdenes
+    vencidas aparezcan cerradas aunque el trabajo programado no esté todavía
+    configurado en el servidor. Una vez en marcha el temporizador, estas dos
+    llamadas se pueden quitar y la pantalla dejará de hacer trabajo de fondo
+    antes de pintar nada.
+    """
+    return servicio_cierres.consolidar_linea("herreria")
 
 
 def _finalize_corta_cierres_expirados():
-    now = timezone.now()
-    with transaction.atomic(using="mes"):
-        qs = (
-            LaserOrdenProduccion.objects.using("mes")
-            .select_for_update()
-            .filter(
-                estado="Abierta",
-                estado_etapa=CIERRE_PENDIENTE_LABEL,
-                cierre_pendiente_hasta__isnull=False,
-                cierre_pendiente_hasta__lte=now,
-            )
-            .order_by("cierre_pendiente_hasta", "id")[:200]
-        )
-        rows = list(qs)
-        for o in rows:
-            prev = (o.estado_etapa or "").strip()
-            o.estado_etapa = CIERRE_FINAL_LABEL
-            o.ultimo_cambio = now
-            o.cierre_bloqueado_en = now
-            o.cierre_pendiente_hasta = None
-            o.save(update_fields=["estado_etapa", "ultimo_cambio", "cierre_bloqueado_en", "cierre_pendiente_hasta", "actualizado_en"])
-            LaserEstadoCambio.objects.create(
-                orden=o,
-                estado_anterior=prev,
-                estado_nuevo=CIERRE_FINAL_LABEL,
-                fecha_operacion=timezone.localdate(),
-                actor_username="system",
-                comentario="auto_bloqueo",
-            )
+    """Ver _finalize_herreria_cierres_expirados."""
+    return servicio_cierres.consolidar_linea("corta")
+
 
 ESTADOS_EQUIPO = [s for s in ESTADOS if (not s.startswith("Espera") and s != "Enviado")]
 
