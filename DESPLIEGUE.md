@@ -163,6 +163,66 @@ histórico:
 Si algo falla y el usuario no sabe explicar qué, `logs/errores.log` es el
 primer sitio donde mirar.
 
+## Pendiente: unificar las dos bases de datos
+
+Hoy la autenticación vive en `db.sqlite3` y los datos de negocio en
+PostgreSQL. Esa separación no responde a ninguna decisión de diseño (es lo que
+deja `startproject`) y causa tres problemas:
+
+- Django no admite claves foráneas entre bases distintas, así que ningún
+  registro puede apuntar a quien lo hizo. La identidad se guarda como texto
+  libre en catorce campos; cambiar el nombre de un usuario deja huérfano todo
+  su historial.
+- Hay que respaldar dos bases y cuadrarlas: un volcado de PostgreSQL sin su
+  SQLite correspondiente no restaura nada.
+- SQLite admite un solo escritor a la vez, de modo que las sesiones de todo el
+  taller pasan por un cuello de botella.
+
+Está preparado el comando `migrar_auth_a_postgres`, que copia usuarios, grupos
+y permisos con las contraseñas ya cifradas (nadie tiene que cambiar la suya) y
+comprueba después que el censo coincide.
+
+**El cambio no se ha ejecutado**, y conviene saber por qué antes de intentarlo.
+
+### El obstáculo que hay que resolver primero
+
+Al probarlo sobre una copia apareció una inconsistencia que no se veía desde
+fuera: la tabla `django_migrations` de PostgreSQL tiene **registradas como
+aplicadas** las migraciones de `auth`, `contenttypes`, `sessions` y `admin`,
+pero **esas tablas no existen** en esa base.
+
+Es el comportamiento normal de Django: cuando el router responde que una
+aplicación no debe migrarse a cierta base, Django no crea nada pero sí anota
+la migración como aplicada. Con los años, el registro quedó diciendo una cosa
+y la base conteniendo otra.
+
+La consecuencia práctica es que permitir sin más que `auth` se cree en
+PostgreSQL no crea nada: Django cree que ya está hecho. Y desmarcar esas
+migraciones arrastra a las de `catalogos`, que dependen de ellas, con lo que
+el planificador intenta recrear tablas que ya existen.
+
+Se probó en una copia, se rompió el registro de migraciones y se restauró
+desde el respaldo. Esa es exactamente la clase de sorpresa que hay que
+encontrar en una copia y no en el servidor un sábado por la noche.
+
+### Cómo abordarlo
+
+Hace falta una sesión dedicada, con el respaldo recién hecho y sin prisa:
+
+1. Reconstruir el registro de migraciones de PostgreSQL para que refleje la
+   realidad, en lugar de pelearse con él a base de `--fake`.
+2. Crear las tablas de autenticación en PostgreSQL.
+3. Copiar los datos con `migrar_auth_a_postgres` y verificar el censo.
+4. Decidir el destino: o `default` pasa a apuntar a PostgreSQL conservando el
+   alias `mes`, o se elimina el alias y se sustituyen las ciento cincuenta
+   llamadas `.using("mes")`. Lo segundo deja el sistema más limpio y es lo que
+   conviene de cara a la unificación del núcleo, pero es un cambio amplio que
+   necesita la suite de pruebas en verde antes y después.
+5. Reiniciar y comprobar que todo el mundo puede entrar.
+
+La vuelta atrás es devolver la configuración anterior: el `db.sqlite3` queda
+intacto durante todo el proceso.
+
 ## Volver atrás
 
 La configuración de entorno no toca la base de datos, así que revertir es
