@@ -145,8 +145,10 @@ class TestDefectosConocidos:
         reason=(
             "Revertir el cierre no deshace la entrada en almacén ni anula el acuse. "
             "Las piezas siguen contando como disponibles aunque la orden vuelva a "
-            "producción, y el acuse firmado queda vivo. Se corrige con el libro de "
-            "movimientos de la unificación del núcleo."
+            "producción, y el acuse firmado queda vivo. YA RESUELTO EN EL NÚCLEO: "
+            "ver TestCierreYReversion en tests/test_nucleo_servicio.py. Este test "
+            "sigue en rojo porque describe el camino heredado, y seguirá así hasta "
+            "que la línea se corte."
         ),
     )
     def test_revertir_el_cierre_deberia_deshacer_la_entrada_en_almacen(self, cliente_como):
@@ -169,8 +171,10 @@ class TestDefectosConocidos:
         reason=(
             "El avance manda la cantidad total en vez de la diferencia, así que dos "
             "envíos simultáneos con el mismo valor se aplican dos veces y el almacén "
-            "cuenta el doble. Se corrige registrando diferencias y una clave de "
-            "idempotencia."
+            "cuenta el doble. YA RESUELTO EN EL NÚCLEO: el avance se pide en "
+            "diferencias y lleva clave de idempotencia, ver TestAvance en "
+            "tests/test_nucleo_servicio.py. Este test sigue en rojo porque describe "
+            "el camino heredado, y seguirá así hasta que la línea se corte."
         ),
     )
     def test_dos_avances_identicos_no_deberian_duplicar_el_almacen(self, cliente_como):
@@ -190,8 +194,11 @@ class TestDefectosConocidos:
         strict=True,
         reason=(
             "No existe la invariante terminadas <= pintadas <= soldadas, así que se "
-            "puede declarar material terminado que nunca se soldó ni se pintó. Se "
-            "corrige con una restricción en la base y la validación en el servicio."
+            "puede declarar material terminado que nunca se soldó ni se pintó. YA "
+            "RESUELTO EN EL NÚCLEO: la exige el servicio y, tras "
+            "`endurecer_invariantes`, también la base. Este test sigue en rojo "
+            "porque describe el camino heredado, y seguirá así hasta que la línea "
+            "se corte."
         ),
     )
     def test_no_deberia_poder_terminarse_mas_de_lo_que_se_soldo(self, cliente_como):

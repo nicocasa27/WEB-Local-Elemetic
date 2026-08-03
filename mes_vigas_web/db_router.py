@@ -1,5 +1,9 @@
 class MESRouter:
-    route_app_labels = {"produccion", "catalogos"}
+    #: `nucleo` va a la misma base que el resto del negocio. Tiene que estar
+    #: aquí desde la primera migración: si se creara en `default` no podría
+    #: tener claves foráneas hacia `catalogos.Colaborador` ni `Maquina`, que
+    #: es justo lo que se está arreglando.
+    route_app_labels = {"produccion", "catalogos", "nucleo"}
 
     def db_for_read(self, model, **hints):
         if model._meta.app_label in self.route_app_labels:

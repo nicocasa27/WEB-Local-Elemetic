@@ -223,6 +223,142 @@ Hace falta una sesión dedicada, con el respaldo recién hecho y sin prisa:
 La vuelta atrás es devolver la configuración anterior: el `db.sqlite3` queda
 intacto durante todo el proceso.
 
+## El núcleo unificado: cómo se pone en marcha
+
+Las cuatro líneas —vigas, herrería, corte láser y robótica— son hoy el mismo
+motor copiado cuatro veces. El paquete `nucleo` es el destino común. **Está
+instalado pero apagado**: sin encender ninguna bandera no cambia absolutamente
+nada de lo que ve el taller.
+
+El cambio se hace **una línea cada vez**, y cada paso se deshace solo.
+
+### Los tres estados de una línea
+
+Se controlan con una variable de entorno por línea:
+
+| Valor | Qué pasa |
+|---|---|
+| *(sin poner)* | Apagada. El núcleo existe y nadie lo usa. **Así está hoy.** |
+| `doble` | Las vistas escriben donde siempre y además se refleja en el núcleo. La verdad sigue siendo la tabla heredada. |
+| `corte` | El núcleo pasa a ser la fuente de verdad. |
+
+```bat
+set MES_NUCLEO_ROBOTICA=doble
+set MES_NUCLEO_CORTA=doble
+set MES_NUCLEO_HERRERIA=doble
+set MES_NUCLEO_VIGAS=doble
+```
+
+Una errata en el valor se trata como apagado, a propósito: una variable mal
+escrita no debe encender una escritura nueva sobre la base de producción.
+
+### Puesta en marcha, con la base parada o fuera de horario
+
+```bat
+.venv\Scripts\python.exe manage.py migrate nucleo --database=mes
+.venv\Scripts\python.exe manage.py sembrar_nucleo --simular
+.venv\Scripts\python.exe manage.py sembrar_nucleo
+.venv\Scripts\python.exe manage.py backfill_nucleo --simular
+.venv\Scripts\python.exe manage.py backfill_nucleo
+.venv\Scripts\python.exe manage.py verificar_backfill
+```
+
+`sembrar_nucleo` **se niega a continuar** si encuentra en la base un valor de
+estado que no sabe representar. No es un estorbo: significa que hay datos cuya
+forma no conocíamos, y seguir en ese momento sería perder esas órdenes.
+
+`backfill_nucleo` sólo lee de las tablas heredadas. Se puede repetir las veces
+que haga falta sin duplicar nada.
+
+`verificar_backfill` compara censo, kilos, reparto por etapas y la suma del
+historial contra los contadores. **Si no sale limpio, no se sigue.**
+
+### El rodaje
+
+Con la línea en `doble`, programar una vez al día:
+
+```bat
+.venv\Scripts\python.exe manage.py reconciliar_nucleo
+```
+
+Compara fila a fila y anota lo que no coincida. Para ver cómo va:
+
+```bat
+.venv\Scripts\python.exe manage.py reconciliar_nucleo --resumen
+```
+
+**Una línea no se corta hasta que lleve siete días seguidos sin ninguna
+diferencia.** Ese control es lo que convierte la migración en algo aburrido:
+cuando llega el día del corte ya se sabe desde hace una semana que las dos
+mitades dicen lo mismo.
+
+El reflejo va enganchado con señales de Django, así que cubre cualquier camino
+que guarde por el ORM. Lo que **no** cubre son las nueve escrituras en bloque
+(`.filter(...).update(...)`) que hay en el código: de ésas se ocupa la
+reconciliación, que además sabe repararlas con `--corregir`.
+
+### El corte, y cómo se deshace
+
+Orden por riesgo creciente: **robótica → corte láser → herrería → vigas**.
+Robótica va primera porque ni siquiera tiene máquina de estados: es la que
+menos tiene que perder.
+
+```bat
+set MES_NUCLEO_ROBOTICA=corte
+```
+
+Volver atrás es poner `doble` otra vez y reiniciar. No hay que restaurar nada:
+las tablas heredadas siguen ahí y siguen actualizadas. **Ninguna tabla vieja se
+borra jamás**; cuando dejen de usarse se renombran y quedan en sólo lectura.
+
+### La invariante de contadores
+
+Se puede guardar «soldadas 0, pintadas 0, terminadas 50», y esas cincuenta
+piezas salen en los informes sin haber pasado por ninguna etapa. El servicio
+del núcleo ya no lo permite. Para llevarlo también a la base:
+
+```bat
+.venv\Scripts\python.exe manage.py endurecer_invariantes
+```
+
+Eso sólo informa. En la copia del taller hay **tres órdenes** que la incumplen:
+H-00031, L-00014 y H-00020. Hay que corregirlas **antes** de endurecer nada, y
+con un evento de ajuste con su motivo, no con un `UPDATE`: la corrección tiene
+que quedar en el historial como cualquier otro movimiento.
+
+Sólo cuando no quede ninguna:
+
+```bat
+.venv\Scripts\python.exe manage.py endurecer_invariantes --aplicar
+.venv\Scripts\python.exe manage.py endurecer_invariantes --validar
+```
+
+> **Por qué en ese orden.** `--aplicar` crea la regla como `NOT VALID`, que
+> tolera que las filas malas *existan* pero **no que se modifiquen**. Aplicarla
+> antes de corregirlas deja esas órdenes congeladas: no se pueden actualizar, y
+> durante la escritura doble el reflejo falla en silencio, porque está pensado
+> para no interrumpir al operador. Se comprobó en la copia: L-00014 dejó de
+> poder actualizarse. Por eso `--aplicar` se niega si quedan órdenes malas, y
+> hay `--quitar` para retirar la regla si algo se atasca.
+
+### Lo que hay que decidir antes de cortar herrería
+
+- **Corta de una pieza**: ¿pasa por almacén o se entrega directa? Ya es una
+  casilla (`LineaNegocio.usa_almacen`), pero la respuesta es de negocio.
+- **Reversión de cierre**: ¿sólo quien cerró, o también un supervisor? Hoy el
+  servicio exige motivo siempre y no restringe quién; para restringirlo basta
+  poner el grupo en la transición correspondiente, sin tocar código.
+
+### Editar el proceso sin programar
+
+Etapas, transiciones y motivos están en el administrador de Django, en
+«Núcleo». Añadir un granallado, exigir un grupo para cerrar o marcar que una
+transición se bloquee con la máquina parada es editar una fila.
+
+Los eventos son de sólo lectura y no se pueden borrar. Es deliberado: un
+registro que se puede editar deja de ser un registro, y con él se va la única
+razón para fiarse de los números.
+
 ## Volver atrás
 
 La configuración de entorno no toca la base de datos, así que revertir es
