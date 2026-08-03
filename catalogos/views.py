@@ -7574,6 +7574,36 @@ def pedidos_logistica(request):
                     if int(getattr(exp, "descargas_count", 0) or 0) <= 0:
                         messages.error(request, "No se puede eliminar: el expediente no ha sido descargado.")
                         return redirect("catalogos:pedidos_logistica")
+
+                    # LogisticaAcuseEntrega apunta a PedidoProduccionItem con
+                    # PROTECT y se crea sola cuando herrería termina las piezas,
+                    # así que casi cualquier pedido que haya pasado por producción
+                    # tiene acuses. Borrar los ítems más abajo lanzaba entonces un
+                    # ProtectedError sin capturar: un 500 en el flujo normal.
+                    #
+                    # Esta comprobación va aquí, antes del primer borrado, y no
+                    # junto al delete que falla: para cuando se borran los ítems ya
+                    # se han eliminado envíos, movimientos, expediente y, sobre
+                    # todo, los PDF de comprobante del disco, que no los recupera
+                    # ningún rollback.
+                    #
+                    # Un acuse firmado es un documento, así que se rechaza la purga
+                    # en lugar de arrastrarlo. Queda por decidir con el taller si el
+                    # Decote debe poder archivarlos.
+                    n_acuses = (
+                        LogisticaAcuseEntrega.objects.using("mes")
+                        .filter(pedido_item__pedido_id=int(pedido.id))
+                        .count()
+                    )
+                    if n_acuses:
+                        messages.error(
+                            request,
+                            f"No se puede eliminar: el pedido tiene {n_acuses} acuse(s) de entrega "
+                            "firmados. El expediente ya descargado conserva la documentación; "
+                            "el pedido se mantiene por trazabilidad.",
+                        )
+                        return redirect("catalogos:pedidos_logistica")
+
                     envios_to_delete = list(LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)))
                     for e in envios_to_delete:
                         try:
@@ -7586,8 +7616,19 @@ def pedidos_logistica(request):
                     LogisticaMovimiento.objects.using("mes").filter(pedido_item__pedido_id=int(pedido.id)).delete()
                     LogisticaExpedienteDescarga.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
                     LogisticaExpediente.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                    PedidoProduccionItem.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                    pedido.delete(using="mes")
+                    try:
+                        PedidoProduccionItem.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
+                        pedido.delete(using="mes")
+                    except ProtectedError as e:
+                        protegidos = list(getattr(e, "protected_objects", []) or [])
+                        detalle = ", ".join(str(o) for o in protegidos[:3])
+                        extra = f" (+{len(protegidos) - 3} más)" if len(protegidos) > 3 else ""
+                        messages.error(
+                            request,
+                            f"No se puede eliminar: hay registros que dependen del pedido"
+                            f"{f' ({detalle}{extra})' if detalle else ''}.",
+                        )
+                        return redirect("catalogos:pedidos_logistica")
                     messages.success(request, "Pedido eliminado de Decote.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7911,7 +7952,13 @@ def logistica_corta(request):
                             stock.stock = int(stock.stock or 0) + qty
                             stock.save(update_fields=["stock", "actualizado_en"])
                             LogisticaMovimientoCorta.objects.create(
-                                tipo="revertir_apartado",
+                                # "revertir" es el valor declarado en TIPO_CHOICES y el
+                                # que usa herrería para esta misma operación. Antes se
+                                # escribía "revertir_apartado", que no existe en los
+                                # choices: Django no valida en create(), así que
+                                # Postgres lo aceptaba y luego esas filas quedaban
+                                # fuera de cualquier filtro o reporte por tipo.
+                                tipo="revertir",
                                 producto=producto,
                                 orden=o,
                                 cantidad=qty,
