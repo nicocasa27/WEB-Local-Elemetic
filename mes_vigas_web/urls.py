@@ -15,16 +15,18 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.conf import settings
-from django.conf.urls.static import static
-from django.urls import include, path
+from django.urls import include, path, re_path
+
+from mes_vigas_web.media_views import servir_media
 
 urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
     path('', include('produccion.urls')),
     path('catalogos/', include('catalogos.urls')),
     path('admin/', admin.site.urls),
-]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Los archivos subidos (planos, DXF, comprobantes de envío) se sirven
+    # siempre por esta vista, no sólo con DEBUG activo, y siempre exigiendo
+    # sesión iniciada. Ver mes_vigas_web/media_views.py.
+    re_path(r'^media/(?P<ruta>.*)$', servir_media, name='media'),
+]
