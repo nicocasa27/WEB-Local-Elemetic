@@ -1,0 +1,161 @@
+{% extends "produccion/base.html" %}
+{% load produccion_extras %}
+{% block title %}Taller Elemetic - Importar desde plano{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Producción</div>
+      <div class="h3 mb-0">Importar desde plano</div>
+      <div class="text-muted small">Sube un PDF con una o varias vigas. También puedes usar CSV/XLSX con columnas: Código, Proyecto, Descripción, Peso, Cantidad.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'produccion:viga_list' %}"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" class="vstack gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="stage" value="upload">
+        <div>
+          <label class="form-label">Archivo (PDF / CSV / XLSX)</label>
+          {{ form.archivo }}
+        </div>
+        {% if pdf_notice %}
+          <div class="alert alert-warning mb-0">{{ pdf_notice }}</div>
+        {% endif %}
+        <button class="btn btn-argon text-white" type="submit"><i class="bi bi-upload me-1"></i> Cargar</button>
+      </form>
+    </div>
+  </div>
+
+  {% if pdf_text %}
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="fw-semibold">Opción 3 (PDF): texto extraído y plantilla</div>
+        <span class="text-muted small">{% if template_id %}Plantilla #{{ template_id }}{% else %}Sin plantilla guardada{% endif %}</span>
+      </div>
+      <div class="card-body">
+        <form method="post" class="vstack gap-3">
+          {% csrf_token %}
+          <textarea class="d-none" name="pdf_lines_json">{{ pdf_lines_json }}</textarea>
+          <input type="hidden" name="template_id" value="{{ template_id }}">
+          <div class="row g-3">
+            <div class="col-12 col-lg-4">
+              <label class="form-label">Proyecto (para buscar/guardar plantilla)</label>
+              <input class="form-control text-uppercase" name="template_proyecto" value="{{ template_proyecto }}">
+            </div>
+            <div class="col-12 col-lg-6">
+              <label class="form-label">Nombre de plantilla (opcional)</label>
+              <input class="form-control" name="template_nombre" placeholder="Ej. ALMAERA - Plano v1">
+            </div>
+            <div class="col-12 col-lg-2 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="prefer_total" value="1" id="preferTotal" {% if template_cfg.prefer_total %}checked{% endif %}>
+                <label class="form-check-label" for="preferTotal">Usar TOTAL</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-12 col-xl-6">
+              <label class="form-label">Regex marca grande (código principal)</label>
+              <input class="form-control font-monospace" name="big_mark_regex" value="{{ template_cfg.big_mark_regex }}">
+            </div>
+            <div class="col-12 col-xl-6">
+              <label class="form-label">Regex marca (por renglón)</label>
+              <input class="form-control font-monospace" name="mark_regex" value="{{ template_cfg.mark_regex }}">
+            </div>
+            <div class="col-12 col-xl-6">
+              <label class="form-label">Regex perfil</label>
+              <input class="form-control font-monospace" name="profile_regex" value="{{ template_cfg.profile_regex }}">
+            </div>
+            <div class="col-12 col-xl-6">
+              <label class="form-label">Regex TOTAL</label>
+              <input class="form-control font-monospace" name="total_regex" value="{{ template_cfg.total_regex }}">
+            </div>
+            <div class="col-12 col-xl-6">
+              <label class="form-label">Regex número de piezas</label>
+              <input class="form-control font-monospace" name="num_piezas_regex" value="{{ template_cfg.num_piezas_regex }}">
+            </div>
+          </div>
+
+          <div>
+            <label class="form-label">Texto extraído del PDF</label>
+            <textarea class="form-control font-monospace" rows="16" readonly>{{ pdf_text }}</textarea>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <button class="btn btn-outline-secondary" type="submit" name="stage" value="reparse"><i class="bi bi-arrow-repeat me-1"></i> Re-analizar</button>
+            <button class="btn btn-argon text-white" type="submit" name="stage" value="save_template"><i class="bi bi-save2 me-1"></i> Guardar plantilla</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if rows %}
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="fw-semibold">Revisar y crear</div>
+        <span class="text-muted small">{{ rows|length }} vigas detectadas</span>
+      </div>
+      <div class="card-body">
+        <form method="post" class="vstack gap-3">
+          {% csrf_token %}
+          <input type="hidden" name="stage" value="commit">
+          <input type="hidden" name="total_rows" value="{{ rows|length }}">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Proyecto</th>
+                  <th>Perfil</th>
+                  <th class="text-end">Kg</th>
+                  <th class="text-end">Cantidad</th>
+                  <th>Estado</th>
+                  <th>Prioridad</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in rows %}
+                  <tr>
+                    <td><input class="form-control form-control-sm" name="codigo_{{ forloop.counter0 }}" value="{{ r.codigo }}"></td>
+                    <td><input class="form-control form-control-sm" name="proyecto_{{ forloop.counter0 }}" value="{{ r.proyecto }}"></td>
+                    <td><input class="form-control form-control-sm" name="descripcion_{{ forloop.counter0 }}" value="{{ r.descripcion }}"></td>
+                    <td><input class="form-control form-control-sm text-end" type="number" step="0.01" name="peso_{{ forloop.counter0 }}" value="{{ r.peso }}"></td>
+                    <td><input class="form-control form-control-sm text-end" type="number" min="1" name="cantidad_{{ forloop.counter0 }}" value="{{ r.cantidad }}"></td>
+                    <td>
+                      <select class="form-select form-select-sm" name="estado_{{ forloop.counter0 }}">
+                        {% for e in estados %}
+                          <option value="{{ e }}" {% if e == r.estado %}selected{% endif %}>{{ e }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td>
+                      <select class="form-select form-select-sm" name="prioridad_{{ forloop.counter0 }}">
+                        {% for n in "12345" %}
+                          <option value="{{ n }}" {% if n == r.prioridad|stringformat:"s" %}selected{% endif %}>{{ n }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td><input class="form-control form-control-sm" type="date" name="fecha_{{ forloop.counter0 }}" value="{{ r.fecha }}"></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <label class="form-label">Observaciones (para todas)</label>
+            <textarea class="form-control" name="observaciones_global" rows="3"></textarea>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <a class="btn btn-outline-secondary" href="{% url 'produccion:viga_import' %}">Cancelar</a>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Crear piezas</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,50 @@
+# Entornos virtuales
+.venv/
+.venv-mac/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+/media/
+/staticfiles/
+/logs/
+*.log
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+
+# Herramientas
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/
+*.swp
+*~
+
+# Respaldos y volcados
+*.dump
+*.sql.gz
+backups/

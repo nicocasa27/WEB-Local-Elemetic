@@ -1,0 +1,140 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Órdenes de Robótica{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Robótica</div>
+      <div class="h3 mb-0">Órdenes de producción</div>
+      <div class="text-muted small">Crea órdenes y registra producción por pieza para ver avance por porcentaje.</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-1"></i> Volver</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-header fw-semibold">Nueva orden</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="orden_create">
+            <div>
+              <label class="form-label">Proyecto</label>
+              {{ form.proyecto }}
+              {% if form.proyecto.errors %}<div class="invalid-feedback d-block">{{ form.proyecto.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Nombre de la orden</label>
+              {{ form.nombre }}
+              {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Producto final (opcional)</label>
+              {{ form.producto }}
+            </div>
+            <div>
+              <label class="form-label">Cantidad</label>
+              {{ form.cantidad_objetivo }}
+              {% if form.cantidad_objetivo.errors %}<div class="invalid-feedback d-block">{{ form.cantidad_objetivo.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Observaciones</label>
+              {{ form.observaciones }}
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Crear</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Órdenes abiertas</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Proyecto</th>
+                  <th>Orden</th>
+                  <th class="text-end">Cantidad</th>
+                  <th class="text-end">Corte</th>
+                  <th class="text-end">Armado</th>
+                  <th class="text-end">Sold.</th>
+                  <th class="text-end">Pint.</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in ordenes_abiertas %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio }}</td>
+                    <td class="text-muted small">{% if o.proyecto %}{{ o.proyecto.nombre }}{% else %}-{% endif %}</td>
+                    <td>{{ o.nombre|default:o.producto }}</td>
+                    <td class="text-end">{{ o.cantidad_objetivo }}</td>
+                    <td class="text-end">{{ o.stage_pcts.Corte|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Armado|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Soldadura|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Pintura|floatformat:0 }}%</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:robotica_orden_detalle' o.id %}">Abrir</a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="9" class="text-center text-muted py-4">Sin órdenes abiertas.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header fw-semibold">Recientes</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Proyecto</th>
+                  <th>Orden</th>
+                  <th>Estado</th>
+                  <th class="text-end">Cantidad</th>
+                  <th class="text-end">Corte</th>
+                  <th class="text-end">Armado</th>
+                  <th class="text-end">Sold.</th>
+                  <th class="text-end">Pint.</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in ordenes_recientes %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio }}</td>
+                    <td class="text-muted small">{% if o.proyecto %}{{ o.proyecto.nombre }}{% else %}-{% endif %}</td>
+                    <td>{{ o.nombre|default:o.producto }}</td>
+                    <td>{{ o.estado }}</td>
+                    <td class="text-end">{{ o.cantidad_objetivo }}</td>
+                    <td class="text-end">{{ o.stage_pcts.Corte|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Armado|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Soldadura|floatformat:0 }}%</td>
+                    <td class="text-end">{{ o.stage_pcts.Pintura|floatformat:0 }}%</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalogos:robotica_orden_detalle' o.id %}">Ver</a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="10" class="text-center text-muted py-4">Sin historial.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

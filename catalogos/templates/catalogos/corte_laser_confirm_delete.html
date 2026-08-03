@@ -1,0 +1,30 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Eliminar{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div>
+            <div class="kpi-label">Acción</div>
+            <div class="h5 mb-0">Eliminar pedido</div>
+          </div>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">
+            <i class="bi bi-x-lg me-1"></i> Cancelar
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            ¿Seguro que deseas eliminar: <strong>{{ orden.codigo }} ({{ orden.pieza_no }}/{{ orden.total_piezas }})</strong>?
+          </div>
+          <form method="post" class="d-flex gap-2 justify-content-end">
+            {% csrf_token %}
+            <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">Volver</a>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i> Eliminar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+

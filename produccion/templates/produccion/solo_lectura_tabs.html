@@ -1,0 +1,25 @@
+<div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+  <div>
+    <div class="kpi-label">Consulta</div>
+    <div class="h3 mb-0">Solo lectura</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a class="btn btn-outline-secondary" href="{% url 'produccion:home' %}"><i class="bi bi-house-door me-1"></i> Menú</a>
+    <a class="btn btn-outline-secondary" href="{% url 'catalogos:paros' %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-cone-striped me-1"></i> Paros</a>
+  </div>
+</div>
+
+<ul class="nav nav-pills flex-wrap gap-2 mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if solo_lectura_active == 'produccion' %}active{% endif %}" href="{% url 'produccion:solo_lectura_produccion' %}">Producción</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if solo_lectura_active == 'robotica' %}active{% endif %}" href="{% url 'produccion:solo_lectura_robotica' %}">Robótica</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if solo_lectura_active == 'herreria' %}active{% endif %}" href="{% url 'produccion:solo_lectura_herreria' %}">Herrería</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if solo_lectura_active == 'corte_laser' %}active{% endif %}" href="{% url 'produccion:solo_lectura_corte_laser' %}">Corta.mx</a>
+  </li>
+</ul>

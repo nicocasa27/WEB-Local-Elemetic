@@ -1,0 +1,104 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Maquinaria{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Catálogos</div>
+      <div class="h3 mb-0">Maquinaria</div>
+      <div class="text-muted small">Define máquinas (corte/robots) para asignarlas a piezas y KPIs.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'catalogos:equipos' %}"><i class="bi bi-people me-1"></i> Equipos</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Agregar máquina</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <div>
+              <label class="form-label">Nombre</label>
+              {{ form.nombre }}
+              {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Tipo</label>
+              {{ form.tipo }}
+              {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label d-block">Activo</label>
+              <div class="form-check form-switch">
+                {{ form.activo }}
+                <label class="form-check-label" for="{{ form.activo.id_for_label }}">Sí</label>
+              </div>
+              {% if form.activo.errors %}<div class="invalid-feedback d-block">{{ form.activo.errors }}</div>{% endif %}
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Listado</div>
+          <div class="text-muted small">{{ maquinas|length }} máquinas</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Activo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in maquinas %}
+                <tr>
+                  <td class="fw-semibold">{{ m.nombre }}</td>
+                  <td><span class="badge badge-soft">{{ m.tipo }}</span></td>
+                  <td>{% if m.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:maquina_editar' m.pk %}" title="Editar">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="post" action="{% url 'catalogos:maquina_toggle' m.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% if m.activo %}Desactivar{% else %}Activar{% endif %}">
+                        {% if m.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" action="{% url 'catalogos:maquina_delete' m.pk %}" class="d-inline js-confirm-delete">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Sin máquinas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("form.js-confirm-delete").forEach((f) => {
+        f.addEventListener("submit", (e) => {
+          const ok = confirm("¿Seguro que deseas eliminar? Esta acción no se puede deshacer.");
+          if (!ok) e.preventDefault();
+        });
+      });
+    });
+  </script>
+{% endblock %}

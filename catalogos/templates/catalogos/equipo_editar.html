@@ -1,0 +1,60 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Editar equipo{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Equipos de trabajo</div>
+      <div class="h3 mb-0">Editar: {{ equipo.nombre }}</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'catalogos:equipos' %}"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-12">
+              <label class="form-label">Nombre</label>
+              {{ form.nombre }}
+              {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label">Estados que atiende el equipo</label>
+              <div class="row g-2">
+                {% for c in form.estados %}
+                  <div class="col-6 col-md-4">
+                    <div class="form-check">
+                      {{ c.tag }}
+                      <label class="form-check-label" for="{{ c.id_for_label }}">{{ c.choice_label }}</label>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="text-muted small mt-1">Puedes seleccionar varios estados.</div>
+              {% if form.estados.errors %}<div class="invalid-feedback d-block">{{ form.estados.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Colaboradores activos (auto)</label>
+              {{ form.integrantes }}
+              <div class="text-muted small mt-1">Se calcula con colaboradores activos del equipo.</div>
+              {% if form.integrantes.errors %}<div class="invalid-feedback d-block">{{ form.integrantes.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label d-block">Activo</label>
+              <div class="form-check form-switch">
+                {{ form.activo }}
+                <label class="form-check-label" for="id_activo">Sí</label>
+              </div>
+            </div>
+            <div class="col-12 d-flex gap-2 justify-content-end">
+              <a class="btn btn-outline-secondary" href="{% url 'catalogos:equipos' %}">Cancelar</a>
+              <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

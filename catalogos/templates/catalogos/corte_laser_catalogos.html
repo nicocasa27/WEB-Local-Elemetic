@@ -1,0 +1,114 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Clientes · Corta.mx{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Corta.mx</div>
+      <div class="h3 mb-0">Clientes</div>
+      <div class="text-muted small">Clientes/Proyectos independientes de Corta.mx</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">{% if edit_obj %}Editar{% else %}Alta{% endif %}</div>
+    <div class="card-body">
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{% if edit_obj %}save{% else %}create{% endif %}">
+        <input type="hidden" name="cp_id" value="{% if edit_obj %}{{ edit_obj.id }}{% endif %}">
+        {% if form.non_field_errors %}
+          <div class="col-12">
+            <div class="alert alert-danger py-2 mb-0">{{ form.non_field_errors }}</div>
+          </div>
+        {% endif %}
+        <div class="col-12 col-md-6">
+          <label class="form-label">Cliente o proyecto</label>
+          {{ form.nombre }}
+          {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Tipo</label>
+          {{ form.tipo }}
+          {% if form.tipo.errors %}<div class="invalid-feedback d-block">{{ form.tipo.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-1">
+          <div class="form-check mt-4">
+            {{ form.activo }}
+            <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activo</label>
+          </div>
+        </div>
+        <div class="col-12 col-md-2 d-grid">
+          <button class="btn btn-argon text-white" type="submit">
+            {% if edit_obj %}<i class="bi bi-check2-circle me-1"></i> Guardar cambios{% else %}<i class="bi bi-plus-circle me-1"></i> Guardar{% endif %}
+          </button>
+        </div>
+        {% if edit_obj %}
+          <div class="col-12 col-md-3">
+            <a class="btn btn-outline-secondary w-100" href="{% url 'catalogos:corte_laser_catalogos' %}">Cancelar</a>
+          </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header fw-semibold">Listado</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Activo</th>
+              <th class="text-end">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td class="fw-semibold">{{ r.nombre }}</td>
+                <td class="text-muted small">{{ r.get_tipo_display }}</td>
+                <td>
+                  {% if r.activo %}
+                    <span class="badge text-bg-success">Sí</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">No</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:corte_laser_catalogos' %}?edit={{ r.id }}" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="cp_id" value="{{ r.id }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">
+                      {% if r.activo %}Desactivar{% else %}Activar{% endif %}
+                    </button>
+                  </form>
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="cp_id" value="{{ r.id }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-center text-muted py-4">Sin registros.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}

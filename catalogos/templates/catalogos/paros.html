@@ -1,0 +1,366 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Paros{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Planta</div>
+      <div class="h3 mb-0">Paros y fallas</div>
+      <div class="text-muted small">Registro rápido para explicar por qué no se alcanza la meta semanal.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if next_url %}
+        <a class="btn btn-outline-secondary" href="{{ next_url }}"><i class="bi bi-arrow-left me-1"></i> Regresar a consulta</a>
+      {% endif %}
+      <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#energiaModal">
+        <i class="bi bi-lightning-charge me-1"></i> Corte de energía
+      </button>
+      {% if is_admin %}
+        <a class="btn btn-outline-secondary" href="{% url 'catalogos:paros_motivos' %}"><i class="bi bi-list-check me-1"></i> Motivos</a>
+        <a class="btn btn-outline-secondary" href="{% url 'catalogos:paros_fallas' %}"><i class="bi bi-wrench-adjustable me-1"></i> Fallas</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-2 g-md-3">
+    {% for r in rows %}
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="card border" id="machine-card-{{ r.maquina.id }}"{% if focus_id and focus_id == r.maquina.id %} style="border-color:#5e72e4; box-shadow: 0 0 0 .2rem rgba(94,114,228,.15);"{% endif %}>
+          <div class="card-body">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">{{ r.maquina.nombre }}</div>
+                <div class="text-muted small">{{ r.maquina.tipo }}{% if r.maquina.es_robot %} · Robot{% endif %}</div>
+              </div>
+              <div class="text-end">
+                {% if r.paro and r.falla %}
+                  <span class="badge text-white" style="background:#f5365c;">Paro + Falla</span>
+                {% elif r.falla %}
+                  <span class="badge text-white" style="background:#f5365c;">Falla</span>
+                {% elif r.paro %}
+                  <span class="badge text-white" style="background:#fb6340;">Paro</span>
+                {% else %}
+                  <span class="badge text-white" style="background:#2dce89;">Operando</span>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if r.paro %}
+              <div class="mt-2 text-muted small">
+                <div><span class="fw-semibold">Paro:</span> {{ r.paro.inicio|date:"Y-m-d H:i" }}{% if r.paro.motivo %} · {{ r.paro.motivo.nombre }}{% endif %}</div>
+              </div>
+            {% endif %}
+            {% if r.falla %}
+              <div class="mt-1 text-muted small">
+                <div><span class="fw-semibold">Falla:</span> {{ r.falla.inicio|date:"Y-m-d H:i" }}{% if r.falla.tipo %} · {{ r.falla.tipo.nombre }}{% endif %}</div>
+              </div>
+            {% endif %}
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              {% if not r.paro and not r.falla %}
+                <button type="button" class="btn btn-outline-warning flex-fill js-open-start-paro" data-maquina="{{ r.maquina.id }}" data-nombre="{{ r.maquina.nombre|escape }}">
+                  <i class="bi bi-pause-circle me-1"></i> Iniciar paro
+                </button>
+                <button type="button" class="btn btn-outline-danger flex-fill js-open-start-falla" data-maquina="{{ r.maquina.id }}" data-nombre="{{ r.maquina.nombre|escape }}">
+                  <i class="bi bi-exclamation-triangle me-1"></i> Iniciar falla
+                </button>
+              {% elif r.paro and not r.falla %}
+                <button type="button" class="btn btn-outline-success flex-fill js-open-end-paro" data-maquina="{{ r.maquina.id }}" data-nombre="{{ r.maquina.nombre|escape }}">
+                  <i class="bi bi-play-circle me-1"></i> Reanudar
+                </button>
+                <button type="button" class="btn btn-outline-danger flex-fill js-open-start-falla" data-maquina="{{ r.maquina.id }}" data-nombre="{{ r.maquina.nombre|escape }}">
+                  <i class="bi bi-exclamation-triangle me-1"></i> Iniciar falla
+                </button>
+              {% elif r.falla %}
+                <button type="button" class="btn btn-outline-danger flex-fill js-open-end-falla" data-maquina="{{ r.maquina.id }}" data-nombre="{{ r.maquina.nombre|escape }}">
+                  <i class="bi bi-check2-circle me-1"></i> Resolver falla
+                </button>
+                <button type="button" class="btn btn-outline-success flex-fill" disabled>
+                  <i class="bi bi-play-circle me-1"></i> Reanudar
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header fw-semibold">Cortes de energía recientes</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                  <th>Comentario</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in energia_recent %}
+                  <tr>
+                    <td class="fw-semibold">{{ e.inicio|date:"Y-m-d H:i" }}</td>
+                    <td>{{ e.fin|date:"Y-m-d H:i" }}</td>
+                    <td class="text-muted small">{{ e.comentario }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-center text-muted py-4">Sin registros.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header fw-semibold">Actividad reciente</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Máquina</th>
+                  <th>Inicio</th>
+                  <th>Fin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in recent_paros %}
+                  <tr>
+                    <td><span class="badge text-white" style="background:#fb6340;">Paro</span></td>
+                    <td class="fw-semibold">{{ p.maquina.nombre }}</td>
+                    <td>{{ p.inicio|date:"Y-m-d H:i" }}</td>
+                    <td>{% if p.fin %}{{ p.fin|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">Activo</span>{% endif %}</td>
+                  </tr>
+                {% endfor %}
+                {% for f in recent_fallas %}
+                  <tr>
+                    <td><span class="badge text-white" style="background:#f5365c;">Falla</span></td>
+                    <td class="fw-semibold">{{ f.maquina.nombre }}</td>
+                    <td>{{ f.inicio|date:"Y-m-d H:i" }}</td>
+                    <td>{% if f.fin %}{{ f.fin|date:"Y-m-d H:i" }}{% else %}<span class="text-muted">Activa</span>{% endif %}</td>
+                  </tr>
+                {% empty %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="startParoModal" tabindex="-1" aria-labelledby="startParoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="startParoModalLabel">Iniciar paro</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="start_paro">
+          <input type="hidden" name="maquina_id" id="startParoMaquinaId">
+          <div class="modal-body">
+            <div class="text-muted small mb-2" id="startParoMaquinaNombre"></div>
+            <div class="mb-3">
+              <label class="form-label">Motivo</label>
+              {{ paro_form.motivo }}
+            </div>
+            <div>
+              <label class="form-label">Comentario</label>
+              {{ paro_form.comentario }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-warning text-dark">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="endParoModal" tabindex="-1" aria-labelledby="endParoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="endParoModalLabel">Reanudar máquina</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="end_paro">
+          <input type="hidden" name="maquina_id" id="endParoMaquinaId">
+          <div class="modal-body">
+            <div class="text-muted small mb-2" id="endParoMaquinaNombre"></div>
+            <div>
+              <label class="form-label">Comentario (opcional)</label>
+              {{ comentario_form.comentario }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success">Reanudar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="startFallaModal" tabindex="-1" aria-labelledby="startFallaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="startFallaModalLabel">Iniciar falla</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="start_falla">
+          <input type="hidden" name="maquina_id" id="startFallaMaquinaId">
+          <div class="modal-body">
+            <div class="text-muted small mb-2" id="startFallaMaquinaNombre"></div>
+            <div class="mb-3">
+              <label class="form-label">Tipo de falla</label>
+              {{ falla_form.tipo }}
+            </div>
+            <div>
+              <label class="form-label">Comentario</label>
+              {{ falla_form.comentario }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="endFallaModal" tabindex="-1" aria-labelledby="endFallaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="endFallaModalLabel">Resolver falla</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="end_falla">
+          <input type="hidden" name="maquina_id" id="endFallaMaquinaId">
+          <div class="modal-body">
+            <div class="text-muted small mb-2" id="endFallaMaquinaNombre"></div>
+            <div>
+              <label class="form-label">Comentario (opcional)</label>
+              {{ comentario_form.comentario }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-danger">Resolver</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="energiaModal" tabindex="-1" aria-labelledby="energiaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="energiaModalLabel">Corte de energía</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="energia">
+          <div class="modal-body">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Inicio (fecha)</label>
+                {{ energia_form.inicio_fecha }}
+              </div>
+              <div class="col-6">
+                <label class="form-label">Inicio (hora)</label>
+                {{ energia_form.inicio_hora }}
+              </div>
+              <div class="col-6">
+                <label class="form-label">Fin (fecha)</label>
+                {{ energia_form.fin_fecha }}
+              </div>
+              <div class="col-6">
+                <label class="form-label">Fin (hora)</label>
+                {{ energia_form.fin_hora }}
+              </div>
+            </div>
+            <div class="mt-2">
+              <label class="form-label">Comentario</label>
+              {{ energia_form.comentario }}
+            </div>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" name="aplicar_maquinas" id="energiaAplicar" {% if energia_form.initial.aplicar_maquinas %}checked{% endif %}>
+              <label class="form-check-label" for="energiaAplicar">Aplicar a todas las máquinas como paro por energía</label>
+            </div>
+            {% if energia_form.non_field_errors %}
+              <div class="alert alert-danger mt-2">{{ energia_form.non_field_errors }}</div>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-outline-warning">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  <script>
+    function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v || ""; }
+    function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ""; }
+
+    document.querySelectorAll(".js-open-start-paro").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setVal("startParoMaquinaId", btn.getAttribute("data-maquina"));
+        setText("startParoMaquinaNombre", btn.getAttribute("data-nombre"));
+        new bootstrap.Modal(document.getElementById("startParoModal")).show();
+      });
+    });
+    document.querySelectorAll(".js-open-end-paro").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setVal("endParoMaquinaId", btn.getAttribute("data-maquina"));
+        setText("endParoMaquinaNombre", btn.getAttribute("data-nombre"));
+        new bootstrap.Modal(document.getElementById("endParoModal")).show();
+      });
+    });
+    document.querySelectorAll(".js-open-start-falla").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setVal("startFallaMaquinaId", btn.getAttribute("data-maquina"));
+        setText("startFallaMaquinaNombre", btn.getAttribute("data-nombre"));
+        new bootstrap.Modal(document.getElementById("startFallaModal")).show();
+      });
+    });
+    document.querySelectorAll(".js-open-end-falla").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setVal("endFallaMaquinaId", btn.getAttribute("data-maquina"));
+        setText("endFallaMaquinaNombre", btn.getAttribute("data-nombre"));
+        new bootstrap.Modal(document.getElementById("endFallaModal")).show();
+      });
+    });
+
+    const focusId = Number("{{ focus_id|default:''|escapejs }}") || 0;
+    if (focusId) {
+      const el = document.getElementById(`machine-card-${focusId}`);
+      if (el) el.scrollIntoView({ block: "center" });
+    }
+  </script>
+{% endblock %}

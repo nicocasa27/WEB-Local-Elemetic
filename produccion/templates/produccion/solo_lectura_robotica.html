@@ -1,0 +1,101 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Solo lectura · Robótica{% endblock %}
+{% block content %}
+  {% include "produccion/solo_lectura_tabs.html" %}
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge badge-soft">Robótica</span>
+        <span class="text-muted small">Mostrando hasta 2000 registros</span>
+      </div>
+      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+        <select class="form-select form-select-sm" name="estado" style="max-width: 180px;">
+          {% for e in estados_doc %}
+            <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
+          {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" name="proyecto" style="max-width: 240px;">
+          {% for p in proyectos %}
+            <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+        <div class="input-group input-group-sm" style="min-width: 280px;">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (proyecto / nombre / producto)..." autocomplete="off" />
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ reset_url }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>OP</th>
+            <th>Proyecto</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th class="text-end">Ton (plan)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+            <tr>
+              <td class="fw-semibold">{{ o.folio_show }}</td>
+              <td class="fw-semibold">{{ o.proyecto_nombre }}</td>
+              <td class="text-muted">{{ o.nombre_show }}</td>
+              <td class="text-muted">{{ o.estado }}</td>
+              <td class="text-end">{{ o.ton|floatformat:3 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Sin resultados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge badge-soft">Producción</span>
+        <span class="text-muted small">Últimos 500 registros</span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>OP</th>
+            <th>Proyecto</th>
+            <th>Robot</th>
+            <th>Operador</th>
+            <th>Pieza</th>
+            <th class="text-end">Cant</th>
+            <th class="text-end">Kg</th>
+            <th class="text-end">Ton</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in producciones %}
+            <tr>
+              <td class="text-muted">{{ p.fecha|date:"Y-m-d" }}</td>
+              <td class="fw-semibold">{{ p.op_folio }}</td>
+              <td class="fw-semibold">{{ p.proyecto_nombre }}</td>
+              <td class="text-muted">{{ p.robot.nombre }}</td>
+              <td class="text-muted">{{ p.operador.nombre }}</td>
+              <td class="text-muted">{{ p.pieza_nombre_show }}</td>
+              <td class="text-end">{{ p.cantidad }}</td>
+              <td class="text-end">{{ p.kg|floatformat:2 }}</td>
+              <td class="text-end">{{ p.ton|floatformat:3 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="9" class="text-center text-muted py-4">Sin registros de producción.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

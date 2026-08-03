@@ -1,0 +1,325 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Corta.mx{% endblock %}
+{% block content %}
+  {% if solo and saved %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div><i class="bi bi-check2-circle me-1"></i> Material guardado.</div>
+      {% if next_url %}
+        <a class="btn btn-sm btn-outline-success" href="{{ next_url }}">Volver</a>
+      {% endif %}
+    </div>
+    <script>
+      (function () {
+        try { window.parent.postMessage({type: "corte:close-edit", reload: true}, window.location.origin); } catch (e) {}
+        try { setTimeout(() => window.close(), 250); } catch (e) {}
+      })();
+    </script>
+  {% endif %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Corta.mx</div>
+      <div class="h3 mb-0">Materiales</div>
+      <div class="text-muted small">Placas para estimar el peso por área.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if solo %}
+        {% if next_url %}
+          <a class="btn btn-outline-secondary" href="{{ next_url }}"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+        {% endif %}
+        {% if embedded %}
+          <button class="btn btn-outline-secondary" type="button" onclick="try{window.parent.postMessage({type:'corte:close-edit',reload:false}, window.location.origin);}catch(e){}"><i class="bi bi-x-lg me-1"></i> Cerrar</button>
+        {% else %}
+          <button class="btn btn-outline-secondary" type="button" onclick="window.close()"><i class="bi bi-x-lg me-1"></i> Cerrar</button>
+        {% endif %}
+      {% else %}
+        <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}"><i class="bi bi-kanban me-1"></i> Control</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 {% if not solo %}col-lg-4{% endif %}">
+      <div class="card">
+        <div class="card-header fw-semibold">{% if edit_obj %}Editar material{% else %}Nuevo material (placa){% endif %}</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="{% if edit_obj %}material_save{% else %}material_create{% endif %}">
+            <input type="hidden" name="material_id" value="{% if edit_obj %}{{ edit_obj.id }}{% endif %}">
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <div>
+              <label class="form-label">Material (categoría)</label>
+              {{ material_form.categoria_material }}
+              {% if material_form.categoria_material.errors %}<div class="invalid-feedback d-block">{{ material_form.categoria_material.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Tipo de placa</label>
+              {{ material_form.tipo_material }}
+              {% if material_form.tipo_material.errors %}<div class="invalid-feedback d-block">{{ material_form.tipo_material.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Nomenclatura</label>
+              <div class="input-group">
+                {{ material_form.nombre }}
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#laserNomenclaturaCollapse" aria-expanded="false">
+                  <i class="bi bi-chevron-down"></i>
+                </button>
+              </div>
+              <datalist id="laserNomenclaturaList"></datalist>
+              <div class="collapse mt-2" id="laserNomenclaturaCollapse">
+                <div id="laserNomenclaturaItems" class="list-group" style="max-height: 240px; overflow:auto;"></div>
+              </div>
+              {% if material_form.nombre.errors %}<div class="invalid-feedback d-block">{{ material_form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Calibre</label>
+                {{ material_form.calibre }}
+                {% if material_form.calibre.errors %}<div class="invalid-feedback d-block">{{ material_form.calibre.errors }}</div>{% endif %}
+              </div>
+              <div class="col-6">
+                <label class="form-label">Espesor (mm)</label>
+                {{ material_form.espesor_mm }}
+                {% if material_form.espesor_mm.errors %}<div class="invalid-feedback d-block">{{ material_form.espesor_mm.errors }}</div>{% endif %}
+              </div>
+            </div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label">Tamaño · Largo (cm)</label>
+                {{ material_form.largo_cm }}
+                {% if material_form.largo_cm.errors %}<div class="invalid-feedback d-block">{{ material_form.largo_cm.errors }}</div>{% endif %}
+              </div>
+              <div class="col-6">
+                <label class="form-label">Tamaño · Ancho (cm)</label>
+                {{ material_form.ancho_cm }}
+                {% if material_form.ancho_cm.errors %}<div class="invalid-feedback d-block">{{ material_form.ancho_cm.errors }}</div>{% endif %}
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Peso (kg)</label>
+              {{ material_form.peso_kg }}
+              {% if material_form.peso_kg.errors %}<div class="invalid-feedback d-block">{{ material_form.peso_kg.errors }}</div>{% endif %}
+            </div>
+            <div class="form-check">
+              {{ material_form.activo }}
+              <label class="form-check-label">Activo</label>
+            </div>
+            <div class="d-grid gap-2">
+              <button class="btn btn-argon text-white" type="submit">
+                {% if edit_obj %}<i class="bi bi-check2-circle me-1"></i> Guardar cambios{% else %}<i class="bi bi-plus-circle me-1"></i> Guardar{% endif %}
+              </button>
+              {% if edit_obj %}
+                {% if solo %}
+                  {% if next_url %}
+                    <a class="btn btn-outline-secondary" href="{{ next_url }}">Volver</a>
+                  {% endif %}
+                  {% if embedded %}
+                    <button class="btn btn-outline-secondary" type="button" onclick="try{window.parent.postMessage({type:'corte:close-edit',reload:false}, window.location.origin);}catch(e){}">Cerrar</button>
+                  {% else %}
+                    <button class="btn btn-outline-secondary" type="button" onclick="window.close()">Cerrar</button>
+                  {% endif %}
+                {% else %}
+                  <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_materiales' %}">Cancelar</a>
+                {% endif %}
+              {% endif %}
+            </div>
+          </form>
+
+          {{ nomenclaturas_payload|json_script:"laserNomenclaturasPayload" }}
+          <script>
+            (function () {
+              const payloadEl = document.getElementById("laserNomenclaturasPayload");
+              const payload = payloadEl ? JSON.parse(payloadEl.textContent) : [];
+              const catEl = document.getElementById("{{ material_form.categoria_material.id_for_label }}");
+              const tipoEl = document.getElementById("{{ material_form.tipo_material.id_for_label }}");
+              const nombreEl = document.getElementById("{{ material_form.nombre.id_for_label }}");
+              const listEl = document.getElementById("laserNomenclaturaList");
+              const itemsEl = document.getElementById("laserNomenclaturaItems");
+              if (nombreEl) nombreEl.setAttribute("list", "laserNomenclaturaList");
+
+              function norm(s) {
+                return String(s || "").trim().toUpperCase();
+              }
+
+              function render() {
+                const cat = norm(catEl ? catEl.value : "");
+                const tipo = norm(tipoEl ? tipoEl.value : "");
+                const q = norm(nombreEl ? nombreEl.value : "");
+                const names = [];
+                const seen = new Set();
+                (payload || []).forEach((r) => {
+                  if (!r) return;
+                  if (cat && norm(r.categoria) !== cat) return;
+                  if (tipo && norm(r.tipo) !== tipo) return;
+                  const nm = String(r.nombre || "").trim();
+                  const nk = norm(nm);
+                  if (!nk) return;
+                  if (q && nk.indexOf(q) < 0) return;
+                  if (seen.has(nk)) return;
+                  seen.add(nk);
+                  names.push(nm);
+                });
+                names.sort((a, b) => norm(a).localeCompare(norm(b)));
+                if (listEl) {
+                  listEl.innerHTML = names.map((n) => `<option value="${String(n).replaceAll('"', "&quot;")}"></option>`).join("");
+                }
+                if (itemsEl) {
+                  itemsEl.innerHTML = names
+                    .map((n) => `<button type="button" class="list-group-item list-group-item-action">${n}</button>`)
+                    .join("");
+                  Array.from(itemsEl.querySelectorAll("button")).forEach((btn) => {
+                    btn.addEventListener("click", function () {
+                      if (nombreEl) nombreEl.value = btn.textContent || "";
+                      render();
+                    });
+                  });
+                }
+              }
+
+              if (catEl) catEl.addEventListener("input", render);
+              if (tipoEl) tipoEl.addEventListener("input", render);
+              if (nombreEl) nombreEl.addEventListener("input", render);
+              render();
+            })();
+          </script>
+        </div>
+      </div>
+    </div>
+
+    {% if not solo %}
+    <div class="col-12 col-lg-8">
+      <div class="card">
+        <div class="card-header fw-semibold">Materiales</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Material</th>
+                  <th class="text-end">Calibre</th>
+                  <th class="text-end">Espesor (mm)</th>
+                  <th class="text-end">Tamaño (cm)</th>
+                  <th class="text-end">Kg</th>
+                  <th>Estado</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in materiales %}
+                  {% ifchanged m.categoria_material %}
+                    <tr class="table-light">
+                      <td colspan="7" class="fw-semibold">{{ m.categoria_material|default:"SIN CATEGORÍA" }}</td>
+                    </tr>
+                  {% endifchanged %}
+                  {% ifchanged m.categoria_material m.tipo_material %}
+                    <tr class="table-secondary">
+                      <td colspan="7" class="ps-4 fw-semibold">{{ m.tipo_material|default:"Sin tipo" }}</td>
+                    </tr>
+                  {% endifchanged %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ m.nombre }}</div>
+                      <div class="text-muted small">
+                        {% if m.categoria_material %}{{ m.categoria_material }}{% endif %}{% if m.tipo_material %}{% if m.categoria_material %} · {% endif %}{{ m.tipo_material }}{% endif %}
+                      </div>
+                    </td>
+                    <td class="text-end">{{ m.calibre }}</td>
+                    <td class="text-end">{{ m.espesor_mm|floatformat:2 }}</td>
+                    <td class="text-end">{{ m.largo_cm_show|floatformat:1 }} x {{ m.ancho_cm_show|floatformat:1 }}</td>
+                    <td class="text-end">{{ m.peso_kg|floatformat:3 }}</td>
+                    <td>{% if m.activo %}<span class="badge text-white" style="background:#2dce89;">Activo</span>{% else %}<span class="badge text-white" style="background:#8898aa;">Inactivo</span>{% endif %}</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-primary js-open-edit-iframe" href="{% url 'catalogos:corte_laser_materiales' %}?edit={{ m.id }}&solo=1&embedded=1&next={{ request.get_full_path|urlencode }}" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="material_delete">
+                        <input type="hidden" name="material_id" value="{{ m.id }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar"><i class="bi bi-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="7" class="text-center text-muted py-4">Sin materiales.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not solo %}
+    <div class="modal fade" id="editIframeModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Editar material</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-0">
+            <iframe id="editIframeFrame" title="Editar" style="width: 100%; height: 82vh; border: 0; background: #fff;"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.addEventListener("DOMContentLoaded", () => {
+        const scrollKey = `scrollY:${window.location.pathname}${window.location.search}`;
+        function saveScroll() {
+          try { sessionStorage.setItem(scrollKey, String(window.scrollY || 0)); } catch (e) {}
+        }
+        try {
+          const saved = sessionStorage.getItem(scrollKey);
+          if (saved !== null) {
+            sessionStorage.removeItem(scrollKey);
+            const y = parseInt(saved || "0", 10);
+            if (y > 0) window.scrollTo(0, y);
+          }
+        } catch (e) {}
+
+        const modalEl = document.getElementById("editIframeModal");
+        const frame = document.getElementById("editIframeFrame");
+        const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+        document.addEventListener("click", (ev) => {
+          const a = ev.target && ev.target.closest ? ev.target.closest("a.js-open-edit-iframe") : null;
+          if (!a) return;
+          ev.preventDefault();
+          const href = a.getAttribute("href") || "";
+          if (!href) return;
+          if (!modal || !frame) {
+            window.location.href = href;
+            return;
+          }
+          saveScroll();
+          frame.src = href;
+          modal.show();
+        });
+
+        if (modalEl) {
+          modalEl.addEventListener("hidden.bs.modal", () => {
+            if (frame) frame.src = "about:blank";
+          });
+        }
+
+        window.addEventListener("message", (ev) => {
+          try {
+            if (ev.origin !== window.location.origin) return;
+            const data = ev.data || {};
+            if (!data || data.type !== "corte:close-edit") return;
+            if (modal) modal.hide();
+            if (data.reload) {
+              saveScroll();
+              window.location.reload();
+            }
+          } catch (e) {}
+        });
+      });
+    </script>
+  {% endif %}
+{% endblock %}

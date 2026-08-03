@@ -1,0 +1,181 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Nueva pieza{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <div class="kpi-label">Herrería</div>
+      <div class="h3 mb-0">Nueva pieza</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% if reset_url %}{{ reset_url }}{% else %}{% url 'catalogos:herreria_control' %}{% endif %}">
+      <i class="bi bi-arrow-left me-1"></i> Volver
+    </a>
+  </div>
+
+  <div class="card border-0">
+    <div class="card-body">
+      <form id="vigaMainForm" method="post" enctype="multipart/form-data" class="row g-3">
+        {% csrf_token %}
+        <div class="col-12 col-md-6">
+          <label class="form-label">CÓDIGO</label>
+          {{ form.codigo_viga }}
+          {% if form.codigo_viga.errors %}<div class="invalid-feedback d-block">{{ form.codigo_viga.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">PROYECTO</label>
+          {{ form.proyecto }}
+          {% if form.proyecto.errors %}<div class="invalid-feedback d-block">{{ form.proyecto.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">PERFIL</label>
+          {{ form.descripcion }}
+          {% if form.descripcion.errors %}<div class="invalid-feedback d-block">{{ form.descripcion.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">PIEZA (CATÁLOGO)</label>
+          {{ form.pieza }}
+          {% if form.pieza.errors %}<div class="invalid-feedback d-block">{{ form.pieza.errors }}</div>{% endif %}
+          <div class="text-muted small mt-1">Si seleccionas pieza, el KG se toma del catálogo.</div>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">FECHA COMPROMISO</label>
+          {{ form.fecha_compromiso }}
+          {% if form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_compromiso.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">ESTADO</label>
+          {{ form.estado }}
+          {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">PRIORIDAD</label>
+          {{ form.prioridad }}
+          {% if form.prioridad.errors %}<div class="invalid-feedback d-block">{{ form.prioridad.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">KG (PZA)</label>
+          {{ form.peso_kg }}
+          {% if form.peso_kg.errors %}<div class="invalid-feedback d-block">{{ form.peso_kg.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">CANTIDAD</label>
+          {{ form.total_piezas }}
+          {% if form.total_piezas.errors %}<div class="invalid-feedback d-block">{{ form.total_piezas.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          {{ form.observaciones }}
+          {% if form.observaciones.errors %}<div class="invalid-feedback d-block">{{ form.observaciones.errors }}</div>{% endif %}
+        </div>
+
+        {% if corte_operadores %}
+          <div class="col-12">
+            <div class="card border">
+              <div class="card-body">
+                <div class="fw-semibold">Asignación inicial (Corte)</div>
+                <div class="text-muted small">Opcional al dar de alta. Puedes asignar después en Producción.</div>
+                <div class="row g-3 mt-2">
+                  <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-2">Operador(es)</div>
+                    <div class="border rounded p-2" style="max-height: 210px; overflow:auto;">
+                      {% for c in corte_operadores %}
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="corte_operador_ids" value="{{ c.id }}" id="corte_op_{{ c.id }}" {% if c.id in selected_corte_operadores %}checked{% endif %}>
+                          <label class="form-check-label" for="corte_op_{{ c.id }}">{{ c.nombre }} ({{ c.rol }})</label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-2">Máquinas usadas (opcional)</div>
+                    <div class="border rounded p-2" style="max-height: 210px; overflow:auto;">
+                      {% for m in corte_maquinas %}
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="corte_maquina_ids" value="{{ m.id }}" id="corte_mq_{{ m.id }}" {% if m.id in selected_corte_maquinas %}checked{% endif %}>
+                          <label class="form-check-label" for="corte_mq_{{ m.id }}">{{ m.nombre }}</label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex justify-content-end gap-2">
+                  <a class="btn btn-outline-secondary" href="{% url 'catalogos:herreria_control' %}">Cancelar</a>
+                  <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <a class="btn btn-outline-secondary" href="{% url 'catalogos:herreria_control' %}">Cancelar</a>
+            <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </div>
+        {% endif %}
+      </form>
+
+      <hr class="my-4">
+      <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2">
+        <div>
+          <div class="fw-semibold">Plano (PDF)</div>
+          <div class="text-muted small">Abre el plano aquí para copiar los datos sin cambiar de ventana.</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input id="pdfPlanoInput" name="plano_pdf" form="vigaMainForm" type="file" class="form-control" accept="application/pdf" style="max-width: 420px;">
+          <a id="pdfPlanoOpenTab" class="btn btn-outline-secondary" href="{% if plano_url %}{{ plano_url }}{% else %}#{% endif %}" target="_blank" rel="noopener" {% if not plano_url %}style="display:none;"{% endif %}>Abrir en pestaña</a>
+        </div>
+      </div>
+      <div class="mt-3">
+        <embed id="pdfPlanoFrame" type="application/pdf" title="Plano PDF" {% if plano_url %}src="{{ plano_url }}#view=FitH"{% endif %} style="width: 100%; height: 78vh; border: 1px solid #e9ecef; border-radius: .5rem; background: #fff;">
+      </div>
+      {{ piezas_catalogo_weight|json_script:"piezasCatalogoWeight" }}
+      {{ piezas_catalogo_name|json_script:"piezasCatalogoName" }}
+      <script>
+        (function () {
+          const piezasWeightEl = document.getElementById("piezasCatalogoWeight");
+          const piezasNameEl = document.getElementById("piezasCatalogoName");
+          const piezasWeight = piezasWeightEl ? JSON.parse(piezasWeightEl.textContent) : {};
+          const piezasName = piezasNameEl ? JSON.parse(piezasNameEl.textContent) : {};
+          const piezaSel = document.getElementById("{{ form.pieza.id_for_label }}");
+          const kgInput = document.getElementById("{{ form.peso_kg.id_for_label }}");
+          const descInput = document.getElementById("{{ form.descripcion.id_for_label }}");
+          function syncKgFromCatalog() {
+            if (!piezaSel || !kgInput) return;
+            const pid = (piezaSel.value || "").trim();
+            if (pid) {
+              const w = piezasWeight[pid] ?? piezasWeight[String(pid)] ?? "";
+              if (w !== "") kgInput.value = String(w);
+              kgInput.readOnly = true;
+              kgInput.classList.add("bg-light");
+              if (descInput && !(descInput.value || "").trim()) {
+                const n = piezasName[pid] ?? piezasName[String(pid)] ?? "";
+                if (n) descInput.value = String(n);
+              }
+            } else {
+              kgInput.readOnly = false;
+              kgInput.classList.remove("bg-light");
+            }
+          }
+          if (piezaSel) piezaSel.addEventListener("change", syncKgFromCatalog);
+          syncKgFromCatalog();
+
+          const input = document.getElementById("pdfPlanoInput");
+          const frame = document.getElementById("pdfPlanoFrame");
+          const openTab = document.getElementById("pdfPlanoOpenTab");
+          if (!input || !frame) return;
+          input.addEventListener("change", function () {
+            const f = input.files && input.files[0];
+            if (!f) return;
+            const prev = frame.dataset.objectUrl;
+            if (prev) URL.revokeObjectURL(prev);
+            const url = URL.createObjectURL(f);
+            frame.dataset.objectUrl = url;
+            frame.src = url + "#view=FitH";
+            if (openTab) {
+              openTab.href = url;
+              openTab.style.display = "";
+            }
+          });
+        })();
+      </script>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "produccion/base.html" %}
+{% load static %}
+{% block title %}Taller Elemetic - Iniciar sesión{% endblock %}
+{% block navbar %}{% endblock %}
+{% block content %}
+  <style>
+    body {
+      background-image: url("{% static 'produccion/taller_bg.jpg' %}");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    .login-overlay {
+      min-height: 100vh;
+      background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.35));
+      padding: 2rem 0;
+    }
+  </style>
+  <div class="login-overlay">
+  <div class="d-flex align-items-center justify-content-center" style="min-height: 78vh;">
+    <div class="card border-0" style="max-width: 420px; width: 92%;">
+      <div class="card-body py-4">
+        <div class="text-center mb-3">
+          <div class="kpi-label mb-1">Acceso</div>
+          <div class="h5 mb-0">Iniciar sesión</div>
+        </div>
+        {% if form.errors %}
+          <div class="alert alert-danger">Usuario o contraseña inválidos.</div>
+        {% endif %}
+        <form method="post" action="{% url 'login' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="/">
+          <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <input class="form-control" type="text" name="username" autocomplete="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <div class="input-group">
+              <input id="loginPassword" class="form-control" type="password" name="password" autocomplete="current-password" required>
+              <button id="togglePasswordBtn" class="btn btn-outline-secondary" type="button">Mostrar</button>
+            </div>
+          </div>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-argon text-white">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    const pwd = document.getElementById("loginPassword");
+    const btn = document.getElementById("togglePasswordBtn");
+    if (pwd && btn) {
+      btn.addEventListener("click", () => {
+        const isPwd = (pwd.getAttribute("type") || "password") === "password";
+        pwd.setAttribute("type", isPwd ? "text" : "password");
+        btn.textContent = isPwd ? "Ocultar" : "Mostrar";
+      });
+    }
+  </script>
+{% endblock %}

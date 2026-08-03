@@ -1,0 +1,465 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Corta.mx{% endblock %}
+{% block content %}
+  {% if embedded and saved %}
+    <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div><i class="bi bi-check2-circle me-1"></i> Pedido guardado.</div>
+      <button class="btn btn-sm btn-outline-success" type="button" onclick="try{window.parent.postMessage({type:'corte:close-edit',reload:true}, window.location.origin);}catch(e){}">Cerrar</button>
+    </div>
+    <script>
+      (function () {
+        try { window.parent.postMessage({type: "corte:close-edit", reload: true}, window.location.origin); } catch (e) {}
+      })();
+    </script>
+  {% endif %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <div class="kpi-label">Corta.mx</div>
+      <div class="h3 mb-0">Nuevo pedido</div>
+    </div>
+    {% if embedded %}
+      <button class="btn btn-outline-secondary" type="button" onclick="try{window.parent.postMessage({type:'corte:close-edit',reload:false}, window.location.origin);}catch(e){}">
+        <i class="bi bi-x-lg me-1"></i> Cerrar
+      </button>
+    {% else %}
+      <a class="btn btn-outline-secondary" href="{% if reset_url %}{{ reset_url }}{% else %}{% url 'catalogos:corte_laser_control' %}{% endif %}">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="card border-0">
+    <div class="card-body">
+      <form id="laserMainForm" method="post" enctype="multipart/form-data" class="row g-3">
+        {% csrf_token %}
+        <input type="hidden" name="embedded" value="{% if embedded %}1{% endif %}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="col-12 col-md-6">
+          <label class="form-label">FOLIO</label>
+          {{ form.folio_externo }}
+          {% if form.folio_externo.errors %}<div class="invalid-feedback d-block">{{ form.folio_externo.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="d-flex justify-content-between align-items-center">
+            <label class="form-label mb-0">PIEZA (CATÁLOGO)</label>
+            <a class="small text-decoration-none" href="{% url 'catalogos:corte_laser_piezas' %}">Alta</a>
+          </div>
+          {{ form.pieza }}
+          {% if form.pieza.errors %}<div class="invalid-feedback d-block">{{ form.pieza.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="d-flex justify-content-between align-items-center">
+            <label class="form-label mb-0">CLIENTE O PROYECTO</label>
+            <a class="small text-decoration-none" href="{% url 'catalogos:corte_laser_catalogos' %}">Alta</a>
+          </div>
+          {{ form.cliente_proyecto }}
+          <datalist id="cortaClienteProyectoList">
+            {% for n in clientes_proyectos %}
+              <option value="{{ n }}"></option>
+            {% endfor %}
+          </datalist>
+          <div class="text-muted small mt-1">Escribe un nombre. Si ya existe (misma palabra), se reutiliza; si no, se crea.</div>
+          {% if form.cliente_proyecto.errors %}<div class="invalid-feedback d-block">{{ form.cliente_proyecto.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">CORREO</label>
+          {{ form.correo }}
+          {% if form.correo.errors %}<div class="invalid-feedback d-block">{{ form.correo.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">TELÉFONO</label>
+          {{ form.telefono }}
+          {% if form.telefono.errors %}<div class="invalid-feedback d-block">{{ form.telefono.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+          <label class="form-label">DESCRIPCIÓN</label>
+          {{ form.descripcion }}
+          {% if form.descripcion.errors %}<div class="invalid-feedback d-block">{{ form.descripcion.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Material (categoría)</label>
+          <select id="laserMaterialCategoria" class="form-select"></select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Tipo de placa</label>
+          <select id="laserMaterialTipo" class="form-select"></select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">MATERIAL (PLACA)</label>
+          {{ form.material }}
+          {% if form.material.errors %}<div class="invalid-feedback d-block">{{ form.material.errors }}</div>{% endif %}
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">ANCHO PIEZA (MM)</label>
+          {{ form.pieza_ancho_mm }}
+          {% if form.pieza_ancho_mm.errors %}<div class="invalid-feedback d-block">{{ form.pieza_ancho_mm.errors }}</div>{% endif %}
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label">LARGO PIEZA (MM)</label>
+          {{ form.pieza_alto_mm }}
+          {% if form.pieza_alto_mm.errors %}<div class="invalid-feedback d-block">{{ form.pieza_alto_mm.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">ESPESOR (MM) · MATERIAL</label>
+          <input id="laserEspesorMm" class="form-control bg-light" type="number" step="0.01" readonly>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">CALIBRE · MATERIAL</label>
+          <input id="laserCalibre" class="form-control bg-light" type="text" readonly>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">FECHA COMPROMISO</label>
+          {{ form.fecha_compromiso }}
+          {% if form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_compromiso.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">ESTADO</label>
+          {{ form.estado }}
+          {% if form.estado.errors %}<div class="invalid-feedback d-block">{{ form.estado.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">PRIORIDAD</label>
+          {{ form.prioridad }}
+          {% if form.prioridad.errors %}<div class="invalid-feedback d-block">{{ form.prioridad.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">CANTIDAD</label>
+          {{ form.total_piezas }}
+          {% if form.total_piezas.errors %}<div class="invalid-feedback d-block">{{ form.total_piezas.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">KG (PZA) EST.</label>
+          <input id="laserKgPza" class="form-control bg-light" type="number" step="0.001" readonly>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">KG (TOTAL) EST.</label>
+          <input id="laserKgTotal" class="form-control bg-light" type="number" step="0.001" readonly>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Observaciones</label>
+          {{ form.observaciones }}
+          {% if form.observaciones.errors %}<div class="invalid-feedback d-block">{{ form.observaciones.errors }}</div>{% endif %}
+        </div>
+
+        {% if corte_operadores %}
+          <div class="col-12">
+            <div class="card border">
+              <div class="card-body">
+                <div class="fw-semibold">Asignación inicial (Corte)</div>
+                <div class="text-muted small">Opcional al dar de alta. Puedes asignar después en Producción.</div>
+                <div class="row g-3 mt-2">
+                  <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-2">Operador(es)</div>
+                    <div class="border rounded p-2" style="max-height: 210px; overflow:auto;">
+                      {% for c in corte_operadores %}
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="corte_operador_ids" value="{{ c.id }}" id="corte_op_{{ c.id }}" {% if c.id in selected_corte_operadores %}checked{% endif %}>
+                          <label class="form-check-label" for="corte_op_{{ c.id }}">{{ c.nombre }} ({{ c.rol }})</label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <div class="fw-semibold mb-2">Máquinas usadas (opcional)</div>
+                    <div class="border rounded p-2" style="max-height: 210px; overflow:auto;">
+                      {% for m in corte_maquinas %}
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="corte_maquina_ids" value="{{ m.id }}" id="corte_mq_{{ m.id }}" {% if m.id in selected_corte_maquinas %}checked{% endif %}>
+                          <label class="form-check-label" for="corte_mq_{{ m.id }}">{{ m.nombre }}</label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-3 d-flex justify-content-end gap-2">
+                  <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">Cancelar</a>
+                  <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">Cancelar</a>
+            <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </div>
+        {% endif %}
+      </form>
+
+      <hr class="my-4">
+      <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2">
+        <div>
+          <div class="fw-semibold">Archivo (PDF)</div>
+          <div class="text-muted small">Abre el archivo aquí para copiar datos sin cambiar de ventana.</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input id="pdfArchivoInput" name="archivo" form="laserMainForm" type="file" class="form-control" accept="application/pdf" style="max-width: 420px;">
+          <a id="pdfArchivoOpenTab" class="btn btn-outline-secondary" href="{% if archivo_url %}{{ archivo_url }}{% else %}#{% endif %}" target="_blank" rel="noopener" {% if not archivo_url %}style="display:none;"{% endif %}>Abrir en pestaña</a>
+        </div>
+      </div>
+      <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mt-3">
+        <div>
+          <div class="fw-semibold">Archivo (DXF)</div>
+          <div class="text-muted small">Se guarda para descarga del área de corte.</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input name="archivo_dxf" form="laserMainForm" type="file" class="form-control" accept=".dxf" style="max-width: 420px;">
+          <a class="btn btn-outline-secondary" href="{% if dxf_url %}{{ dxf_url }}{% else %}#{% endif %}" {% if dxf_url %}download{% endif %} {% if not dxf_url %}style="display:none;"{% endif %}>Descargar</a>
+        </div>
+      </div>
+      <div class="mt-3">
+        <embed id="pdfArchivoFrame" type="application/pdf" title="Archivo PDF" {% if archivo_url %}src="{{ archivo_url }}#view=FitH"{% endif %} style="width: 100%; height: 78vh; border: 1px solid #e9ecef; border-radius: .5rem; background: #fff;">
+      </div>
+
+      {{ materiales_payload|json_script:"laserMaterialesPayload" }}
+      <script>
+        (function () {
+          const payloadEl = document.getElementById("laserMaterialesPayload");
+          const payload = payloadEl ? JSON.parse(payloadEl.textContent) : [];
+          const matSel = document.getElementById("{{ form.material.id_for_label }}");
+          const catSel = document.getElementById("laserMaterialCategoria");
+          const tipoSel = document.getElementById("laserMaterialTipo");
+          const anchoInput = document.getElementById("{{ form.pieza_ancho_mm.id_for_label }}");
+          const altoInput = document.getElementById("{{ form.pieza_alto_mm.id_for_label }}");
+          const qtyInput = document.getElementById("{{ form.total_piezas.id_for_label }}");
+          const outPza = document.getElementById("laserKgPza");
+          const outTotal = document.getElementById("laserKgTotal");
+          const outEspesor = document.getElementById("laserEspesorMm");
+          const outCalibre = document.getElementById("laserCalibre");
+          const input = document.getElementById("pdfArchivoInput");
+          const frame = document.getElementById("pdfArchivoFrame");
+          const openTab = document.getElementById("pdfArchivoOpenTab");
+          const cpInput = document.getElementById("{{ form.cliente_proyecto.id_for_label }}");
+          if (cpInput) cpInput.setAttribute("list", "cortaClienteProyectoList");
+
+          const matMap = {};
+          (payload || []).forEach((m) => {
+            if (!m || !m.id) return;
+            matMap[String(m.id)] = m;
+          });
+
+          const optTextById = {};
+          if (matSel) {
+            Array.from(matSel.options || []).forEach((o) => {
+              const v = String(o.value || "").trim();
+              if (!v) return;
+              optTextById[v] = o.textContent || "";
+            });
+          }
+
+          function uniqSorted(values) {
+            const set = new Set();
+            (values || []).forEach((v) => {
+              const s = String(v || "").trim();
+              if (s) set.add(s);
+            });
+            return Array.from(set).sort((a, b) => a.localeCompare(b, "es"));
+          }
+
+          function fillSelect(sel, items, allLabel) {
+            if (!sel) return;
+            const cur = String(sel.value || "");
+            sel.innerHTML = "";
+            const allOpt = document.createElement("option");
+            allOpt.value = "";
+            allOpt.textContent = allLabel;
+            sel.appendChild(allOpt);
+            (items || []).forEach((v) => {
+              const opt = document.createElement("option");
+              opt.value = v;
+              opt.textContent = v;
+              sel.appendChild(opt);
+            });
+            sel.value = cur;
+          }
+
+          function sortMaterials(list) {
+            return (list || []).slice().sort((a, b) => {
+              const ac = String(a.categoria_material || "");
+              const bc = String(b.categoria_material || "");
+              if (ac !== bc) return ac.localeCompare(bc, "es");
+              const at = String(a.tipo_material || "");
+              const bt = String(b.tipo_material || "");
+              if (at !== bt) return at.localeCompare(bt, "es");
+              const an = String(a.nombre || "");
+              const bn = String(b.nombre || "");
+              if (an !== bn) return an.localeCompare(bn, "es");
+              const ae = parseFloat(a.espesor_mm || "0");
+              const be = parseFloat(b.espesor_mm || "0");
+              if (ae !== be) return ae - be;
+              const al = parseFloat(a.largo_mm || "0");
+              const bl = parseFloat(b.largo_mm || "0");
+              if (al !== bl) return al - bl;
+              const aa = parseFloat(a.ancho_mm || "0");
+              const ba = parseFloat(b.ancho_mm || "0");
+              if (aa !== ba) return aa - ba;
+              return (parseInt(a.id || "0", 10) || 0) - (parseInt(b.id || "0", 10) || 0);
+            });
+          }
+
+          function tiposForCategoria(cat) {
+            const c = String(cat || "").trim();
+            const items = (payload || []).filter((m) => {
+              const mc = String(m.categoria_material || "").trim();
+              return !c || mc === c;
+            });
+            return uniqSorted(items.map((m) => m.tipo_material));
+          }
+
+          function rebuildMaterialOptions() {
+            if (!matSel) return;
+            const selected = String(matSel.value || "").trim();
+            const cat = catSel ? String(catSel.value || "").trim() : "";
+            const tipo = tipoSel ? String(tipoSel.value || "").trim() : "";
+            const blankText = (matSel.options && matSel.options[0]) ? (matSel.options[0].textContent || "---------") : "---------";
+            matSel.innerHTML = "";
+            const blankOpt = document.createElement("option");
+            blankOpt.value = "";
+            blankOpt.textContent = blankText;
+            matSel.appendChild(blankOpt);
+            const filtered = sortMaterials((payload || []).filter((m) => {
+              const mc = String(m.categoria_material || "").trim();
+              const mt = String(m.tipo_material || "").trim();
+              if (cat && mc !== cat) return false;
+              if (tipo && mt !== tipo) return false;
+              return true;
+            }));
+            filtered.forEach((m) => {
+              const id = String(m.id || "").trim();
+              if (!id) return;
+              const opt = document.createElement("option");
+              opt.value = id;
+              opt.textContent = optTextById[id] || String(m.nombre || id);
+              matSel.appendChild(opt);
+            });
+            if (selected && filtered.some((m) => String(m.id) === selected)) {
+              matSel.value = selected;
+            } else {
+              matSel.value = "";
+            }
+          }
+
+          function syncCategoryTypeFromSelectedMaterial() {
+            if (!matSel || !catSel || !tipoSel) return;
+            const mid = String(matSel.value || "").trim();
+            const m = matMap[mid];
+            if (!m) return;
+            catSel.value = String(m.categoria_material || "").trim();
+            fillSelect(tipoSel, tiposForCategoria(catSel.value), "Todos");
+            tipoSel.value = String(m.tipo_material || "").trim();
+            rebuildMaterialOptions();
+          }
+
+          if (catSel) {
+            fillSelect(catSel, uniqSorted((payload || []).map((m) => m.categoria_material)), "Todas");
+          }
+          if (tipoSel) {
+            fillSelect(tipoSel, tiposForCategoria(catSel ? catSel.value : ""), "Todos");
+          }
+          if (catSel) {
+            catSel.addEventListener("change", () => {
+              if (tipoSel) {
+                const curTipo = String(tipoSel.value || "").trim();
+                fillSelect(tipoSel, tiposForCategoria(catSel.value), "Todos");
+                tipoSel.value = curTipo;
+              }
+              rebuildMaterialOptions();
+              calc();
+            });
+          }
+          if (tipoSel) {
+            tipoSel.addEventListener("change", () => {
+              rebuildMaterialOptions();
+              calc();
+            });
+          }
+
+          function round3(x) {
+            return Math.round((x + Number.EPSILON) * 1000) / 1000;
+          }
+
+          function estPlateKg(m) {
+            const direct = parseFloat(m && m.peso_kg ? String(m.peso_kg) : "0");
+            if (Number.isFinite(direct) && direct > 0) return direct;
+            const esp = parseFloat(m && m.espesor_mm ? String(m.espesor_mm) : "0");
+            const l = parseFloat(m && m.largo_mm ? String(m.largo_mm) : "0");
+            const a = parseFloat(m && m.ancho_mm ? String(m.ancho_mm) : "0");
+            if (!(esp > 0) || !(l > 0) || !(a > 0)) return 0;
+            const cat = String((m && m.categoria_material) ? m.categoria_material : "").toUpperCase();
+            const tipo = String((m && m.tipo_material) ? m.tipo_material : "").toUpperCase();
+            let dens = 7.85;
+            if (cat.includes("ALUMIN") || tipo.includes("ALUMIN")) dens = 2.7;
+            else if (cat.includes("INOX") || cat.includes("INOXID") || tipo.includes("INOX") || tipo.includes("INOXID")) dens = 8.0;
+            const volMm3 = l * a * esp;
+            const volCm3 = volMm3 / 1000.0;
+            const kg = (volCm3 * dens) / 1000.0;
+            return Number.isFinite(kg) && kg > 0 ? kg : 0;
+          }
+
+          function calc() {
+            const mid = matSel ? String((matSel.value || "").trim()) : "";
+            const m = matMap[mid];
+            const ancho = anchoInput ? parseFloat(anchoInput.value || "0") : 0;
+            const alto = altoInput ? parseFloat(altoInput.value || "0") : 0;
+            const qtyRaw = qtyInput ? parseInt(qtyInput.value || "1", 10) : 1;
+            const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+            if (outEspesor) outEspesor.value = m ? String(m.espesor_mm || "") : "";
+            if (outCalibre) outCalibre.value = m ? String(m.calibre || "") : "";
+            if (!m || !(ancho > 0) || !(alto > 0)) {
+              if (outPza) outPza.value = "";
+              if (outTotal) outTotal.value = "";
+              return;
+            }
+            const plateArea = (parseFloat(m.largo_mm || "0") * parseFloat(m.ancho_mm || "0"));
+            if (!(plateArea > 0)) {
+              if (outPza) outPza.value = "";
+              if (outTotal) outTotal.value = "";
+              return;
+            }
+            const margin = 30;
+            const rectArea = (ancho + (2 * margin)) * (alto + (2 * margin));
+            const plateKg = estPlateKg(m);
+            if (!(plateKg > 0)) {
+              if (outPza) outPza.value = "";
+              if (outTotal) outTotal.value = "";
+              return;
+            }
+            const perPiece = (rectArea / plateArea) * plateKg;
+            const totalKg = perPiece * qty;
+            if (outPza) outPza.value = String(round3(perPiece));
+            if (outTotal) outTotal.value = String(round3(totalKg));
+          }
+
+          if (matSel) matSel.addEventListener("change", calc);
+          if (anchoInput) anchoInput.addEventListener("input", calc);
+          if (altoInput) altoInput.addEventListener("input", calc);
+          if (qtyInput) qtyInput.addEventListener("input", calc);
+          syncCategoryTypeFromSelectedMaterial();
+          if (matSel) {
+            matSel.addEventListener("change", () => {
+              syncCategoryTypeFromSelectedMaterial();
+              calc();
+            });
+          }
+          calc();
+
+          if (input && frame) {
+            input.addEventListener("change", function () {
+              const f = input.files && input.files[0];
+              if (!f) return;
+              const prev = frame.dataset.objectUrl;
+              if (prev) URL.revokeObjectURL(prev);
+              const url = URL.createObjectURL(f);
+              frame.dataset.objectUrl = url;
+              frame.src = url + "#view=FitH";
+              if (openTab) {
+                openTab.href = url;
+                openTab.style.display = "";
+              }
+            });
+          }
+        })();
+      </script>
+    </div>
+  </div>
+{% endblock %}

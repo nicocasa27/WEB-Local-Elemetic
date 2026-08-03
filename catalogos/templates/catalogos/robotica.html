@@ -1,0 +1,416 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Robótica{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Catálogos</div>
+      <div class="h3 mb-0">Robótica</div>
+      <div class="text-muted small">Producción independiente para robots, con toneladas y reporte semanal Jueves a Jueves.</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:robotica_ordenes' %}"><i class="bi bi-clipboard-check me-1"></i> Órdenes</a>
+      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="offcanvas" data-bs-target="#roboticaOptions" aria-controls="roboticaOptions">
+        <i class="bi bi-gear me-1"></i> Opciones
+      </button>
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="roboticaOptions" aria-labelledby="roboticaOptionsLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="roboticaOptionsLabel">Opciones de Robótica</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Agregar robot</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="robot_create">
+            <div>
+              <label class="form-label">Nombre</label>
+              {{ robot_form.nombre }}
+              {% if robot_form.nombre.errors %}<div class="invalid-feedback d-block">{{ robot_form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label d-block">Activo</label>
+              <div class="form-check form-switch">
+                {{ robot_form.activo }}
+                <label class="form-check-label" for="{{ robot_form.activo.id_for_label }}">Sí</label>
+              </div>
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header fw-semibold">Catálogo de piezas (robot)</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pieza_create">
+            <div>
+              <label class="form-label">Nombre</label>
+              {{ pieza_form.nombre }}
+              {% if pieza_form.nombre.errors %}<div class="invalid-feedback d-block">{{ pieza_form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Peso (kg)</label>
+              {{ pieza_form.peso_kg }}
+              {% if pieza_form.peso_kg.errors %}<div class="invalid-feedback d-block">{{ pieza_form.peso_kg.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label d-block">Activo</label>
+              <div class="form-check form-switch">
+                {{ pieza_form.activo }}
+                <label class="form-check-label" for="{{ pieza_form.activo.id_for_label }}">Sí</label>
+              </div>
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-header fw-semibold">Registrar producción robótica</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="prod_create">
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Fecha</label>
+                {{ prod_form.fecha }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Cantidad</label>
+                {{ prod_form.cantidad }}
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Robot</label>
+              {{ prod_form.robot }}
+            </div>
+            <div>
+              <label class="form-label">Operador</label>
+              {% with selected_ops=prod_form.operadores.value %}
+                <div class="border rounded p-2" style="max-height: 240px; overflow:auto;">
+                  {% for c in prod_form.operadores.field.queryset %}
+                    {% with sid=c.id|stringformat:"s" %}
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="operadores" value="{{ c.id }}" id="id_operadores_{{ c.id }}" {% if selected_ops and sid in selected_ops %}checked{% endif %}>
+                        <label class="form-check-label" for="id_operadores_{{ c.id }}">{{ c.nombre }}{% if c.rol %} ({{ c.rol }}){% endif %}</label>
+                      </div>
+                    {% endwith %}
+                  {% endfor %}
+                </div>
+              {% endwith %}
+              {% if prod_form.operadores.errors %}<div class="invalid-feedback d-block">{{ prod_form.operadores.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Pieza</label>
+              {{ prod_form.pieza }}
+            </div>
+            <div>
+              <label class="form-label">Máquina de corte (opcional)</label>
+              {{ prod_form.corte_maquina }}
+            </div>
+            <div>
+              <label class="form-label">Observaciones</label>
+              {{ prod_form.observaciones }}
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">Reporte semanal robótica (Jueves a Jueves)</div>
+            <div class="text-muted small">Calcula por fecha del registro de producción robótica.</div>
+          </div>
+          <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+            <label class="form-label mb-0 text-muted small">Semana</label>
+            <input class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">Ver</button>
+          </form>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">Ton (semana)</div>
+                  <div class="kpi">{{ weekly.ton|default:0|floatformat:3 }}</div>
+                  <div class="text-muted small">{{ weekly.week_start }} → {{ weekly.week_end }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">Piezas (semana)</div>
+                  <div class="kpi">{{ weekly.piezas|default:0 }}</div>
+                  <div class="text-muted small">Suma de cantidades.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">Operadores</div>
+                  <div class="kpi">{{ weekly.operadores|default:0 }}</div>
+                  <div class="text-muted small">Distinct operadores en la semana.</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-6 col-xl-3">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">Ton/operador</div>
+                  <div class="kpi">{{ weekly.ton_por_operador|default:0|floatformat:3 }}</div>
+                  <div class="text-muted small">Ton ÷ operadores.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-12 col-xl-8">
+              <div style="height: 320px;">
+                <canvas id="chartRobotWeekly"></canvas>
+              </div>
+            </div>
+            <div class="col-12 col-xl-4">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Top robots</th>
+                      <th class="text-end">Ton</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in weekly.top_robots %}
+                      <tr>
+                        <td class="fw-semibold">{{ r.robot }}</td>
+                        <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="2" class="text-center text-muted py-4">Sin datos.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-responsive mt-3">
+                <table class="table table-hover align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Top piezas</th>
+                      <th class="text-end">Ton</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in weekly.top_piezas %}
+                      <tr>
+                        <td class="fw-semibold">{{ r.pieza }}</td>
+                        <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="2" class="text-center text-muted py-4">Sin datos.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Robots</div>
+          <div class="text-muted small">{{ robots|length }} robots</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Activo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in robots %}
+                <tr>
+                  <td class="fw-semibold">{{ r.nombre }}</td>
+                  <td>{% if r.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:robot_editar' r.pk %}"><i class="bi bi-pencil"></i></a>
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="robot_toggle">
+                      <input type="hidden" name="pk" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% if r.activo %}Desactivar{% else %}Activar{% endif %}">
+                        {% if r.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" class="d-inline js-confirm-delete">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="robot_delete">
+                      <input type="hidden" name="pk" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">Sin robots.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Catálogo de piezas (robot)</div>
+          <div class="text-muted small">{{ piezas|length }} piezas</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th class="text-end">Peso (kg)</th>
+                <th>Activo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in piezas %}
+                <tr>
+                  <td class="fw-semibold">{{ p.nombre }}</td>
+                  <td class="text-end">{{ p.peso_kg|floatformat:2 }}</td>
+                  <td>{% if p.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:robot_pieza_editar' p.pk %}"><i class="bi bi-pencil"></i></a>
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="pieza_toggle">
+                      <input type="hidden" name="pk" value="{{ p.pk }}">
+                      <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% if p.activo %}Desactivar{% else %}Activar{% endif %}">
+                        {% if p.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" class="d-inline js-confirm-delete">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="pieza_delete">
+                      <input type="hidden" name="pk" value="{{ p.pk }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Sin piezas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Producción robótica (últimos registros)</div>
+          <div class="text-muted small">{{ produccion|length }} registros</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Robot</th>
+                <th>Operador</th>
+                <th>Pieza</th>
+                <th class="text-end">Cant</th>
+                <th class="text-end">Ton</th>
+                <th>Corte</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in produccion %}
+                <tr>
+                  <td class="text-muted">{{ r.fecha|date:"Y-m-d" }}</td>
+                  <td class="fw-semibold">{{ r.robot.nombre }}</td>
+                  <td class="fw-semibold">{{ r.operador.nombre }}</td>
+                  <td class="fw-semibold">{{ r.pieza.nombre }}</td>
+                  <td class="text-end">{{ r.cantidad }}</td>
+                  <td class="text-end">{{ r.total_ton|floatformat:3 }}</td>
+                  <td class="text-muted">{% if r.corte_maquina %}{{ r.corte_maquina.nombre }}{% endif %}</td>
+                  <td class="text-end">
+                    <form method="post" class="d-inline js-confirm-delete">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="prod_delete">
+                      <input type="hidden" name="pk" value="{{ r.pk }}">
+                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">Sin registros.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ weekly_payload|json_script:"robotWeeklyPayload" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("form.js-confirm-delete").forEach((f) => {
+        f.addEventListener("submit", (e) => {
+          const ok = confirm("¿Seguro que deseas eliminar? Esta acción no se puede deshacer.");
+          if (!ok) e.preventDefault();
+        });
+      });
+
+      const payloadEl = document.getElementById("robotWeeklyPayload");
+      const payload = payloadEl ? JSON.parse(payloadEl.textContent) : {labels: [], ton: [], piezas: []};
+      const ctx = document.getElementById("chartRobotWeekly");
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: payload.labels,
+          datasets: [
+            { label: "Ton", data: payload.ton, backgroundColor: "#5e72e4", yAxisID: "y" },
+            { label: "Piezas", data: payload.piezas, backgroundColor: "#11cdef", yAxisID: "y1" },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } },
+          scales: {
+            y: { beginAtZero: true, position: "left" },
+            y1: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false } },
+          }
+        }
+      });
+    });
+  </script>
+{% endblock %}

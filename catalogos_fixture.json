@@ -1,0 +1,934 @@
+[
+{
+  "model": "catalogos.proyecto",
+  "pk": 2,
+  "fields": {
+    "nombre": "ALMAERA",
+    "nombre_normalizado": "ALMAERA",
+    "activo": true,
+    "creado_en": "2026-04-06T14:06:23.272Z"
+  }
+},
+{
+  "model": "catalogos.proyecto",
+  "pk": 1,
+  "fields": {
+    "nombre": "PREMIER",
+    "nombre_normalizado": "PREMIER",
+    "activo": true,
+    "creado_en": "2026-04-06T14:06:23.266Z"
+  }
+},
+{
+  "model": "catalogos.equipotrabajo",
+  "pk": 1,
+  "fields": {
+    "nombre": "Corte",
+    "area": "",
+    "sub_area": "",
+    "estados_json": "[\"Corte\"]",
+    "integrantes": 5,
+    "activo": true,
+    "creado_en": "2026-04-06T15:20:56.466Z",
+    "actualizado_en": "2026-04-07T20:14:31.859Z"
+  }
+},
+{
+  "model": "catalogos.equipotrabajo",
+  "pk": 3,
+  "fields": {
+    "nombre": "Pintura",
+    "area": "",
+    "sub_area": "",
+    "estados_json": "[\"Pintura\"]",
+    "integrantes": 3,
+    "activo": true,
+    "creado_en": "2026-04-08T14:19:11.134Z",
+    "actualizado_en": "2026-04-08T14:19:11.135Z"
+  }
+},
+{
+  "model": "catalogos.equipotrabajo",
+  "pk": 2,
+  "fields": {
+    "nombre": "Soldadura",
+    "area": "",
+    "sub_area": "",
+    "estados_json": "[\"Armado\", \"Soldadura\", \"Pintura\"]",
+    "integrantes": 11,
+    "activo": true,
+    "creado_en": "2026-04-06T15:21:44.479Z",
+    "actualizado_en": "2026-04-06T15:21:44.479Z"
+  }
+},
+{
+  "model": "catalogos.vigaplano",
+  "pk": 4,
+  "fields": {
+    "viga_internal_id": 85,
+    "archivo_pdf": "planos_vigas/2026/04/07/viga_85_20260407_172536.pdf",
+    "nombre_original": "4TM1-1A.pdf",
+    "subido_en": "2026-04-07T17:25:36.699Z"
+  }
+},
+{
+  "model": "catalogos.vigaplano",
+  "pk": 3,
+  "fields": {
+    "viga_internal_id": 84,
+    "archivo_pdf": "planos_vigas/2026/04/07/viga_84_20260407_172450.pdf",
+    "nombre_original": "5ATM3-7.pdf",
+    "subido_en": "2026-04-07T17:24:50.603Z"
+  }
+},
+{
+  "model": "catalogos.vigaplano",
+  "pk": 2,
+  "fields": {
+    "viga_internal_id": 87,
+    "archivo_pdf": "planos_vigas/2026/04/07/viga_87_20260407_172139.pdf",
+    "nombre_original": "5TM1-5A.pdf",
+    "subido_en": "2026-04-07T17:21:39.494Z"
+  }
+},
+{
+  "model": "catalogos.weeklyreportsnapshot",
+  "pk": 2,
+  "fields": {
+    "week_start": "2026-04-09",
+    "week_end": "2026-04-16",
+    "integrantes_total": 20,
+    "payload_json": "{\"week_start\": \"2026-04-09\", \"week_end\": \"2026-04-16\", \"terminadas_piezas\": 0, \"terminadas_ton\": 0.0, \"terminadas_enviadas_piezas\": 0, \"terminadas_enviadas_ton\": 0.0, \"integrantes_total\": 20, \"ton_por_persona\": 0.0, \"daily\": [{\"date\": \"2026-04-09\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-10\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-11\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-12\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-13\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-14\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-15\", \"piezas\": 0, \"ton\": 0.0}], \"top_proyectos\": []}",
+    "generado_en": "2026-04-07T20:31:11.999Z"
+  }
+},
+{
+  "model": "catalogos.weeklyreportsnapshot",
+  "pk": 1,
+  "fields": {
+    "week_start": "2026-04-02",
+    "week_end": "2026-04-09",
+    "integrantes_total": 20,
+    "payload_json": "{\"week_start\": \"2026-04-02\", \"week_end\": \"2026-04-09\", \"terminadas_piezas\": 32, \"terminadas_ton\": 9.01, \"terminadas_enviadas_piezas\": 14, \"terminadas_enviadas_ton\": 4.155, \"integrantes_total\": 20, \"ton_por_persona\": 0.451, \"daily\": [{\"date\": \"2026-04-02\", \"piezas\": 3, \"ton\": 0.343}, {\"date\": \"2026-04-03\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-04\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-05\", \"piezas\": 0, \"ton\": 0.0}, {\"date\": \"2026-04-06\", \"piezas\": 13, \"ton\": 4.041}, {\"date\": \"2026-04-07\", \"piezas\": 18, \"ton\": 4.855}, {\"date\": \"2026-04-08\", \"piezas\": 0, \"ton\": 0.0}], \"top_proyectos\": [{\"proyecto\": \"PREMIER\", \"ton\": 5.285}, {\"proyecto\": \"ALMAERA\", \"ton\": 3.725}]}",
+    "generado_en": "2026-04-07T22:36:03.998Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 20,
+  "fields": {
+    "nombre": "Antonio Aguilar",
+    "rol": "Auxiliar",
+    "equipo": 1,
+    "activo": true,
+    "creado_en": "2026-04-08T14:26:23.782Z",
+    "actualizado_en": "2026-04-08T14:26:23.782Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 21,
+  "fields": {
+    "nombre": "Alexander Tun",
+    "rol": "Operador",
+    "equipo": 1,
+    "activo": true,
+    "creado_en": "2026-04-08T14:26:52.431Z",
+    "actualizado_en": "2026-04-08T14:26:52.431Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 12,
+  "fields": {
+    "nombre": "Jose Manuel Pool",
+    "rol": "Operador",
+    "equipo": 1,
+    "activo": true,
+    "creado_en": "2026-04-08T14:21:29.571Z",
+    "actualizado_en": "2026-04-08T16:23:50.297Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 17,
+  "fields": {
+    "nombre": "Miguel Borges",
+    "rol": "Operador",
+    "equipo": 1,
+    "activo": true,
+    "creado_en": "2026-04-08T14:24:57.377Z",
+    "actualizado_en": "2026-04-08T14:24:57.377Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 2,
+  "fields": {
+    "nombre": "Miguel Pech",
+    "rol": "Operador",
+    "equipo": 1,
+    "activo": true,
+    "creado_en": "2026-04-08T14:07:51.374Z",
+    "actualizado_en": "2026-04-08T14:07:51.374Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 11,
+  "fields": {
+    "nombre": "Jose Cauich",
+    "rol": "Auxiliar",
+    "equipo": 3,
+    "activo": true,
+    "creado_en": "2026-04-08T14:20:55.412Z",
+    "actualizado_en": "2026-04-08T14:20:55.412Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 8,
+  "fields": {
+    "nombre": "Eric Pinto",
+    "rol": "Pintor",
+    "equipo": 3,
+    "activo": true,
+    "creado_en": "2026-04-08T14:19:29.214Z",
+    "actualizado_en": "2026-04-08T14:19:29.214Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 9,
+  "fields": {
+    "nombre": "Luis Pech",
+    "rol": "Pintor",
+    "equipo": 3,
+    "activo": true,
+    "creado_en": "2026-04-08T14:19:42.155Z",
+    "actualizado_en": "2026-04-08T14:19:42.156Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 16,
+  "fields": {
+    "nombre": "Ceferino Gonzalez",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:24:37.881Z",
+    "actualizado_en": "2026-04-08T14:24:37.881Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 19,
+  "fields": {
+    "nombre": "Christian Medina",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:25:50.091Z",
+    "actualizado_en": "2026-04-08T14:25:50.091Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 7,
+  "fields": {
+    "nombre": "Francisco Pech",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:18:04.365Z",
+    "actualizado_en": "2026-04-08T14:18:04.365Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 3,
+  "fields": {
+    "nombre": "Geiler Dzib",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:08:21.241Z",
+    "actualizado_en": "2026-04-08T14:16:57.320Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 10,
+  "fields": {
+    "nombre": "Ismael Caamal",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:20:13.643Z",
+    "actualizado_en": "2026-04-08T14:20:13.643Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 14,
+  "fields": {
+    "nombre": "Luis Puc",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:23:33.880Z",
+    "actualizado_en": "2026-04-08T14:23:33.880Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 18,
+  "fields": {
+    "nombre": "Rene Balam",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:25:21.966Z",
+    "actualizado_en": "2026-04-08T14:25:21.966Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 13,
+  "fields": {
+    "nombre": "Walter Marciano",
+    "rol": "Auxiliar",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:23:09.623Z",
+    "actualizado_en": "2026-04-08T14:23:09.623Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 4,
+  "fields": {
+    "nombre": "Eduardo Aguilar",
+    "rol": "Soldador",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:16:12.016Z",
+    "actualizado_en": "2026-04-08T14:16:12.016Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 15,
+  "fields": {
+    "nombre": "Pedro Cetina",
+    "rol": "Soldador",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:23:52.228Z",
+    "actualizado_en": "2026-04-08T14:23:52.228Z"
+  }
+},
+{
+  "model": "catalogos.colaborador",
+  "pk": 5,
+  "fields": {
+    "nombre": "Ruben Yama",
+    "rol": "Soldador",
+    "equipo": 2,
+    "activo": true,
+    "creado_en": "2026-04-08T14:16:45.066Z",
+    "actualizado_en": "2026-04-08T14:16:45.066Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 2,
+  "fields": {
+    "nombre": "Bekamak",
+    "tipo": "Corte",
+    "es_robot": false,
+    "activo": true,
+    "creado_en": "2026-04-08T16:06:56.729Z",
+    "actualizado_en": "2026-04-08T16:06:56.729Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 5,
+  "fields": {
+    "nombre": "Carrito Plasma",
+    "tipo": "Corte",
+    "es_robot": false,
+    "activo": true,
+    "creado_en": "2026-04-08T16:16:56.085Z",
+    "actualizado_en": "2026-04-08T16:16:56.085Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 4,
+  "fields": {
+    "nombre": "Pantografo Plasma SOMEY",
+    "tipo": "Corte",
+    "es_robot": false,
+    "activo": true,
+    "creado_en": "2026-04-08T16:08:10.470Z",
+    "actualizado_en": "2026-04-08T16:08:10.470Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 3,
+  "fields": {
+    "nombre": "Shark MEP 5.0",
+    "tipo": "Corte",
+    "es_robot": false,
+    "activo": true,
+    "creado_en": "2026-04-08T16:07:57.444Z",
+    "actualizado_en": "2026-04-08T16:07:57.444Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 1,
+  "fields": {
+    "nombre": "ABB GOFA 15000",
+    "tipo": "Soldadura",
+    "es_robot": true,
+    "activo": true,
+    "creado_en": "2026-04-08T16:06:07.546Z",
+    "actualizado_en": "2026-04-08T16:06:07.546Z"
+  }
+},
+{
+  "model": "catalogos.maquina",
+  "pk": 6,
+  "fields": {
+    "nombre": "Hans Elfin",
+    "tipo": "Soldadura",
+    "es_robot": true,
+    "activo": true,
+    "creado_en": "2026-04-08T16:28:38.740Z",
+    "actualizado_en": "2026-04-08T16:28:38.740Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 1,
+  "fields": {
+    "nombre": "Ajustadores Husillos",
+    "nombre_normalizado": "AJUSTADORES HUSILLOS",
+    "peso_kg": 0.85,
+    "activo": true,
+    "creado_en": "2026-04-08T16:29:07.295Z",
+    "actualizado_en": "2026-04-08T16:29:07.295Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 2,
+  "fields": {
+    "nombre": "Andamio Banquetero 1m Galv",
+    "nombre_normalizado": "ANDAMIO BANQUETERO 1M GALV",
+    "peso_kg": 9.44,
+    "activo": true,
+    "creado_en": "2026-04-08T16:29:23.304Z",
+    "actualizado_en": "2026-04-08T16:29:23.304Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 13,
+  "fields": {
+    "nombre": "Andamio Banquetero 2m",
+    "nombre_normalizado": "ANDAMIO BANQUETERO 2M",
+    "peso_kg": 25.8,
+    "activo": true,
+    "creado_en": "2026-04-08T16:33:07.282Z",
+    "actualizado_en": "2026-04-08T16:33:07.282Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 3,
+  "fields": {
+    "nombre": "Andamio Estandar de 1m",
+    "nombre_normalizado": "ANDAMIO ESTANDAR DE 1M",
+    "peso_kg": 7.42,
+    "activo": true,
+    "creado_en": "2026-04-08T16:29:40.659Z",
+    "actualizado_en": "2026-04-08T16:29:40.660Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 14,
+  "fields": {
+    "nombre": "Andamio banquetero Galvanizado",
+    "nombre_normalizado": "ANDAMIO BANQUETERO GALVANIZADO",
+    "peso_kg": 26.8,
+    "activo": true,
+    "creado_en": "2026-04-08T16:33:20.945Z",
+    "actualizado_en": "2026-04-08T16:33:20.945Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 4,
+  "fields": {
+    "nombre": "Bases husillos con esparrago",
+    "nombre_normalizado": "BASES HUSILLOS CON ESPARRAGO",
+    "peso_kg": 6.3,
+    "activo": true,
+    "creado_en": "2026-04-08T16:30:02.234Z",
+    "actualizado_en": "2026-04-08T16:30:02.234Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 5,
+  "fields": {
+    "nombre": "MARCO ANDAMIO ESTANDAR 1M GALVANIZADO",
+    "nombre_normalizado": "MARCO ANDAMIO ESTANDAR 1M GALVANIZADO",
+    "peso_kg": 12.975,
+    "activo": true,
+    "creado_en": "2026-04-08T16:30:20.373Z",
+    "actualizado_en": "2026-04-08T16:30:20.373Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 6,
+  "fields": {
+    "nombre": "Marco andamio BANQUETERO 1M GALVANIZADO",
+    "nombre_normalizado": "MARCO ANDAMIO BANQUETERO 1M GALVANIZADO",
+    "peso_kg": 9.445,
+    "activo": true,
+    "creado_en": "2026-04-08T16:30:39.705Z",
+    "actualizado_en": "2026-04-08T16:30:39.705Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 7,
+  "fields": {
+    "nombre": "Placa base puntal",
+    "nombre_normalizado": "PLACA BASE PUNTAL",
+    "peso_kg": 0.81,
+    "activo": true,
+    "creado_en": "2026-04-08T16:30:54.525Z",
+    "actualizado_en": "2026-04-08T16:30:54.525Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 8,
+  "fields": {
+    "nombre": "Puntal",
+    "nombre_normalizado": "PUNTAL",
+    "peso_kg": 6.74,
+    "activo": true,
+    "creado_en": "2026-04-08T16:31:10.027Z",
+    "actualizado_en": "2026-04-08T16:31:10.027Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 9,
+  "fields": {
+    "nombre": "Registros de 60X60",
+    "nombre_normalizado": "REGISTROS DE 60X60",
+    "peso_kg": 7.1,
+    "activo": true,
+    "creado_en": "2026-04-08T16:31:40.269Z",
+    "actualizado_en": "2026-04-08T16:31:40.269Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 10,
+  "fields": {
+    "nombre": "Rodillo pequeño",
+    "nombre_normalizado": "RODILLO PEQUEÑO",
+    "peso_kg": 8.3,
+    "activo": true,
+    "creado_en": "2026-04-08T16:31:55.032Z",
+    "actualizado_en": "2026-04-08T16:31:55.032Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 11,
+  "fields": {
+    "nombre": "Tuerca exterior base Puntal",
+    "nombre_normalizado": "TUERCA EXTERIOR BASE PUNTAL",
+    "peso_kg": 0.19,
+    "activo": true,
+    "creado_en": "2026-04-08T16:32:19.420Z",
+    "actualizado_en": "2026-04-08T16:32:19.420Z"
+  }
+},
+{
+  "model": "catalogos.robotpiezacatalogo",
+  "pk": 12,
+  "fields": {
+    "nombre": "Us Seguros Andamios",
+    "nombre_normalizado": "US SEGUROS ANDAMIOS",
+    "peso_kg": 0.11,
+    "activo": true,
+    "creado_en": "2026-04-08T16:32:29.833Z",
+    "actualizado_en": "2026-04-08T16:32:29.833Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 23,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Auxiliar",
+    "colaborador": 11,
+    "maquina": null,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.148Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 24,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 8,
+    "maquina": null,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.148Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 25,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 9,
+    "maquina": null,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.148Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 22,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Soldadura",
+    "rol": "Auxiliar",
+    "colaborador": 3,
+    "maquina": null,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.145Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 21,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Maquina",
+    "colaborador": null,
+    "maquina": 4,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.143Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 19,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Operador",
+    "colaborador": 17,
+    "maquina": null,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.142Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 20,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Maquina",
+    "colaborador": null,
+    "maquina": 2,
+    "vigente": true,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:44.142Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 17,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 8,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.813Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 18,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 9,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.813Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 16,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Auxiliar",
+    "colaborador": 11,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.812Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 15,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Soldadura",
+    "rol": "Auxiliar",
+    "colaborador": 3,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.809Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 14,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Maquina",
+    "colaborador": null,
+    "maquina": 4,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.808Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 12,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Maquina",
+    "colaborador": null,
+    "maquina": 2,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.806Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 13,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Maquina",
+    "colaborador": null,
+    "maquina": 5,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.806Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 11,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Operador",
+    "colaborador": 17,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:17:29.804Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 9,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 8,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:10:06.474Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 10,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 9,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:10:06.474Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 8,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Auxiliar",
+    "colaborador": 11,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:10:06.474Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 7,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Soldadura",
+    "rol": "Auxiliar",
+    "colaborador": 3,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:10:06.470Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 6,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Operador",
+    "colaborador": 17,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:10:06.467Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 3,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Auxiliar",
+    "colaborador": 11,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:05:01.429Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 4,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 8,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:05:01.429Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 5,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Pintura",
+    "rol": "Pintor",
+    "colaborador": 9,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:05:01.429Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 2,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Soldadura",
+    "rol": "Auxiliar",
+    "colaborador": 3,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:05:01.426Z"
+  }
+},
+{
+  "model": "catalogos.vigaasignacion",
+  "pk": 1,
+  "fields": {
+    "viga_internal_id": 85,
+    "etapa": "Corte",
+    "rol": "Operador",
+    "colaborador": 17,
+    "maquina": null,
+    "vigente": false,
+    "asignado_por": "",
+    "asignado_en": "2026-04-08T16:05:01.420Z"
+  }
+}
+]

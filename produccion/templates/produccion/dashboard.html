@@ -1,0 +1,1631 @@
+{% extends "produccion/base.html" %}
+{% load produccion_extras %}
+{% block title %}Taller Elemetic - Reportes{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="kpi-label mb-0">Reportes</div>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-arrow-down-circle-fill me-1 text-success"></i> Exportar
+          </button>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'produccion:dashboard_export_html' %}?{{ request.GET.urlencode }}">
+                <i class="bi bi-filetype-html me-2"></i> Exportar HTML
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'produccion:dashboard_export_xlsx' %}?{{ request.GET.urlencode }}">
+                <i class="bi bi-file-earmark-excel-fill me-2 text-success"></i> Exportar Excel
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="h3 mb-0">KPIs de producción</div>
+      <div class="text-muted small">Distribución por estado (piezas y toneladas).</div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="fw-semibold">Reporte semanal (Jueves a Jueves)</div>
+        <div class="text-muted small">Calcula por fecha de Terminado en la semana (incluye piezas aunque hoy ya estén Enviadas); además marca cuántas de esas ya fueron Enviadas.</div>
+      </div>
+      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+        <label class="form-label mb-0 text-muted small">Semana</label>
+        <input class="form-control form-control-sm" type="date" name="week_start" value="{{ weekly_selected_start }}" style="max-width: 160px;">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Ver</button>
+        <button class="btn btn-sm btn-outline-danger js-weekly-recalc" type="submit" name="weekly_refresh" value="1">Recalcular (sobrescribe)</button>
+      </form>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Ton total (semana)</div>
+              <div class="kpi">{{ weekly.total_ton|default:weekly.terminadas_ton|default:0 }}<span class="kpi-unit">ton</span></div>
+              <div class="text-muted small">{{ weekly.week_start }} → {{ weekly.week_end }}</div>
+              <div class="text-muted small">Manual: {{ weekly.terminadas_ton|default:0 }} · Robot: {{ weekly.robot_ton|default:0 }} · Herrería: {{ weekly.herr_ton|default:0 }} · Corta.mx: {{ weekly.corte_ton|default:0 }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Piezas terminadas (semana)</div>
+              <div class="kpi">{{ weekly.terminadas_piezas|default:0 }}<span class="kpi-unit">pzs</span></div>
+              <div class="text-muted small">Conteo de piezas con Terminado en esa semana.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Ton/persona (semana)</div>
+              <div class="kpi">{{ weekly.ton_por_persona|default:0 }}<span class="kpi-unit">ton</span></div>
+              <div class="text-muted small">Ton terminadas ÷ integrantes (se congela al generar).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Robot (semana)</div>
+              <div class="kpi">{{ weekly.robot_ton|default:0 }}<span class="kpi-unit">ton</span></div>
+              <div class="text-muted small">{{ weekly.robot_piezas|default:0 }} piezas</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Corta.mx (semana)</div>
+              <div class="kpi">{{ weekly.corte_kg|default:0|floatformat:"-3" }}<span class="kpi-unit">kg</span></div>
+              <div class="text-muted small">{{ weekly.corte_piezas|default:0 }} piezas</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border-start border-4" style="border-left-color:#8d6e63!important;">
+            <div class="card-body">
+              <div class="kpi-label">Retrabajo (semana)</div>
+              <div class="kpi" style="color:#8d6e63;">{{ weekly.retrabajo_pct|default:0 }}%</div>
+              <div class="text-muted small">{{ weekly.retrabajo_piezas|default:0 }} piezas marcadas como retrabajo.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Retrabajos (semana)</div>
+              <div class="d-flex align-items-baseline gap-2">
+                <button type="button" class="btn btn-link p-0 kpi" style="color:#8d6e63;" data-bs-toggle="modal" data-bs-target="#retrabajoAnyModal">{{ weekly.retrabajo_any_piezas|default:0 }}</button>
+                <span class="kpi-unit">pzs</span>
+              </div>
+              <div class="text-muted small">Piezas con retrabajo en la semana (aunque no estén terminadas).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Terminadas ya enviadas</div>
+              <div class="kpi">{{ weekly.terminadas_enviadas_ton|default:0 }}<span class="kpi-unit">ton</span></div>
+              <div class="text-muted small">De las terminadas en la semana, cuántas ya tienen Enviado.</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Logística OP (semana)</div>
+              <div class="kpi">{{ weekly.logistica_op_ton|default:0 }}<span class="kpi-unit">ton</span></div>
+              <div class="text-muted small">{{ weekly.logistica_op_piezas|default:0 }} piezas</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Logística Corta (semana)</div>
+              <div class="kpi">{{ weekly.logistica_corta_kg|default:0|floatformat:"-3" }}<span class="kpi-unit">kg</span></div>
+              <div class="text-muted small">{{ weekly.logistica_corta_piezas|default:0 }} piezas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Promedio en corte</div>
+              <div class="kpi">{{ weekly.avg_stage_hours.Corte|default:0|hours_hm }}</div>
+              <div class="text-muted small">Horas por pieza (laboral).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Promedio en armado</div>
+              <div class="kpi">{{ weekly.avg_stage_hours.Armado|default:0|hours_hm }}</div>
+              <div class="text-muted small">Horas por pieza (laboral).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Promedio en soldadura</div>
+              <div class="kpi">{{ weekly.avg_stage_hours.Soldadura|default:0|hours_hm }}</div>
+              <div class="text-muted small">Horas por pieza (laboral).</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Promedio en pintura</div>
+              <div class="kpi">{{ weekly.avg_stage_hours.Pintura|default:0|hours_hm }}</div>
+              <div class="text-muted small">Horas por pieza (laboral).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-xl-8">
+          <div style="height: 320px;">
+            <canvas id="chartWeekly"></canvas>
+          </div>
+        </div>
+        <div class="col-12 col-xl-4">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Top proyectos</th>
+                  <th class="text-end">Ton</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in weekly.top_proyectos %}
+                  <tr>
+                    <td class="fw-semibold">{{ r.proyecto }}</td>
+                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin datos de esa semana.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive mt-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Top paros</th>
+                  <th class="text-end">Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in weekly.top_paros %}
+                  <tr>
+                    <td class="fw-semibold">{{ r.motivo }}</td>
+                    <td class="text-end">{{ r.horas }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin paros.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="table-responsive mt-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Top fallas</th>
+                  <th class="text-end">Horas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in weekly.top_fallas %}
+                  <tr>
+                    <td class="fw-semibold">{{ r.tipo }}</td>
+                    <td class="text-end">{{ r.horas }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin fallas.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Alertas</div>
+      <span class="badge badge-soft">Básicas</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for a in alerts %}
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-{{ a.level }}">
+              <div class="card-body">
+                <div class="kpi-label">{{ a.title }}</div>
+                <div class="kpi mb-1">{{ a.value }}</div>
+                <div class="text-muted small">{{ a.detail }}</div>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="col-12">
+            <div class="text-muted small">Sin alertas.</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Tiempo promedio por estado (semana)</div>
+      <span class="badge badge-soft">Horas</span>
+    </div>
+    <div class="px-3 pt-3 text-muted small">Promedio calculado con timestamps de cambios de estado dentro de la semana seleccionada (J→J).</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Estado</th>
+            <th class="text-end">Promedio (h)</th>
+            <th class="text-end">Mediana (h)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in avg_time_rows %}
+            <tr>
+              <td class="fw-semibold">{{ r.estado }}</td>
+              <td class="text-end">{{ r.avg_hours|hours_hm }}</td>
+              <td class="text-end">{{ r.median_hours|hours_hm }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-4">Sin datos de tiempo para esa semana.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Retrabajo por proyecto (semana)</div>
+      <span class="badge badge-soft">Top</span>
+    </div>
+    <div class="table-responsive">
+      <div class="text-muted small px-3 pt-3">Solo cuenta piezas marcadas como retrabajo (no error de dedo) en la semana seleccionada.</div>
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Proyecto</th>
+            <th class="text-end">Retrabajo</th>
+            <th class="text-end">Terminadas</th>
+            <th class="text-end">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in retrabajo_por_proyecto %}
+            <tr>
+              <td class="fw-semibold">{{ r.proyecto }}</td>
+              <td class="text-end">{{ r.retrabajo_piezas }}</td>
+              <td class="text-end">{{ r.terminadas_piezas }}</td>
+              <td class="text-end">{{ r.pct|floatformat:1 }}%</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Sin retrabajo en la semana.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-2">
+    <div class="card-body py-3">
+      <div class="fw-semibold">Avance actual (hoy)</div>
+      <div class="text-muted small">Foto del trabajo en proceso, vencidas y carga por persona.</div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="kpi-label">Total piezas</div>
+          <div class="kpi">{{ total_piezas }}<span class="kpi-unit">pzs</span></div>
+          <div class="text-muted small">Piezas activas (sin Enviado).</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card">
+        <div class="card-body">
+          <div class="kpi-label">Total toneladas</div>
+          <div class="kpi">{{ total_ton|floatformat:2 }}<span class="kpi-unit">ton</span></div>
+          <div class="text-muted small">Suma de kg ÷ 1000 (sin Enviado).</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-start border-4 border-primary-subtle">
+        <div class="card-body">
+          <div class="kpi-label">WIP (piezas)</div>
+          <div class="kpi text-primary-emphasis">{{ wip_piezas }}<span class="kpi-unit">pzs</span></div>
+          <div class="text-muted small">Piezas que aún no están terminadas.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-start border-4 border-primary-subtle">
+        <div class="card-body">
+          <div class="kpi-label">WIP (ton)</div>
+          <div class="kpi text-primary-emphasis">{{ wip_ton|floatformat:2 }}<span class="kpi-unit">ton</span></div>
+          <div class="text-muted small">Toneladas en proceso.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-start border-4 border-warning-subtle">
+        <div class="card-body">
+          <div class="kpi-label">Vencidas (piezas)</div>
+          <div class="kpi text-warning-emphasis">{{ vencidas_piezas }}<span class="kpi-unit">pzs</span></div>
+          <div class="text-muted small">En proceso con fecha compromiso pasada.</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="card border-start border-4 border-warning-subtle">
+        <div class="card-body">
+          <div class="kpi-label">Vencidas (ton)</div>
+          <div class="kpi text-warning-emphasis">{{ vencidas_ton|floatformat:2 }}<span class="kpi-unit">ton</span></div>
+          <div class="text-muted small">Toneladas en atraso.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Backlog vencido por etapa</div>
+      <span class="badge badge-soft">Top</span>
+    </div>
+    <div class="table-responsive">
+      <div class="text-muted small px-3 pt-3">Toneladas atrasadas agrupadas por proyecto y estado.</div>
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Proyecto</th>
+            <th>Estado</th>
+            <th class="text-end">Piezas</th>
+            <th class="text-end">Ton</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in vencidas_por_proyecto_estado %}
+            <tr>
+              <td class="fw-semibold">{{ r.proyecto }}</td>
+              <td>{{ r.estado }}</td>
+              <td class="text-end">{{ r.piezas }}</td>
+              <td class="text-end">{{ r.ton|floatformat:2 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Sin backlog vencido.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Detalle por persona</div>
+      <span class="badge badge-soft">Asignaciones</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-xl-4">
+          <div class="fw-semibold mb-2">Corte</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Persona</th>
+                  <th>Equipo</th>
+                  <th class="text-end">Piezas</th>
+                  <th class="text-end">Ton</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in quien_hace_que.Corte %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="fw-semibold">{{ r.nombre }}</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Corte">Ver</button>
+                      </div>
+                    </td>
+                    <td class="text-muted">{{ r.equipo }}</td>
+                    <td class="text-end">{{ r.piezas }}</td>
+                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-12 col-xl-4">
+          <div class="fw-semibold mb-2">Soldadura</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Persona</th>
+                  <th>Equipo</th>
+                  <th class="text-end">Piezas</th>
+                  <th class="text-end">Ton</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in quien_hace_que.Soldadura %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="fw-semibold">{{ r.nombre }}</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Soldadura">Ver</button>
+                      </div>
+                    </td>
+                    <td class="text-muted">{{ r.equipo }}</td>
+                    <td class="text-end">{{ r.piezas }}</td>
+                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-12 col-xl-4">
+          <div class="fw-semibold mb-2">Pintura</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Persona</th>
+                  <th>Equipo</th>
+                  <th class="text-end">Piezas</th>
+                  <th class="text-end">Ton</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in quien_hace_que.Pintura %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="fw-semibold">{{ r.nombre }}</div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Pintura">Ver</button>
+                      </div>
+                    </td>
+                    <td class="text-muted">{{ r.equipo }}</td>
+                    <td class="text-end">{{ r.piezas }}</td>
+                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">KPIs por máquina de corte</div>
+      <span class="badge badge-soft">Corte</span>
+    </div>
+    <div class="card-body">
+      <div class="text-muted small mb-2">Piezas, toneladas y promedio ton/pieza según las asignaciones en Corte.</div>
+      <div style="height: 280px;">
+        <canvas id="chartCorteMaquinas"></canvas>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Máquina</th>
+            <th class="text-end">Piezas</th>
+            <th class="text-end">Ton</th>
+            <th class="text-end">Ton/pieza</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in kpi_maquinas_corte %}
+            <tr>
+              <td class="fw-semibold">{{ r.maquina }}</td>
+              <td class="text-end">{{ r.piezas }}</td>
+              <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+              <td class="text-end">{{ r.ton_promedio|floatformat:3 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones de máquinas de corte.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="modal fade" id="quienDetalleModal" tabindex="-1" aria-labelledby="quienDetalleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="quienDetalleModalLabel">Asignaciones</h5>
+            <div class="text-muted small" id="quienDetalleSubtitle"></div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Área</th>
+                  <th>ID</th>
+                  <th>Código</th>
+                  <th>Pieza</th>
+                  <th>Proyecto</th>
+                  <th>Estado</th>
+                  <th class="text-end">Ton</th>
+                  <th>Compromiso</th>
+                </tr>
+              </thead>
+              <tbody id="quienDetalleBody">
+                <tr><td colspan="8" class="text-center text-muted py-4">Cargando…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="text-muted small mt-2">Doble click en el nombre para ver sus piezas asignadas (WIP).</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="retrabajoAnyModal" tabindex="-1" aria-labelledby="retrabajoAnyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="retrabajoAnyModalLabel">Retrabajos (semana)</h5>
+            <div class="text-muted small">Piezas que tuvieron retrabajo en la semana seleccionada (J→J).</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Código</th>
+                  <th>Proyecto</th>
+                  <th>Estado actual</th>
+                  <th>Último retrabajo</th>
+                  <th>Movimiento</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in retrabajo_any_list %}
+                  <tr>
+                    <td class="text-muted">{{ r.id }}</td>
+                    <td>
+                      <div class="fw-semibold">{{ r.codigo }}</div>
+                      <div class="text-muted small">{{ r.pieza_no }}/{{ r.total_piezas }}</div>
+                    </td>
+                    <td class="fw-semibold">{{ r.proyecto }}</td>
+                    <td>{{ r.estado }}</td>
+                    <td>{{ r.retrabajo_fecha|date:"Y-m-d" }}</td>
+                    <td class="text-muted">{{ r.retrabajo_de }} → {{ r.retrabajo_a }}</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'produccion:viga_list' %}?q={{ r.codigo|urlencode }}">Ver</a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="7" class="text-center text-muted py-4">Sin retrabajos en la semana.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Robótica (semana)</div>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-1"></i> Ver Robótica</a>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="kpi-label">Ton robot</div>
+          <div class="kpi">{{ robot_weekly.ton|default:0 }}<span class="kpi-unit">ton</span></div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="kpi-label">Piezas robot</div>
+          <div class="kpi">{{ robot_weekly.piezas|default:0 }}<span class="kpi-unit">pzs</span></div>
+        </div>
+      </div>
+      <div class="row g-3">
+        <div class="col-12 col-xl-6">
+          <div class="fw-semibold mb-2">Top robots (ton)</div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Robot</th>
+                  <th class="text-end">Ton</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in robot_weekly.top_robots %}
+                  <tr>
+                    <td class="fw-semibold">{{ r.robot }}</td>
+                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin producción robótica en la semana.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Porcentaje de piezas por estado</div>
+          <span class="badge badge-soft">%</span>
+        </div>
+        <div class="card-body">
+          <div class="text-muted small mb-2">Cómo se reparte el total de piezas activas entre estados.</div>
+          <div style="height: 360px;">
+            <canvas id="chartPiezasPct"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Toneladas por estado</div>
+          <span class="badge badge-soft">Ton</span>
+        </div>
+        <div class="card-body">
+          <div class="text-muted small mb-2">Cómo se reparten las toneladas (kg ÷ 1000) por estado.</div>
+          <div style="height: 360px;">
+            <canvas id="chartTon"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Aging promedio por estado</div>
+          <span class="badge badge-soft">Días</span>
+        </div>
+        <div class="card-body">
+          <div class="text-muted small mb-2">Promedio de días desde el último movimiento, por estado.</div>
+          <div style="height: 360px;">
+            <canvas id="chartAging"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="fw-semibold">Enviado (fuera de reportes)</div>
+          <span class="badge badge-soft">Salida</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="kpi-label">Piezas enviadas</div>
+              <div class="kpi">{{ enviados_total }}<span class="kpi-unit">pzs</span></div>
+            </div>
+            <div class="col-6">
+              <div class="kpi-label">Ton enviadas</div>
+              <div class="kpi">{{ enviados_total_ton|floatformat:2 }}<span class="kpi-unit">ton</span></div>
+            </div>
+          </div>
+          <div class="text-muted small mt-2">Estas piezas no se contemplan en las gráficas principales.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Backlog vencido (Top proyectos)</div>
+          <span class="badge badge-soft">Ton</span>
+        </div>
+        <div class="table-responsive">
+          <div class="text-muted small px-3 pt-3">Proyectos con más toneladas atrasadas (fecha compromiso pasada).</div>
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Proyecto</th>
+                <th class="text-end">Piezas</th>
+                <th class="text-end">Ton</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in top_backlog %}
+                <tr>
+                  <td class="fw-semibold">{{ r.proyecto }}</td>
+                  <td class="text-end">{{ r.piezas }}</td>
+                  <td class="text-end">{{ r.ton|floatformat:2 }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">Sin backlog.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-6">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">WIP (Top proyectos)</div>
+          <span class="badge badge-soft">Ton</span>
+        </div>
+        <div class="table-responsive">
+          <div class="text-muted small px-3 pt-3">Proyectos con más toneladas en proceso.</div>
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Proyecto</th>
+                <th class="text-end">Piezas</th>
+                <th class="text-end">Ton</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in top_wip %}
+                <tr>
+                  <td class="fw-semibold">{{ r.proyecto }}</td>
+                  <td class="text-end">{{ r.piezas }}</td>
+                  <td class="text-end">{{ r.ton|floatformat:2 }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-center text-muted py-4">Sin WIP.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Detalle por estado</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Estado</th>
+            <th class="text-end">Piezas</th>
+            <th class="text-end">%</th>
+            <th class="text-end">Ton</th>
+            <th class="text-end">% Ton</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in resumen %}
+            <tr>
+              <td>
+                <span class="badge text-white me-2 js-bg" data-color="{{ r.color }}">&nbsp;</span>
+                <span class="fw-semibold">{{ r.estado }}</span>
+              </td>
+              <td class="text-end">{{ r.piezas }}</td>
+              <td class="text-end" style="min-width: 140px;">
+                <div class="fw-semibold">{{ r.pct|floatformat:1 }}%</div>
+                <div class="progress" style="height: 6px;">
+                  <div class="progress-bar js-progress" role="progressbar" data-width="{{ r.pct_css }}" data-color="{{ r.color }}"></div>
+                </div>
+              </td>
+              <td class="text-end">{{ r.ton|floatformat:2 }}</td>
+              <td class="text-end" style="min-width: 140px;">
+                <div class="fw-semibold">{{ r.pct_ton|floatformat:1 }}%</div>
+                <div class="progress" style="height: 6px;">
+                  <div class="progress-bar js-progress" role="progressbar" data-width="{{ r.pct_ton_css }}" data-color="{{ r.color }}"></div>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="fw-semibold">Paros (funcionamiento vs paro)</div>
+        <div class="text-muted small">Periodo: {{ weekly_selected_start }} a {{ weekly_selected_end }} (Jue–Jue) · 45 h por máquina (sin sábado/domingo y comida 13:00–13:30).</div>
+      </div>
+      <span class="badge badge-soft">Semana</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-lg-4">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Corte</div>
+              <div style="height: 220px;"><canvas id="chartParosCorte"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Soldadura</div>
+              <div style="height: 220px;"><canvas id="chartParosSoldadura"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <div class="card border">
+            <div class="card-body">
+              <div class="kpi-label">Robótica</div>
+              <div style="height: 220px;"><canvas id="chartParosRobot"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <div class="fw-semibold mb-2">Corte · por máquina</div>
+        <div class="row g-3">
+          {% for m in weekly.paros_maquinas_corte %}
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">{{ m.nombre }}</div>
+                  <div style="height: 220px;"><canvas id="chartParosMachine{{ m.id }}"></canvas></div>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12"><div class="text-muted">Sin máquinas de Corte activas.</div></div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="mt-3">
+        <div class="fw-semibold mb-2">Soldadura · por máquina</div>
+        <div class="row g-3">
+          {% for m in weekly.paros_maquinas_soldadura %}
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">{{ m.nombre }}</div>
+                  <div style="height: 220px;"><canvas id="chartParosMachine{{ m.id }}"></canvas></div>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12"><div class="text-muted">Sin máquinas de Soldadura activas.</div></div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="mt-3">
+        <div class="fw-semibold mb-2">Robótica · por máquina</div>
+        <div class="row g-3">
+          {% for m in weekly.paros_maquinas_robot %}
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card border">
+                <div class="card-body">
+                  <div class="kpi-label">{{ m.nombre }}</div>
+                  <div style="height: 220px;"><canvas id="chartParosMachine{{ m.id }}"></canvas></div>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12"><div class="text-muted">Sin máquinas de Robótica activas.</div></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Historial por pieza terminada</div>
+      <span class="badge badge-soft">Últimas 50</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th>Pieza</th>
+            <th class="text-end">Ton</th>
+            <th>Corte</th>
+            <th>Soldadura</th>
+            <th>Pintura</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in terminado_historial %}
+            <tr>
+              <td class="text-muted">{{ r.fecha_terminado|date:"Y-m-d" }}</td>
+              <td class="fw-semibold">{{ r.codigo }}</td>
+              <td class="fw-semibold">{{ r.proyecto }}</td>
+              <td class="text-muted">{{ r.pieza }}</td>
+              <td class="text-end">{{ r.peso_ton|floatformat:2 }}</td>
+              <td class="text-muted">{{ r.corte }}</td>
+              <td class="text-muted">{{ r.soldadura }}</td>
+              <td class="text-muted">{{ r.pintura }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-4">Sin piezas terminadas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">Piezas más antiguas en proceso</div>
+      <span class="badge badge-soft">Aging</span>
+    </div>
+    <div class="table-responsive">
+      <div class="text-muted small px-3 pt-3">Piezas con más días desde su último cambio de estado.</div>
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th>Estado</th>
+            <th class="text-end">Días</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in oldest_wip %}
+            <tr>
+              <td class="text-muted">{{ v.id }}</td>
+              <td>
+                <div class="fw-semibold">{{ v.codigo }}</div>
+                <div class="text-muted small">{{ v.pieza }}</div>
+              </td>
+              <td class="fw-semibold">{{ v.proyecto }}</td>
+              <td>{{ v.estado }}</td>
+              <td class="text-end">{{ v.dias }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Sin piezas en proceso.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ chart_payload|json_script:"chartPayload" }}
+  {{ productividad_payload|json_script:"productividadPayload" }}
+  {{ flow_payload|json_script:"flowPayload" }}
+  {{ sla_payload|json_script:"slaPayload" }}
+  {{ aging_payload|json_script:"agingPayload" }}
+  {{ weekly_payload|json_script:"weeklyPayload" }}
+  {{ terminado_progress_payload|json_script:"terminadoProgressPayload" }}
+  {{ kpi_maquinas_corte|json_script:"kpiMaquinasCortePayload" }}
+  {% if export_mode %}
+    {{ quien_detalle_cache|json_script:"quienDetalleCache" }}
+  {% endif %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    const payload = JSON.parse(document.getElementById("chartPayload").textContent);
+    const prod = JSON.parse(document.getElementById("productividadPayload").textContent);
+    const flow = JSON.parse(document.getElementById("flowPayload").textContent);
+    const sla = JSON.parse(document.getElementById("slaPayload").textContent);
+    const aging = JSON.parse(document.getElementById("agingPayload").textContent);
+    const weekly = JSON.parse(document.getElementById("weeklyPayload").textContent);
+    const terminadoProgress = JSON.parse(document.getElementById("terminadoProgressPayload").textContent);
+    const kpiCorteMaquinas = JSON.parse(document.getElementById("kpiMaquinasCortePayload").textContent);
+
+    const chartThroughputEl = document.getElementById("chartThroughput");
+    if (chartThroughputEl) {
+    new Chart(chartThroughputEl, {
+      type: "bar",
+      data: {
+        labels: flow.labels,
+        datasets: [
+          {
+            label: "Ton terminadas",
+            data: flow.ton_terminadas,
+            backgroundColor: "#2dce89",
+            borderRadius: 8,
+            yAxisID: "y",
+          },
+          {
+            type: "line",
+            label: "Piezas terminadas",
+            data: flow.piezas_terminadas,
+            borderColor: "#5e72e4",
+            backgroundColor: "rgba(94,114,228,0.15)",
+            tension: 0.25,
+            fill: true,
+            pointRadius: 2,
+            yAxisID: "y2",
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: { mode: "index", intersect: false }
+        },
+        scales: {
+          x: { ticks: { maxRotation: 0, autoSkip: true } },
+          y: { beginAtZero: true, title: { display: true, text: "Ton" } },
+          y2: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Piezas" } },
+        }
+      }
+    });
+    }
+
+    const chartSlaDonutEl = document.getElementById("chartSlaDonut");
+    if (chartSlaDonutEl) {
+    new Chart(chartSlaDonutEl, {
+      type: "doughnut",
+      data: {
+        labels: ["On-time", "Late", "Sin fecha"],
+        datasets: [{
+          data: [sla.on_time || 0, sla.late || 0, sla.no_due || 0],
+          backgroundColor: ["#2dce89", "#f5365c", "#e9ecef"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+        cutout: "70%",
+      }
+    });
+    }
+
+    const chartAgingEl = document.getElementById("chartAging");
+    if (chartAgingEl) {
+    new Chart(chartAgingEl, {
+      type: "bar",
+      data: {
+        labels: aging.labels,
+        datasets: [{
+          label: "Días (promedio)",
+          data: aging.days,
+          backgroundColor: aging.colors,
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+    }
+
+    const chartWeeklyEl = document.getElementById("chartWeekly");
+    if (chartWeeklyEl) {
+    new Chart(chartWeeklyEl, {
+      type: "bar",
+      data: {
+        labels: weekly.labels,
+        datasets: [
+          {
+            label: "Ton terminadas",
+            data: weekly.ton,
+            backgroundColor: "#2dce89",
+            borderRadius: 8,
+            yAxisID: "y",
+          },
+          {
+            type: "line",
+            label: "Piezas terminadas",
+            data: weekly.piezas,
+            borderColor: "#5e72e4",
+            backgroundColor: "rgba(94,114,228,0.15)",
+            tension: 0.25,
+            fill: true,
+            pointRadius: 2,
+            yAxisID: "y2",
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" } },
+        scales: {
+          x: { ticks: { maxRotation: 0, autoSkip: true } },
+          y: { beginAtZero: true, title: { display: true, text: "Ton" } },
+          y2: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Piezas" } },
+        }
+      }
+    });
+    }
+
+    const corteLabels = (kpiCorteMaquinas || []).map((r) => r.maquina);
+    const cortePiezas = (kpiCorteMaquinas || []).map((r) => r.piezas);
+    const corteTon = (kpiCorteMaquinas || []).map((r) => r.ton);
+    const corteTonProm = (kpiCorteMaquinas || []).map((r) => r.ton_promedio);
+    const corteChartEl = document.getElementById("chartCorteMaquinas");
+    if (corteChartEl) {
+      new Chart(corteChartEl, {
+        data: {
+          labels: corteLabels,
+          datasets: [
+            {
+              type: "bar",
+              label: "Ton (total)",
+              data: corteTon,
+              backgroundColor: "#2dce89",
+              borderRadius: 8,
+              yAxisID: "y",
+            },
+            {
+              type: "bar",
+              label: "Piezas",
+              data: cortePiezas,
+              backgroundColor: "#11cdef",
+              borderRadius: 8,
+              yAxisID: "y2",
+            },
+            {
+              type: "line",
+              label: "Ton/pieza",
+              data: corteTonProm,
+              borderColor: "#5e72e4",
+              backgroundColor: "rgba(94,114,228,0.15)",
+              tension: 0.25,
+              fill: false,
+              pointRadius: 2,
+              yAxisID: "y",
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: "bottom" } },
+          scales: {
+            x: { ticks: { maxRotation: 0, autoSkip: true } },
+            y: { beginAtZero: true, title: { display: true, text: "Ton" } },
+            y2: { beginAtZero: true, position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Piezas" } },
+          }
+        }
+      });
+    }
+
+    const chartTerminadoProgressEl = document.getElementById("chartTerminadoProgress");
+    if (chartTerminadoProgressEl) {
+    new Chart(chartTerminadoProgressEl, {
+      type: "doughnut",
+      data: {
+        labels: ["Terminado", "Restante"],
+        datasets: [{
+          data: [
+            terminadoProgress.terminado_piezas || 0,
+            Math.max((terminadoProgress.total_piezas || 0) - (terminadoProgress.terminado_piezas || 0), 0),
+          ],
+          backgroundColor: ["#2dce89", "#e9ecef"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw || 0;
+                const t = terminadoProgress.total_piezas || 0;
+                const pct = t ? (v / t * 100) : 0;
+                return `${ctx.label}: ${v} (${pct.toFixed(1)}%)`;
+              }
+            }
+          }
+        },
+        cutout: "75%",
+      },
+      plugins: [{
+        id: "centerText",
+        afterDraw: (chart) => {
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return;
+          const cx = (chartArea.left + chartArea.right) / 2;
+          const cy = (chartArea.top + chartArea.bottom) / 2;
+          const t = terminadoProgress.total_piezas || 0;
+          const d = terminadoProgress.terminado_piezas || 0;
+          const pct = t ? (d / t * 100) : 0;
+          ctx.save();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "#2dce89";
+          ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText(`${pct.toFixed(0)}%`, cx, cy - 6);
+          ctx.fillStyle = "#6c757d";
+          ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          ctx.fillText(`${d}/${t}`, cx, cy + 14);
+          ctx.restore();
+        }
+      }]
+    });
+    }
+
+    document.querySelectorAll(".js-weekly-recalc").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        const ok = confirm("Vas a recalcular el reporte semanal y SOBRESCRIBIR el snapshot guardado.\n\nSi ya eliminaste piezas o cambió información, este reporte puede cambiar.\n\n¿Deseas continuar?");
+        if (!ok) e.preventDefault();
+      });
+    });
+
+    const chartPiezasPctEl = document.getElementById("chartPiezasPct");
+    if (chartPiezasPctEl) {
+    new Chart(chartPiezasPctEl, {
+      type: "doughnut",
+      data: {
+        labels: payload.labels,
+        datasets: [{
+          data: payload.pct_piezas,
+          backgroundColor: payload.colors,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed}%` } }
+        },
+        cutout: "68%",
+      },
+      plugins: [{
+        id: "pctLabels",
+        afterDatasetsDraw: (chart) => {
+          const ctx = chart.ctx;
+          const ds = chart.data.datasets && chart.data.datasets[0];
+          if (!ctx || !ds) return;
+          const meta = chart.getDatasetMeta(0);
+          const bg = ds.backgroundColor || [];
+          const vals = ds.data || [];
+          ctx.save();
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = "700 12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+          for (let i = 0; i < meta.data.length; i++) {
+            const el = meta.data[i];
+            const v = Number(vals[i] || 0);
+            if (!el || !Number.isFinite(v) || v <= 0) continue;
+            const p = el.tooltipPosition();
+            const txt = `${v}%`;
+            const c = String(bg[i] || "#111");
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = c;
+            ctx.strokeText(txt, p.x, p.y);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillText(txt, p.x, p.y);
+          }
+          ctx.restore();
+        }
+      }]
+    });
+    }
+
+    const chartTonEl = document.getElementById("chartTon");
+    if (chartTonEl) {
+    new Chart(chartTonEl, {
+      type: "bar",
+      data: {
+        labels: payload.labels,
+        datasets: [{
+          label: "Ton",
+          data: payload.ton,
+          backgroundColor: payload.colors,
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: (v) => v } },
+          x: { ticks: { maxRotation: 0, autoSkip: true } }
+        }
+      }
+    });
+    }
+
+    const chartProdPorIntegranteEl = document.getElementById("chartProdPorIntegrante");
+    if (chartProdPorIntegranteEl) {
+    new Chart(chartProdPorIntegranteEl, {
+      type: "doughnut",
+      data: {
+        labels: ["Avance a meta", "Faltante"],
+        datasets: [{
+          data: (() => {
+            const meta = Number(prod.ton_por_persona_meta || 0);
+            const val = Number(prod.ton_por_integrante_global || 0);
+            const pct = meta > 0 ? Math.min((val / meta) * 100, 100) : 0;
+            return [Math.round(pct * 10) / 10, Math.round((100 - pct) * 10) / 10];
+          })(),
+          backgroundColor: ["#2dce89", "#e9ecef"],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const meta = Number(prod.ton_por_persona_meta || 0);
+                const val = Number(prod.ton_por_integrante_global || 0);
+                if (ctx.dataIndex === 0) return `Avance: ${ctx.parsed}% (Ton/persona: ${val}, Meta: ${meta})`;
+                return `Faltante: ${ctx.parsed}%`;
+              }
+            }
+          }
+        },
+        cutout: "75%",
+      }
+    });
+    }
+
+    const totalPersonal = prod.integrantes.reduce((a, b) => a + b, 0);
+    const pctPersonal = prod.integrantes.map((v) => totalPersonal ? Math.round((v / totalPersonal) * 1000) / 10 : 0);
+
+    const chartIntegrantesEquipoEl = document.getElementById("chartIntegrantesEquipo");
+    if (chartIntegrantesEquipoEl) {
+    new Chart(chartIntegrantesEquipoEl, {
+      type: "bar",
+      data: {
+        labels: prod.labels,
+        datasets: [{
+          label: "Integrantes",
+          data: prod.integrantes,
+          backgroundColor: prod.colors,
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const idx = ctx.dataIndex;
+                const integ = prod.integrantes[idx] || 0;
+                const pct = pctPersonal[idx] || 0;
+                return `Integrantes: ${integ} (${pct}%)`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true },
+          x: { ticks: { maxRotation: 0, autoSkip: true } }
+        }
+      }
+    });
+    }
+
+    function buildMachineColorMap() {
+      const map = {};
+      const ids = [];
+      const add = (arr) => (arr || []).forEach((m) => { if (m && m.id != null) ids.push(Number(m.id)); });
+      add(weekly.paros_maquinas_corte);
+      add(weekly.paros_maquinas_soldadura);
+      add(weekly.paros_maquinas_robot);
+
+      let i = 0;
+      ids.forEach((id) => {
+        if (!Number.isFinite(id) || map[id]) return;
+        let hue = (i * 137.508) % 360;
+        if (hue <= 45 || hue >= 350) hue = (hue + 70) % 360;
+        const color = `hsl(${hue.toFixed(1)} 72% 45%)`;
+        map[id] = color;
+        i += 1;
+      });
+      return map;
+    }
+
+    const machineColorMap = buildMachineColorMap();
+    function machineColor(machineId) {
+      const id = Number(machineId || 0);
+      const c = machineColorMap[id];
+      return c || "#2dce89";
+    }
+
+    function renderParosPie(elId, uptimeH, downH, uptimeColor) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      new Chart(el, {
+        type: "pie",
+        data: {
+          labels: ["Funcionamiento (h)", "Paro (h)"],
+          datasets: [{
+            data: [Number(uptimeH || 0), Number(downH || 0)],
+            backgroundColor: [uptimeColor || "#2dce89", "#fb6340"],
+            borderWidth: 0,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom" },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.label}: ${Number(ctx.raw || 0).toFixed(2)}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    renderParosPie("chartParosCorte", weekly.paros_uptime_horas_corte, weekly.paros_downtime_horas_corte);
+    renderParosPie("chartParosSoldadura", weekly.paros_uptime_horas_soldadura, weekly.paros_downtime_horas_soldadura);
+    renderParosPie("chartParosRobot", weekly.paros_uptime_horas_robot, weekly.paros_downtime_horas_robot);
+    (weekly.paros_maquinas_corte || []).forEach((m) => renderParosPie(`chartParosMachine${m.id}`, m.up_h, m.down_h, machineColor(m.id)));
+    (weekly.paros_maquinas_soldadura || []).forEach((m) => renderParosPie(`chartParosMachine${m.id}`, m.up_h, m.down_h, machineColor(m.id)));
+    (weekly.paros_maquinas_robot || []).forEach((m) => renderParosPie(`chartParosMachine${m.id}`, m.up_h, m.down_h, machineColor(m.id)));
+
+    document.querySelectorAll(".js-bg").forEach((el) => {
+      const c = el.getAttribute("data-color");
+      if (c) el.style.background = c;
+    });
+    document.querySelectorAll(".js-progress").forEach((el) => {
+      const w = (el.getAttribute("data-width") || "0").replace(",", ".");
+      const c = el.getAttribute("data-color") || "";
+      el.style.width = w + "%";
+      if (c) el.style.background = c;
+    });
+
+    const quienModalEl = document.getElementById("quienDetalleModal");
+    const quienModal = quienModalEl ? new bootstrap.Modal(quienModalEl) : null;
+    const quienBody = document.getElementById("quienDetalleBody");
+    const quienSubtitle = document.getElementById("quienDetalleSubtitle");
+    const quienUrlTemplate = "{% url 'produccion:dashboard_quien_detalle' 0 'Corte' %}";
+    const quienCacheEl = document.getElementById("quienDetalleCache");
+    const quienCache = quienCacheEl ? JSON.parse(quienCacheEl.textContent) : null;
+
+    function buildUrl(colabId, etapa) {
+      return quienUrlTemplate.replace("/0/Corte/", `/${colabId}/${encodeURIComponent(etapa)}/`);
+    }
+
+    function setLoading() {
+      if (!quienBody) return;
+      quienBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Cargando…</td></tr>';
+    }
+
+    function setRows(items) {
+      if (!quienBody) return;
+      if (!items || items.length === 0) {
+        quienBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Sin piezas asignadas en WIP.</td></tr>';
+        return;
+      }
+      quienBody.innerHTML = "";
+      items.forEach((it) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="text-muted">${it.area || ""}</td>
+          <td class="text-muted">${it.id}</td>
+          <td class="fw-semibold">${it.codigo || ""}</td>
+          <td class="text-muted">${it.pieza || ""}</td>
+          <td class="text-muted">${it.proyecto || ""}</td>
+          <td class="fw-semibold">${it.estado || ""}</td>
+          <td class="text-end">${Number(it.ton || 0).toFixed(3)}</td>
+          <td class="text-muted">${it.fecha_compromiso || ""}</td>
+        `;
+        quienBody.appendChild(tr);
+      });
+    }
+
+    document.querySelectorAll(".js-quien-detalle").forEach((el) => {
+      el.addEventListener("click", async () => {
+        const colabId = (el.getAttribute("data-colab") || "").trim();
+        const etapa = (el.getAttribute("data-etapa") || "").trim();
+        if (!colabId || !etapa || !quienModal) return;
+        if (quienSubtitle) quienSubtitle.textContent = "";
+        setLoading();
+        quienModal.show();
+        try {
+          let data = null;
+          const key = `${colabId}|${etapa}`;
+          if (quienCache && quienCache[key]) {
+            data = quienCache[key];
+          } else {
+            const res = await fetch(buildUrl(colabId, etapa), { headers: { "Accept": "application/json" } });
+            data = await res.json();
+          }
+          if (!data.ok) {
+            setRows([]);
+            if (quienSubtitle) quienSubtitle.textContent = "No se pudo cargar.";
+            return;
+          }
+          const name = (data.colaborador && data.colaborador.nombre) ? data.colaborador.nombre : "";
+          const team = (data.colaborador && data.colaborador.equipo) ? data.colaborador.equipo : "";
+          if (quienSubtitle) quienSubtitle.textContent = `${name}${team ? " · " + team : ""} · ${data.etapa} · ${data.count} piezas`;
+          setRows(data.items || []);
+        } catch (e) {
+          setRows([]);
+          if (quienSubtitle) quienSubtitle.textContent = "No se pudo cargar.";
+        }
+      });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Eliminar{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div>
+            <div class="kpi-label">Acción</div>
+            <div class="h5 mb-0">Eliminar pieza</div>
+          </div>
+          <a class="btn btn-sm btn-outline-secondary" href="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">
+            <i class="bi bi-x-lg me-1"></i> Cancelar
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            ¿Seguro que deseas eliminar: <strong>{{ viga.codigo_viga }} ({{ viga.pieza_no }}/{{ viga.total_piezas }})</strong>?
+            <div class="small text-muted mt-1">Esta acción también elimina el historial en production_log.</div>
+          </div>
+          <form method="post" class="d-flex gap-2 justify-content-end">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% if next_url %}{{ next_url }}{% endif %}">
+            <a class="btn btn-outline-secondary" href="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">Volver</a>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i> Eliminar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

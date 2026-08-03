@@ -1,0 +1,149 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Órdenes de Producción{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Pedidos</div>
+      <div class="h3 mb-0">Órdenes de Producción</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:herreria_catalogo' %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-list-check me-1"></i> Catálogos</a>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Nueva orden</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="pedido_create">
+            <div>
+              <label class="form-label">Cliente</label>
+              {{ pedido_form.cliente }}
+              {% if pedido_form.cliente.errors %}<div class="invalid-feedback d-block">{{ pedido_form.cliente.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Teléfono / datos</label>
+              {{ pedido_form.telefono }}
+              {% if pedido_form.telefono.errors %}<div class="invalid-feedback d-block">{{ pedido_form.telefono.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Fecha compromiso</label>
+              {{ pedido_form.fecha_compromiso }}
+              {% if pedido_form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ pedido_form.fecha_compromiso.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Comentarios</label>
+              {{ pedido_form.comentarios }}
+              {% if pedido_form.comentarios.errors %}<div class="invalid-feedback d-block">{{ pedido_form.comentarios.errors }}</div>{% endif %}
+            </div>
+            {% if pedido_form.non_field_errors %}<div class="alert alert-danger py-2 mb-0">{{ pedido_form.non_field_errors }}</div>{% endif %}
+
+            <div class="border rounded p-2">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">Productos</div>
+                <a class="small text-decoration-none" href="{% url 'catalogos:herreria_catalogo' %}?next={{ request.get_full_path|urlencode }}">Alta</a>
+              </div>
+              {{ formset.management_form }}
+              <div class="vstack gap-2">
+                {% for f in formset %}
+                  <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-8">
+                      <label class="form-label mb-1">Producto</label>
+                      {{ f.producto }}
+                      {% if f.producto.errors %}<div class="invalid-feedback d-block">{{ f.producto.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-12 col-md-4">
+                      <label class="form-label mb-1">Cantidad</label>
+                      {{ f.cantidad_total }}
+                      {% if f.cantidad_total.errors %}<div class="invalid-feedback d-block">{{ f.cantidad_total.errors }}</div>{% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="d-grid">
+              <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2-circle me-1"></i> Crear y enviar a Herrería</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Órdenes recientes</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente</th>
+                  <th class="text-end">Compromiso</th>
+                  <th>Estado</th>
+                  <th class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in pedidos %}
+                  <tr>
+                    <td class="fw-semibold">{{ p.folio }}</td>
+                    <td>
+                      <div>{{ p.cliente }}</div>
+                      {% if p.telefono %}<div class="text-muted small">{{ p.telefono }}</div>{% endif %}
+                    </td>
+                    <td class="text-end">{{ p.fecha_compromiso|date:"Y-m-d" }}</td>
+                    <td><span class="badge badge-soft">{{ p.estado }}</span></td>
+                    <td class="text-end">
+                      <div class="d-inline-flex gap-1 justify-content-end flex-wrap">
+                        <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:pedidos_orden_editar' p.id %}">Editar</a>
+                        {% if p.can_delete %}
+                          {% if p.can_delete_enabled %}
+                            <form method="post" action="{% url 'catalogos:pedidos_orden_eliminar' p.id %}" class="d-inline-block" onsubmit="return confirm('¿Eliminar esta orden? Esto no se puede deshacer.');">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                            </form>
+                          {% else %}
+                            <form method="post" action="{% url 'catalogos:pedidos_orden_cancelar' p.id %}" class="d-inline-block" onsubmit="return confirm('Esto liberará apartados y cancelará items no aceptados en Herrería. ¿Continuar?');">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-sm btn-outline-secondary">Liberar</button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="alert('Todavía no se puede eliminar: {{ p.delete_reason|escapejs }}.');">Eliminar</button>
+                          {% endif %}
+                        {% elif p.can_cancel %}
+                          <form method="post" action="{% url 'catalogos:pedidos_orden_cancelar' p.id %}" class="d-inline-block" onsubmit="return confirm('¿Cancelar esta orden?');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-warning">Cancelar</button>
+                          </form>
+                        {% else %}
+                          <span class="text-muted">—</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                  {% if p.items_list %}
+                    <tr class="table-light">
+                      <td colspan="5" class="py-2">
+                        <div class="text-muted small">
+                          {% for it in p.items_list %}
+                            <span class="me-3">{{ it.producto.nombre }} · {{ it.cantidad_total }} pzas</span>
+                          {% endfor %}
+                        </div>
+                      </td>
+                    </tr>
+                  {% endif %}
+                {% empty %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">Sin órdenes.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

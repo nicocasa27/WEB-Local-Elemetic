@@ -1,0 +1,80 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Editar orden{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Pedidos</div>
+      <div class="h3 mb-0">Editar orden {{ pedido.folio }}</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:pedidos_ordenes' %}">Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="vstack gap-3">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Cliente</label>
+            {{ form.cliente }}
+            {% if form.cliente.errors %}<div class="invalid-feedback d-block">{{ form.cliente.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Teléfono / datos</label>
+            {{ form.telefono }}
+            {% if form.telefono.errors %}<div class="invalid-feedback d-block">{{ form.telefono.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Fecha compromiso</label>
+            {{ form.fecha_compromiso }}
+            {% if form.fecha_compromiso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_compromiso.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <label class="form-label">Comentarios</label>
+            {{ form.comentarios }}
+            {% if form.comentarios.errors %}<div class="invalid-feedback d-block">{{ form.comentarios.errors }}</div>{% endif %}
+          </div>
+        </div>
+
+        <div class="border rounded p-2">
+          <div class="fw-semibold mb-2">Productos</div>
+          <div class="text-muted small mb-2">Reglas: no puedes bajar por debajo de apartado+enviado; si ya fue aceptado en Herrería no se puede reducir ni eliminar.</div>
+          {{ formset.management_form }}
+          <div class="vstack gap-2">
+            {% for f in formset %}
+              {{ f.item_id }}
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-7">
+                  <label class="form-label mb-1">Producto</label>
+                  {{ f.producto }}
+                  {% if f.producto.errors %}<div class="invalid-feedback d-block">{{ f.producto.errors }}</div>{% endif %}
+                </div>
+                <div class="col-8 col-md-3">
+                  <label class="form-label mb-1">Cantidad</label>
+                  {{ f.cantidad_total }}
+                  {% if f.cantidad_total.errors %}<div class="invalid-feedback d-block">{{ f.cantidad_total.errors }}</div>{% endif %}
+                </div>
+                <div class="col-4 col-md-2">
+                  {% if f.item_id.value %}
+                    <label class="form-label mb-1">Eliminar</label>
+                    <div class="form-check">
+                      {{ f.DELETE }}
+                    </div>
+                  {% endif %}
+                </div>
+                {% if f.non_field_errors %}<div class="col-12"><div class="invalid-feedback d-block">{{ f.non_field_errors }}</div></div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+          <a class="btn btn-outline-secondary" href="{% url 'catalogos:pedidos_ordenes' %}">Cancelar</a>
+          <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2-circle me-1"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

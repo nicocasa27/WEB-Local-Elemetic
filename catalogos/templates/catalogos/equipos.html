@@ -1,0 +1,214 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Equipos{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Catálogos</div>
+      <div class="h3 mb-0">Equipos de trabajo</div>
+      <div class="text-muted small">Define los equipos, colaboradores y los estados que atienden para KPIs.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'produccion:dashboard' %}"><i class="bi bi-bar-chart-line me-1"></i> Ver Reportes</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Agregar equipo</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <div>
+              <label class="form-label">Nombre</label>
+              {{ form.nombre }}
+              {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+            </div>
+            <div>
+              <label class="form-label">Estados que atiende el equipo</label>
+              <div class="row g-2">
+                {% for c in form.estados %}
+                  <div class="col-6 col-md-4">
+                    <div class="form-check">
+                      {{ c.tag }}
+                      <label class="form-check-label" for="{{ c.id_for_label }}">{{ c.choice_label }}</label>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="text-muted small mt-1">Puedes seleccionar varios estados.</div>
+              {% if form.estados.errors %}<div class="invalid-feedback d-block">{{ form.estados.errors }}</div>{% endif %}
+            </div>
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Colaboradores activos (auto)</label>
+                {{ form.integrantes }}
+                <div class="text-muted small mt-1">Se calcula con el número de colaboradores activos del equipo.</div>
+                {% if form.integrantes.errors %}<div class="invalid-feedback d-block">{{ form.integrantes.errors }}</div>{% endif %}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label d-block">Activo</label>
+                <div class="form-check form-switch">
+                  {{ form.activo }}
+                  <label class="form-check-label" for="id_activo">Sí</label>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Agregar colaborador</div>
+        <div class="card-body">
+          <form method="post" class="vstack gap-3">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="colaborador_create">
+            <div>
+              <label class="form-label">Equipo / Área</label>
+              {{ colab_form.equipo }}
+              {% if colab_form.equipo.errors %}<div class="invalid-feedback d-block">{{ colab_form.equipo.errors }}</div>{% endif %}
+            </div>
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">Rol</label>
+                {{ colab_form.rol }}
+                {% if colab_form.rol.errors %}<div class="invalid-feedback d-block">{{ colab_form.rol.errors }}</div>{% endif %}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label d-block">Activo</label>
+                <div class="form-check form-switch">
+                  {{ colab_form.activo }}
+                  <label class="form-check-label" for="{{ colab_form.activo.id_for_label }}">Sí</label>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label class="form-label">Nombre</label>
+              {{ colab_form.nombre }}
+              {% if colab_form.nombre.errors %}<div class="invalid-feedback d-block">{{ colab_form.nombre.errors }}</div>{% endif %}
+            </div>
+            <button class="btn btn-argon text-white" type="submit"><i class="bi bi-person-plus me-1"></i> Guardar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Listado</div>
+          <div class="text-muted small">{{ equipos|length }} equipos</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Equipo</th>
+                <th>Estados</th>
+                <th class="text-end">Colabs activos</th>
+                <th>Activo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in equipos %}
+                <tr>
+                  <td class="fw-semibold">{{ e.nombre }}</td>
+                  <td class="text-muted">{{ e.estados_texto }}</td>
+                  <td class="text-end">{{ e.colaboradores_activos }}</td>
+                  <td>{% if e.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                  <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:equipo_editar' e.pk %}">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="post" action="{% url 'catalogos:equipo_toggle' e.pk %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% if e.activo %}Desactivar{% else %}Activar{% endif %}">
+                        {% if e.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                      </button>
+                    </form>
+                    <form method="post" action="{% url 'catalogos:equipo_delete' e.pk %}" class="d-inline js-confirm-delete">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar equipo">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Sin equipos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="fw-semibold">Colaboradores</div>
+          <div class="text-muted small">Organizados por equipo</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Equipo</th>
+                <th>Colaborador</th>
+                <th>Rol</th>
+                <th>Activo</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in equipos %}
+                {% for c in e.colaboradores_list %}
+                  <tr>
+                    <td class="fw-semibold">{{ e.nombre }}</td>
+                    <td class="fw-semibold">{{ c.nombre }}</td>
+                    <td><span class="badge badge-soft">{{ c.rol }}</span></td>
+                    <td>{% if c.activo %}<span class="badge bg-success">Sí</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogos:colaborador_editar' c.pk %}" title="Editar colaborador">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <form method="post" action="{% url 'catalogos:colaborador_toggle' c.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-secondary" type="submit" title="{% if c.activo %}Desactivar{% else %}Activar{% endif %}">
+                          {% if c.activo %}<i class="bi bi-pause-circle"></i>{% else %}<i class="bi bi-play-circle"></i>{% endif %}
+                        </button>
+                      </form>
+                      <form method="post" action="{% url 'catalogos:colaborador_delete' c.pk %}" class="d-inline js-confirm-delete">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar colaborador">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td class="fw-semibold">{{ e.nombre }}</td>
+                    <td colspan="4" class="text-muted">Sin colaboradores.</td>
+                  </tr>
+                {% endfor %}
+              {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">Sin equipos.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll("form.js-confirm-delete").forEach((f) => {
+        f.addEventListener("submit", (e) => {
+          const ok = confirm("¿Seguro que deseas eliminar? Esta acción no se puede deshacer.");
+          if (!ok) e.preventDefault();
+        });
+      });
+    });
+  </script>
+{% endblock %}

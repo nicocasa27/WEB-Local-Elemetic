@@ -1,0 +1,522 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Taller Elemetic{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'produccion/elemetic.png' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+      :root {
+        --argon-bg: #f8f9fe;
+        --argon-primary: #5e72e4;
+        --argon-dark: #172b4d;
+        --argon-soft: #e9ecef;
+        --section-accent: var(--argon-primary);
+        --section-accent-dark: #324cdd;
+        --section-on-accent: #fff;
+      }
+      body[data-section="corta"] { --section-accent: #d35400; --section-accent-dark: #b04a00; --section-on-accent: #fff; }
+      body[data-section="corte"] { --section-accent: #f1c40f; --section-accent-dark: #c9a007; --section-on-accent: #111; }
+      body[data-section="soldadura"] { --section-accent: #3498db; --section-accent-dark: #2c81ba; --section-on-accent: #fff; }
+      body[data-section="robotica"] { --section-accent: #8e44ad; --section-accent-dark: #763993; --section-on-accent: #fff; }
+      body[data-section="herreria"] { --section-accent: #2ecc71; --section-accent-dark: #25a95d; --section-on-accent: #fff; }
+      body[data-section="reportes"] { --section-accent: #6c757d; --section-accent-dark: #545b62; --section-on-accent: #fff; }
+      html, body { overflow-x: hidden; }
+      body { background: var(--argon-bg); }
+      .navbar-argon {
+        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
+      }
+      .navbar-argon .navbar-brand, .navbar-argon .nav-link { color: #fff !important; }
+      .content-wrap { padding-top: 1.25rem; padding-bottom: 2.5rem; }
+      .app-shell { min-height: 100vh; width: 100%; }
+      .app-main { min-width: 0; width: 100%; margin-left: 0; }
+      .sidebar-submenu .btn { min-height: 42px; }
+      @media (max-width: 767.98px) {
+        .content-wrap { padding-left: .75rem; padding-right: .75rem; }
+      }
+      .mobile-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        background: var(--argon-bg);
+        border-bottom: 1px solid rgba(0,0,0,.06);
+      }
+      .mobile-topbar .brand-mark { box-shadow: none; padding: 0; background: transparent; }
+      .mobile-topbar .brand-mark img { height: 26px; }
+      .mobile-topbar a.d-flex > img[src$="produccion/elemetic.png"][alt="Elemetic"] { width: 30px; }
+      .sidebar-offcanvas {
+        --bs-offcanvas-width: min(86vw, 320px);
+        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
+        color: #fff;
+      }
+      .sidebar-offcanvas .offcanvas-header {
+        background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%);
+        color: #fff;
+      }
+      .sidebar-offcanvas .btn-close { filter: invert(1); }
+      .sidebar-offcanvas .btn { min-height: 44px; }
+      @media (max-width: 767.98px) {
+        .sidebar-offcanvas { --bs-offcanvas-width: min(86vw, 360px); }
+      }
+      .sidebar-offcanvas .btn-outline-secondary { color: #fff; border-color: rgba(255,255,255,.65); }
+      .sidebar-offcanvas .btn-outline-secondary:hover { color: #fff; border-color: rgba(255,255,255,.85); background: rgba(255,255,255,.12); }
+      .sidebar-offcanvas .btn-outline-secondary i { color: #fff; }
+      .card { border: 0; box-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15); }
+      .card { border-top: 3px solid var(--section-accent); }
+      .card-header { background: #fff; border-bottom: 1px solid rgba(0,0,0,.05); }
+      .badge-soft { background: rgba(0, 0, 0, .05); color: var(--section-accent-dark); }
+      .table thead th { color: #8898aa; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid rgba(0,0,0,.05); }
+      .table td { vertical-align: middle; }
+      .btn-argon { background: var(--section-accent); border-color: var(--section-accent); color: var(--section-on-accent); }
+      .btn-argon:hover { background: var(--section-accent-dark); border-color: var(--section-accent-dark); color: var(--section-on-accent); }
+      .btn-outline-light.bg-white { color: #000 !important; }
+      .btn-outline-light.bg-white i { color: #000 !important; }
+      .kpi { font-size: 1.4rem; font-weight: 800; color: var(--argon-dark); }
+      .kpi-unit { font-size: .85rem; font-weight: 800; color: #8898aa; margin-left: .35rem; }
+      .kpi-label { color: var(--section-accent-dark); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+      .offcanvas-argon .offcanvas-header { background: linear-gradient(87deg, var(--argon-primary) 0, #825ee4 100%); color: #fff; }
+      .offcanvas-argon .btn-close { filter: invert(1); }
+      .brand-logo { display: inline-flex; align-items: center; gap: .5rem; }
+      .brand-mark { background: rgba(255,255,255,.95); border-radius: .5rem; padding: .2rem .4rem; box-shadow: 0 6px 16px rgba(0,0,0,.18); }
+      .brand-mark img { height: 26px; width: auto; display: block; }
+      .table-sm td, .table-sm th { font-size: .9rem; }
+      @media (max-width: 991.98px) {
+        input, select, textarea,
+        .form-control, .form-select {
+          font-size: 16px !important;
+        }
+      }
+      @media (min-width: 768px) and (max-width: 1399.98px) {
+        .js-action-wrap {
+          gap: .5rem !important;
+        }
+        .js-action-wrap form {
+          margin: 0;
+        }
+        .js-action-wrap .btn,
+        .js-action-buttons .btn {
+          padding: .55rem .7rem;
+          min-height: 44px;
+          min-width: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .js-action-wrap .bi,
+        .js-action-buttons .bi {
+          font-size: 1.1rem;
+        }
+      }
+    </style>
+  </head>
+  <body
+    {% with rm=request.resolver_match %}
+      {% if rm.app_name == "catalogos" and rm.url_name == "corte_laser_control" %}data-section="corta"
+      {% elif rm.app_name == "produccion" and rm.url_name == "area_corte" %}data-section="corte"
+      {% elif rm.app_name == "produccion" and rm.url_name == "area_soldadura" %}data-section="soldadura"
+      {% elif rm.app_name == "catalogos" and rm.url_name == "robotica" %}data-section="robotica"
+      {% elif rm.app_name == "catalogos" and rm.url_name == "herreria_control" %}data-section="herreria"
+      {% elif rm.app_name == "produccion" and rm.url_name == "dashboard" %}data-section="reportes"
+      {% endif %}
+    {% endwith %}
+  >
+    <div class="app-shell {% block shell_class %}{% endblock %}">
+      {% block navbar %}
+        {% if not embedded %}
+        <nav class="navbar navbar-expand-lg navbar-argon navbar-dark d-none d-md-flex">
+          <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'produccion:home' %}">
+              <span class="brand-logo">
+                <span class="brand-mark">
+                  <img src="{% static 'produccion/elemetic.png' %}" alt="Elemetic">
+                </span>
+                <span class="d-none d-sm-inline">Taller Elemetic</span>
+              </span>
+            </a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarMain">
+              <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-grid-3x3-gap me-1"></i> Control de producción
+                  </a>
+                  <ul class="dropdown-menu">
+                    {% if is_admin %}
+                      <li><a class="dropdown-item" href="{% url 'produccion:viga_list' %}"><i class="bi bi-list-task me-2"></i> Estructuras metálicas</a></li>
+                      <li><a class="dropdown-item" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-2"></i> Robótica</a></li>
+                      <li><a class="dropdown-item" href="{% url 'catalogos:herreria_control' %}"><i class="bi bi-hammer me-2"></i> Herrería</a></li>
+                      <li><a class="dropdown-item" href="{% url 'catalogos:corte_laser_control' %}"><i class="bi bi-layers me-2"></i> Corta.mx</a></li>
+                    {% else %}
+                      {% if user_role == "corte" %}
+                        <li><a class="dropdown-item" href="{% url 'produccion:area_corte' %}?src=nav"><i class="bi bi-scissors me-2"></i> Corte</a></li>
+                        {% if can_soldadura %}
+                          <li><a class="dropdown-item" href="{% url 'produccion:area_soldadura' %}?src=nav"><i class="bi bi-fire me-2"></i> Soldadura</a></li>
+                        {% endif %}
+                      {% elif user_role == "soldadura" %}
+                        <li><a class="dropdown-item" href="{% url 'produccion:area_soldadura' %}?src=nav"><i class="bi bi-fire me-2"></i> Soldadura</a></li>
+                        {% if can_corte %}
+                          <li><a class="dropdown-item" href="{% url 'produccion:area_corte' %}?src=nav"><i class="bi bi-scissors me-2"></i> Corte</a></li>
+                        {% endif %}
+                      {% else %}
+                        {% if can_corte %}
+                          <li><a class="dropdown-item" href="{% url 'produccion:area_corte' %}?src=nav"><i class="bi bi-scissors me-2"></i> Corte</a></li>
+                        {% endif %}
+                        {% if can_soldadura %}
+                          <li><a class="dropdown-item" href="{% url 'produccion:area_soldadura' %}?src=nav"><i class="bi bi-fire me-2"></i> Soldadura</a></li>
+                        {% endif %}
+                        {% if not can_corte and not can_soldadura %}
+                          <li><a class="dropdown-item" href="{% url 'produccion:solo_lectura_produccion' %}"><i class="bi bi-eye me-2"></i> Producción</a></li>
+                        {% endif %}
+                      {% endif %}
+                      {% if can_robotica %}
+                        <li><a class="dropdown-item" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-2"></i> Robótica</a></li>
+                      {% endif %}
+                      {% if can_herreria %}
+                        <li><a class="dropdown-item" href="{% url 'catalogos:herreria_control' %}"><i class="bi bi-hammer me-2"></i> Herrería</a></li>
+                      {% endif %}
+                      {% if can_corte_laser %}
+                        <li><a class="dropdown-item" href="{% url 'catalogos:corte_laser_control' %}"><i class="bi bi-layers me-2"></i> Corta.mx</a></li>
+                      {% endif %}
+                    {% endif %}
+                  </ul>
+                </li>
+
+                {% if can_pedidos or can_logistica_corta %}
+                  <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="bi bi-bag-check me-1"></i> Pedidos
+                    </a>
+                    <ul class="dropdown-menu">
+                      {% if can_pedidos %}
+                        <li><a class="dropdown-item" href="{% url 'catalogos:pedidos_ordenes' %}"><i class="bi bi-receipt me-2"></i> Órdenes de Producción</a></li>
+                        <li><a class="dropdown-item" href="{% url 'catalogos:pedidos_logistica' %}"><i class="bi bi-truck me-2"></i> Logística</a></li>
+                      {% else %}
+                        <li><a class="dropdown-item" href="{% url 'catalogos:logistica_corta' %}"><i class="bi bi-truck me-2"></i> Logística</a></li>
+                      {% endif %}
+                    </ul>
+                  </li>
+                {% endif %}
+
+                <li class="nav-item">
+                  <a class="nav-link" href="{% url 'produccion:dashboard' %}"><i class="bi bi-bar-chart-line me-1"></i> Reportes</a>
+                </li>
+
+                {% if is_admin %}
+                  <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="bi bi-gear-wide-connected me-1"></i> Configuración de planta
+                    </a>
+                    <ul class="dropdown-menu">
+                      <li><a class="dropdown-item" href="{% url 'catalogos:proyectos' %}"><i class="bi bi-folder2-open me-2"></i> Proyectos</a></li>
+                      <li><a class="dropdown-item" href="{% url 'catalogos:equipos' %}"><i class="bi bi-people me-2"></i> Equipos</a></li>
+                      <li><a class="dropdown-item" href="{% url 'catalogos:maquinas' %}"><i class="bi bi-cpu me-2"></i> Maquinaria</a></li>
+                    </ul>
+                  </li>
+                {% endif %}
+              </ul>
+
+              <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center gap-2">
+                <li class="nav-item">
+                  <a class="btn btn-sm btn-light" href="{% url 'catalogos:paros' %}">
+                    <i class="bi bi-exclamation-octagon me-1"></i> Paros
+                  </a>
+                </li>
+
+                {% if user.is_authenticated %}
+                  <li class="nav-item dropdown">
+                    <button class="btn btn-sm btn-outline-light bg-white dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="bi bi-person-circle me-1"></i> {{ user.get_username }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                      <li>
+                        <button class="dropdown-item" type="button" data-bs-toggle="offcanvas" data-bs-target="#shareCanvas" aria-controls="shareCanvas">
+                          <i class="bi bi-qr-code-scan me-2"></i> QR
+                        </button>
+                      </li>
+                      {% if is_admin %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                          <a class="dropdown-item" href="/admin/">
+                            <i class="bi bi-shield-lock me-2"></i> Admin
+                          </a>
+                        </li>
+                      {% endif %}
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <form method="post" action="{% url 'logout' %}">
+                          {% csrf_token %}
+                          <button type="submit" class="dropdown-item">
+                            <i class="bi bi-box-arrow-right me-2"></i> Salir
+                          </button>
+                        </form>
+                      </li>
+                    </ul>
+                  </li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+        </nav>
+
+        <div class="mobile-topbar d-md-none p-2">
+          <div class="d-flex align-items-center gap-2 justify-content-between">
+            <button class="btn btn-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#navCanvas" aria-controls="navCanvas">
+              <i class="bi bi-list"></i>
+            </button>
+            <a class="d-flex align-items-center gap-2 text-decoration-none" href="{% url 'produccion:home' %}">
+              <span class="brand-mark">
+              </span>
+              <span class="fw-bold text-dark">Taller Elemetic</span>
+              <img src="{% static 'produccion/elemetic.png' %}" alt="Elemetic">
+            </a>
+          </div>
+        </div>
+
+        <div class="offcanvas offcanvas-start sidebar-offcanvas d-md-none" tabindex="-1" id="navCanvas" aria-labelledby="navCanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="navCanvasLabel">Menú</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <div class="d-grid gap-2">
+              {% if user.is_authenticated %}
+                <div class="dropdown">
+                  <button class="btn btn-light w-100 text-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-person-circle me-2"></i> {{ user.get_username }}
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <button class="dropdown-item" type="button" data-bs-toggle="offcanvas" data-bs-target="#shareCanvas" aria-controls="shareCanvas">
+                        <i class="bi bi-qr-code-scan me-2"></i> QR
+                      </button>
+                    </li>
+                    {% if is_admin %}
+                      <li><a class="dropdown-item" href="/admin/"><i class="bi bi-shield-lock me-2"></i> Admin</a></li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-item">
+                          <i class="bi bi-box-arrow-right me-2"></i> Salir
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              {% endif %}
+              <a class="btn btn-light w-100 text-start" href="{% url 'catalogos:paros' %}">
+                <i class="bi bi-exclamation-octagon me-2"></i> Paros
+              </a>
+              <button class="btn btn-light w-100 text-start d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#menuControlProdMobile" aria-expanded="true" aria-controls="menuControlProdMobile">
+                <span><i class="bi bi-grid-3x3-gap me-2"></i> Control de producción</span>
+                <i class="bi bi-chevron-down"></i>
+              </button>
+              <div class="collapse show" id="menuControlProdMobile">
+                <div class="sidebar-submenu d-grid gap-2 ps-3">
+                  {% if is_admin %}
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:viga_list' %}"><i class="bi bi-list-task me-2"></i> Estructuras metálicas</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-2"></i> Robótica</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:herreria_control' %}"><i class="bi bi-hammer me-2"></i> Herrería</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:corte_laser_control' %}"><i class="bi bi-layers me-2"></i> Corta.mx</a>
+                  {% else %}
+                    {% if user_role == "corte" %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:area_corte' %}?src=nav"><i class="bi bi-scissors me-2"></i> Producción</a>
+                    {% elif user_role == "soldadura" %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:area_soldadura' %}?src=nav"><i class="bi bi-tools me-2"></i> Producción</a>
+                    {% elif can_corte %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:area_corte' %}?src=nav"><i class="bi bi-scissors me-2"></i> Producción</a>
+                    {% elif can_soldadura %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:area_soldadura' %}?src=nav"><i class="bi bi-tools me-2"></i> Producción</a>
+                    {% else %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'produccion:solo_lectura_produccion' %}"><i class="bi bi-eye me-2"></i> Producción</a>
+                    {% endif %}
+                    {% if can_robotica %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:robotica' %}"><i class="bi bi-robot me-2"></i> Robótica</a>
+                    {% endif %}
+                    {% if can_herreria %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:herreria_control' %}"><i class="bi bi-hammer me-2"></i> Herrería</a>
+                    {% endif %}
+                    {% if can_corte_laser %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:corte_laser_control' %}"><i class="bi bi-layers me-2"></i> Corta.mx</a>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+              {% if can_pedidos or can_logistica_corta %}
+                <button class="btn btn-light w-100 text-start d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#menuPedidosMobile" aria-expanded="false" aria-controls="menuPedidosMobile">
+                  <span><i class="bi bi-bag-check me-2"></i> Pedidos</span>
+                  <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse" id="menuPedidosMobile">
+                  <div class="sidebar-submenu d-grid gap-2 ps-3">
+                    {% if can_pedidos %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:pedidos_ordenes' %}"><i class="bi bi-receipt me-2"></i> Órdenes de Producción</a>
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:pedidos_logistica' %}"><i class="bi bi-truck me-2"></i> Logística</a>
+                    {% else %}
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:logistica_corta' %}"><i class="bi bi-truck me-2"></i> Logística</a>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+              <a class="btn btn-light w-100 text-start" href="{% url 'produccion:dashboard' %}">
+                <i class="bi bi-bar-chart-line me-2"></i> Reportes
+              </a>
+              {% if is_admin %}
+                <button class="btn btn-light w-100 text-start d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#menuConfigMobile" aria-expanded="false" aria-controls="menuConfigMobile">
+                  <span><i class="bi bi-gear-wide-connected me-2"></i> Configuración de planta</span>
+                  <i class="bi bi-chevron-down"></i>
+                </button>
+                <div class="collapse" id="menuConfigMobile">
+                  <div class="sidebar-submenu d-grid gap-2 ps-3">
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:proyectos' %}"><i class="bi bi-folder2-open me-2"></i> Proyectos</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:equipos' %}"><i class="bi bi-people me-2"></i> Equipos</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:maquinas' %}"><i class="bi bi-cpu me-2"></i> Maquinaria</a>
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="offcanvas offcanvas-start offcanvas-argon" tabindex="-1" id="shareCanvas" aria-labelledby="shareCanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="shareCanvasLabel"><i class="bi bi-qr-code me-2"></i>Compartir</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <div class="kpi-label mb-2">Taller Elemetic</div>
+            <div class="text-muted small mb-3">Escanea el QR para abrir la web en otro celular o compartirla.</div>
+            <div class="d-flex justify-content-center mb-3">
+              <div id="shareQr"></div>
+            </div>
+            <div class="input-group mb-3">
+              <span class="input-group-text bg-white"><i class="bi bi-link-45deg"></i></span>
+              <input id="shareUrl" class="form-control" readonly />
+              <button id="copyShareUrl" class="btn btn-outline-secondary" type="button">Copiar</button>
+            </div>
+            <div class="d-grid gap-2">
+              <a class="btn btn-outline-primary" href="{% url 'produccion:viga_list' %}"><i class="bi bi-list-task me-1"></i> Estructuras metálicas</a>
+              <a class="btn btn-outline-secondary" href="{% url 'produccion:dashboard' %}"><i class="bi bi-bar-chart-line me-1"></i> Reportes</a>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      {% endblock %}
+
+      <div class="app-main">
+        {% if messages %}
+          <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+            {% for message in messages %}
+              <div class="toast align-items-center text-bg-{% if 'error' in message.tags %}danger{% elif message.tags %}{{ message.tags }}{% else %}primary{% endif %} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="1800">
+                <div class="d-flex">
+                  <div class="toast-body">{{ message }}</div>
+                  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="container-fluid content-wrap">
+          {% block content %}{% endblock %}
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      const shareCanvasEl = document.getElementById("shareCanvas");
+      const shareQrEl = document.getElementById("shareQr");
+      const shareUrlInput = document.getElementById("shareUrl");
+      const copyShareUrlBtn = document.getElementById("copyShareUrl");
+      let shareQrInstance = null;
+
+      function getBaseUrl() {
+        return window.location.origin + "{% url 'login' %}";
+      }
+
+      function renderShareQr() {
+        const url = getBaseUrl();
+        shareUrlInput.value = url;
+        shareQrEl.innerHTML = "";
+        shareQrInstance = new QRCode(shareQrEl, {
+          text: url,
+          width: 220,
+          height: 220,
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      }
+
+      if (shareCanvasEl && shareQrEl && shareUrlInput && copyShareUrlBtn) {
+        shareCanvasEl.addEventListener("shown.bs.offcanvas", () => {
+          renderShareQr();
+        });
+
+        copyShareUrlBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(shareUrlInput.value);
+            copyShareUrlBtn.textContent = "Copiado";
+            setTimeout(() => (copyShareUrlBtn.textContent = "Copiar"), 1200);
+          } catch (e) {
+            shareUrlInput.select();
+            document.execCommand("copy");
+          }
+        });
+      }
+
+      const scrollKey = () => `scroll:${window.location.pathname}${window.location.search}`;
+      function saveScrollFor(url) {
+        try {
+          const k = `scroll:${url.pathname}${url.search}`;
+          sessionStorage.setItem(k, String(window.scrollY || 0));
+        } catch (e) {}
+      }
+      document.addEventListener("submit", (e) => {
+        const form = e.target;
+        if (!form || form.tagName !== "FORM") return;
+        const nextEl = form.querySelector('input[name="next"]');
+        const nextVal = nextEl ? (nextEl.value || "").trim() : "";
+        if (nextVal && nextVal.startsWith("/")) {
+          saveScrollFor(new URL(nextVal, window.location.origin));
+        } else {
+          saveScrollFor(new URL(window.location.href));
+        }
+      }, true);
+      document.addEventListener("click", (e) => {
+        const a = e.target && e.target.closest ? e.target.closest("a") : null;
+        if (!a) return;
+        const href = (a.getAttribute("href") || "").trim();
+        if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+        try {
+          const u = new URL(href, window.location.href);
+          if (u.origin === window.location.origin) saveScrollFor(u);
+        } catch (err) {}
+      }, true);
+      window.addEventListener("DOMContentLoaded", () => {
+        try {
+          const k = scrollKey();
+          const v = sessionStorage.getItem(k);
+          if (v !== null) {
+            sessionStorage.removeItem(k);
+            const y = parseInt(v, 10);
+            if (!Number.isNaN(y) && y > 0) window.scrollTo(0, y);
+          }
+        } catch (e) {}
+
+        document.querySelectorAll(".toast").forEach((el) => {
+          try {
+            bootstrap.Toast.getOrCreateInstance(el).show();
+          } catch (e) {}
+        });
+      });
+    </script>
+    {% block extra_scripts %}{% endblock %}
+  </body>
+</html>

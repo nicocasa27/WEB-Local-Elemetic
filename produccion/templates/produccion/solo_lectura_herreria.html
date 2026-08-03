@@ -1,0 +1,61 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Solo lectura · Herrería{% endblock %}
+{% block content %}
+  {% include "produccion/solo_lectura_tabs.html" %}
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge badge-soft">Herrería</span>
+        <span class="text-muted small">Mostrando hasta 2000 registros</span>
+      </div>
+      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+        <select class="form-select form-select-sm" name="estado" style="max-width: 180px;">
+          {% for e in estados_doc %}
+            <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
+          {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" name="proyecto" style="max-width: 240px;">
+          {% for p in proyectos %}
+            <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+        <div class="input-group input-group-sm" style="min-width: 280px;">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (código / proyecto / descripción)..." autocomplete="off" />
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ reset_url }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
+      </form>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th class="text-end">Ton</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+            <tr>
+              <td class="fw-semibold">{{ o.codigo_show }}</td>
+              <td class="fw-semibold">{{ o.proyecto_nombre }}</td>
+              <td class="text-muted">{{ o.fecha_compromiso|date:"Y-m-d" }}</td>
+              <td>
+                <div class="fw-semibold">{{ o.estado_etapa_show }}</div>
+                <div class="text-muted small">{{ o.ultimo_mov_str }}</div>
+              </td>
+              <td class="text-end">{{ o.ton|floatformat:3 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Sin resultados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - {{ proyecto.nombre }}{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Proyecto</div>
+      <div class="h3 mb-0">{{ proyecto.nombre }}</div>
+      <div class="text-muted small">
+        {% if proyecto.activo %}Activo{% else %}Inactivo (oculto en Producción){% endif %} — Mostrando hasta 2000 piezas
+      </div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'catalogos:proyectos' %}"><i class="bi bi-arrow-left me-1"></i> Volver</a>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="fw-semibold">Piezas</div>
+      <div class="text-muted small">Total en BD: {{ total }}</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Pieza</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th style="min-width: 180px;">Avance</th>
+            <th class="text-end">Kg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vigas %}
+            <tr>
+              <td class="fw-semibold">{{ v.codigo_viga }}</td>
+              <td class="text-muted">{{ v.pieza_no }}/{{ v.total_piezas }}</td>
+              <td>{{ v.fecha_compromiso|date:"Y-m-d" }}</td>
+              <td>
+                <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+              </td>
+              <td>
+                <div class="d-flex align-items-center justify-content-between">
+                  <div class="text-muted small">{{ v.avance_pct }}%</div>
+                </div>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar js-avance js-bg" role="progressbar" data-pct="{{ v.avance_css }}" data-color="{{ v.estado_color }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ v.avance_css }}" style="width: 0%; transition: width .45s ease;">
+                    <span class="visually-hidden">{{ v.avance_pct }}%</span>
+                  </div>
+                </div>
+              </td>
+              <td class="text-end">{{ v.peso_kg }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Sin piezas para este proyecto.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".js-avance").forEach((el) => {
+        const pct = (el.getAttribute("data-pct") || "0").replace(",", ".");
+        requestAnimationFrame(() => {
+          el.style.width = pct + "%";
+        });
+      });
+    });
+  </script>
+{% endblock %}

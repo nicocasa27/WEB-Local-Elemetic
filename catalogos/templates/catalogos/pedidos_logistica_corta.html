@@ -1,0 +1,368 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Logística{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Pedidos</div>
+      <div class="h3 mb-0">Logística</div>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills mb-3">
+    {% if can_pedidos %}
+      <li class="nav-item">
+        <a class="nav-link {% if logistica_tab == 'op' %}active{% endif %}" href="{% url 'catalogos:pedidos_logistica' %}">Órdenes de Producción</a>
+      </li>
+    {% endif %}
+    {% if can_logistica_corta %}
+      <li class="nav-item">
+        <a class="nav-link {% if logistica_tab == 'corta' %}active{% endif %}" href="{% url 'catalogos:logistica_corta' %}">Corta</a>
+      </li>
+    {% endif %}
+  </ul>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Stock disponible (Corta)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-end">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in stocks %}
+                  <tr>
+                    <td class="fw-semibold">{{ s.producto }}</td>
+                    <td class="text-end">{{ s.stock }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin stock.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header fw-semibold">Pedidos activos (Corta)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente/Proyecto</th>
+                  <th>Producto</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Apartado</th>
+                  <th class="text-end">Enviado</th>
+                  <th class="text-end">Saldo</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in activos %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio_display }}</td>
+                    <td class="text-muted small">
+                      <div>{{ o.cliente_display }}</div>
+                      {% if o.correo %}<div>{{ o.correo }}</div>{% endif %}
+                      {% if o.telefono %}<div>{{ o.telefono }}</div>{% endif %}
+                      {% if o.fecha_compromiso %}<div>Comp.: {{ o.fecha_compromiso|date:"Y-m-d" }}</div>{% endif %}
+                    </td>
+                    <td>{{ o.producto_display }}</td>
+                    <td class="text-end">{{ o.total_display }}</td>
+                    <td class="text-end">{{ o.apartado_display }}</td>
+                    <td class="text-end">{{ o.enviado_display }}</td>
+                    <td class="text-end">{{ o.saldo_display }}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <form method="post" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="apartar">
+                          <input type="hidden" name="orden_id" value="{{ o.id }}">
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" placeholder="Apartar">
+                          <button class="btn btn-sm btn-outline-primary" type="submit">Apartar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">Sin pedidos activos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Apartados (Corta)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente/Proyecto</th>
+                  <th>Producto</th>
+                  <th class="text-end">Cant. Apartada</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in apartados %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio_display }}</td>
+                    <td class="text-muted small">{{ o.cliente_display }}</td>
+                    <td>{{ o.producto_display }}</td>
+                    <td class="text-end">{{ o.apartado_display }}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <form method="post" enctype="multipart/form-data" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="enviar">
+                          <input type="hidden" name="orden_id" value="{{ o.id }}">
+                          <button class="btn btn-sm btn-primary" type="submit">Enviar</button>
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" max="{{ o.apartado_display }}" value="{{ o.apartado_display }}">
+                          <input class="form-control form-control-sm" style="width: 220px;" name="comprobante_pdf" type="file" accept="application/pdf" required>
+                        </form>
+                        <form method="post" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="revertir_apartado_corta">
+                          <input type="hidden" name="orden_id" value="{{ o.id }}">
+                          <button class="btn btn-sm btn-outline-secondary" type="submit">Liberar</button>
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" max="{{ o.apartado_display }}" value="{{ o.apartado_display }}">
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">Sin apartados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Enviados (Corta)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente/Proyecto</th>
+                  <th>Producto</th>
+                  <th>Último envío</th>
+                  <th class="text-end">Días</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in enviados_ordenes %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio_display }}</td>
+                    <td class="text-muted small">{{ o.cliente_display }}</td>
+                    <td>{{ o.producto_display }}</td>
+                    <td>
+                      {% if o.last_envio_fecha %}{{ o.last_envio_fecha|date:"Y-m-d" }}{% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">{% if o.enviados_age_days != None %}{{ o.enviados_age_days }}{% else %}—{% endif %}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <a class="btn btn-sm btn-outline-dark" href="{% url 'catalogos:corta_expediente_zip' o.id %}">
+                          Descargar expediente
+                        </a>
+                        {% if o.expediente_descargado %}
+                          <span class="badge bg-success-subtle text-success">Descargado ({{ o.expediente_descargas_count }})</span>
+                        {% else %}
+                          <span class="badge bg-warning-subtle text-warning">Pendiente</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin enviados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">Decote (Corta)</div>
+            <div class="text-muted small">Enviados hace más de {{ decote_days }} días y con expediente descargado al menos una vez</div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Cliente/Proyecto</th>
+                  <th>Producto</th>
+                  <th>Último envío</th>
+                  <th class="text-end">Días</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for o in decote_ordenes %}
+                  <tr>
+                    <td class="fw-semibold">{{ o.folio_display }}</td>
+                    <td class="text-muted small">{{ o.cliente_display }}</td>
+                    <td>{{ o.producto_display }}</td>
+                    <td>{% if o.last_envio_fecha %}{{ o.last_envio_fecha|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if o.enviados_age_days != None %}{{ o.enviados_age_days }}{% else %}—{% endif %}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <a class="btn btn-sm btn-outline-dark" href="{% url 'catalogos:corta_expediente_zip' o.id %}">
+                          Descargar expediente
+                        </a>
+                        <form method="post" class="d-inline js-confirm-decote-delete">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="decote_delete">
+                          <input type="hidden" name="orden_id" value="{{ o.id }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit" {% if not o.can_delete_decote %}disabled{% endif %}>
+                            Eliminar
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin decote.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Últimos envíos (Corta)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Folio</th>
+                  <th>Producto</th>
+                  <th class="text-end">Cantidad</th>
+                  <th class="text-end">Revertido</th>
+                  <th>PDF</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in envios %}
+                  <tr>
+                    <td class="text-muted">{{ e.id }}</td>
+                    <td class="fw-semibold">{{ e.orden_folio }}</td>
+                    <td>{{ e.producto }}</td>
+                    <td class="text-end">{{ e.cantidad }}</td>
+                    <td class="text-end">{{ e.revertido }}</td>
+                    <td>
+                      {% if e.comprobante_pdf %}
+                        <a class="js-pdf-preview" href="{{ e.comprobante_pdf.url }}" data-pdf-url="{{ e.comprobante_pdf.url }}">Ver</a>
+                      {% else %}
+                        <span class="text-muted small">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <form method="post" class="d-flex gap-1 align-items-center justify-content-end js-confirm-revert">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="revertir_envio">
+                        <input type="hidden" name="envio_id" value="{{ e.id }}">
+                        <select class="form-select form-select-sm" name="destino" style="width: 130px;">
+                          <option value="stock">Stock</option>
+                          <option value="apartado">Apartado</option>
+                        </select>
+                        <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" placeholder="Revertir">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Revertir</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="7" class="text-center text-muted py-4">Sin envíos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="fw-semibold">Previsualizador PDF</div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body p-0" style="height: 80vh;">
+          <iframe id="pdfPreviewFrame" src="about:blank" style="width: 100%; height: 100%; border: 0;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener(
+      "click",
+      function (e) {
+        const a = e.target && e.target.closest ? e.target.closest("a.js-pdf-preview") : null;
+        if (!a) return;
+        e.preventDefault();
+        const url = a.getAttribute("data-pdf-url") || a.getAttribute("href") || "";
+        const frame = document.getElementById("pdfPreviewFrame");
+        if (frame) frame.src = url;
+        const modalEl = document.getElementById("pdfPreviewModal");
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+          window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      },
+      true
+    );
+
+    const pdfModal = document.getElementById("pdfPreviewModal");
+    if (pdfModal) {
+      pdfModal.addEventListener("hidden.bs.modal", function () {
+        const frame = document.getElementById("pdfPreviewFrame");
+        if (frame) frame.src = "about:blank";
+      });
+    }
+
+    document.addEventListener(
+      "submit",
+      function (e) {
+        const form = e.target;
+        if (!form || !form.matches) return;
+        if (form.matches(".js-confirm-revert")) {
+          if (!confirm("¿Confirmas revertir este envío?")) e.preventDefault();
+        }
+        if (form.matches(".js-confirm-decote-delete")) {
+          if (!confirm("¿Confirmas eliminar este pedido de Decote? Esta acción borra historial y archivos.")) e.preventDefault();
+        }
+      },
+      true
+    );
+  </script>
+{% endblock %}

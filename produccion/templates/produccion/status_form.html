@@ -1,0 +1,192 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Cambiar estado{% endblock %}
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div>
+            <div class="kpi-label">Producción</div>
+            <div class="h5 mb-0">Cambiar estado</div>
+          </div>
+          <a class="btn btn-sm btn-outline-secondary" href="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">
+            <i class="bi bi-arrow-left me-1"></i> Volver
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-light border d-flex align-items-start justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="fw-semibold">{{ viga.codigo_viga }} ({{ viga.pieza_no }}/{{ viga.total_piezas }})</div>
+              <div class="text-muted small">Proyecto: {{ viga.proyecto }}</div>
+            </div>
+            <div class="text-end">
+              <div class="kpi-label">Estado actual</div>
+              <div class="fw-semibold">
+                <span class="badge text-white me-1" style="background: {{ viga.estado_color }};">&nbsp;</span>
+                {{ viga.estado }}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-lg-none mb-3">
+            <div class="kpi-label mb-2">Acciones rápidas</div>
+            <div class="row g-2">
+              {% for e in estados %}
+                <div class="col-6">
+                  <form method="post" action="{% url 'produccion:viga_change_status' viga.internal_id %}" class="js-quick-change" data-estado="{{ e|escape }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="estado_nuevo" value="{{ e }}">
+                    <input type="hidden" name="fecha_operacion" value="{{ today }}">
+                    <input type="hidden" name="comentario" value="">
+                    <input type="hidden" name="motivo_retroceso" value="">
+                    <input type="hidden" name="next" value="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">
+                    <button type="submit" class="btn w-100 {% if e == viga.estado %}btn-success{% else %}btn-outline-secondary{% endif %}" {% if e == viga.estado %}disabled{% endif %}>
+                      {{ e }}
+                    </button>
+                  </form>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% if next_url %}{{ next_url }}{% endif %}">
+            {% if form.non_field_errors %}
+              <div class="col-12">
+                <div class="alert alert-danger mb-0">{{ form.non_field_errors }}</div>
+              </div>
+            {% endif %}
+
+            {% for field in form %}
+              <div class="col-12">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                  <div class="invalid-feedback d-block">{{ field.errors }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+
+            <div class="col-12" id="motivoRetrocesoWrap" style="display:none;">
+              <label class="form-label">Motivo del retroceso</label>
+              <select class="form-select" name="motivo_retroceso" id="motivoRetrocesoSelect">
+                <option value="">Seleccionar…</option>
+                <option value="error_dedo">Error de dedo</option>
+                <option value="retrabajo">Retrabajo</option>
+              </select>
+              <div class="text-muted small mt-1">Solo aplica cuando regresas una pieza a una etapa anterior.</div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 justify-content-end">
+              <a class="btn btn-outline-secondary" href="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">Cancelar</a>
+              <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+            </div>
+          </form>
+
+          <div class="d-lg-none mt-4">
+            <div class="kpi-label mb-2">Siguiente paso</div>
+            {% if next_estado %}
+              <form method="post" action="{% url 'produccion:viga_change_status' viga.internal_id %}" class="d-grid">
+                {% csrf_token %}
+                <input type="hidden" name="estado_nuevo" value="{{ next_estado }}">
+                <input type="hidden" name="fecha_operacion" value="{{ today }}">
+                <input type="hidden" name="comentario" value="">
+                <input type="hidden" name="next" value="{% if next_url %}{{ next_url }}{% else %}{% url 'produccion:viga_list' %}{% endif %}">
+                <button type="submit" class="btn btn-argon text-white btn-lg">
+                  <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ next_estado }}
+                </button>
+              </form>
+            {% else %}
+              <button type="button" class="btn btn-success btn-lg w-100" disabled>
+                <i class="bi bi-check2-circle me-1"></i> Terminado
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  <div class="modal fade" id="retrocesoMotivoModal" tabindex="-1" aria-labelledby="retrocesoMotivoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="retrocesoMotivoModalLabel">Motivo del retroceso</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-muted small">Selecciona el motivo para regresar la pieza a una etapa anterior.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary js-motivo-error">Error de dedo</button>
+          <button type="button" class="btn btn-argon text-white js-motivo-retrabajo">Retrabajo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const estadosOrder = [{% for e in estados %}"{{ e|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+      const estadoActual = "{{ viga.estado|escapejs }}";
+      const sel = document.getElementById("id_estado_nuevo");
+      const wrap = document.getElementById("motivoRetrocesoWrap");
+      const motivo = document.getElementById("motivoRetrocesoSelect");
+      const retroModalEl = document.getElementById("retrocesoMotivoModal");
+      const retroModal = retroModalEl ? new bootstrap.Modal(retroModalEl) : null;
+      let pendingQuickForm = null;
+
+      function idxEstado(name) {
+        return estadosOrder.indexOf((name || "").toString());
+      }
+      function isRetroceso(nuevo) {
+        const a = idxEstado(estadoActual);
+        const n = idxEstado(nuevo);
+        return a >= 0 && n >= 0 && n < a;
+      }
+      function update() {
+        if (!sel || !wrap || !motivo) return;
+        const retro = isRetroceso(sel.value || "");
+        wrap.style.display = retro ? "" : "none";
+        if (!retro) motivo.value = "";
+      }
+      if (sel) {
+        sel.addEventListener("change", update);
+        update();
+      }
+
+      document.querySelectorAll("form.js-quick-change").forEach((f) => {
+        f.addEventListener("submit", (e) => {
+          const estado = (f.getAttribute("data-estado") || "").trim();
+          if (!isRetroceso(estado)) return;
+          if (!retroModal) return;
+          e.preventDefault();
+          pendingQuickForm = f;
+          retroModal.show();
+        });
+      });
+
+      if (retroModalEl) {
+        retroModalEl.querySelector(".js-motivo-error")?.addEventListener("click", () => {
+          if (!pendingQuickForm) return;
+          const inp = pendingQuickForm.querySelector('input[name="motivo_retroceso"]');
+          if (inp) inp.value = "error_dedo";
+          retroModal.hide();
+          pendingQuickForm.submit();
+          pendingQuickForm = null;
+        });
+        retroModalEl.querySelector(".js-motivo-retrabajo")?.addEventListener("click", () => {
+          if (!pendingQuickForm) return;
+          const inp = pendingQuickForm.querySelector('input[name="motivo_retroceso"]');
+          if (inp) inp.value = "retrabajo";
+          retroModal.hide();
+          pendingQuickForm.submit();
+          pendingQuickForm = null;
+        });
+      }
+    });
+  </script>
+{% endblock %}

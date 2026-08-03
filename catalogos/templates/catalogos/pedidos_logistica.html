@@ -1,0 +1,407 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Logística{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Pedidos</div>
+      <div class="h3 mb-0">Logística</div>
+    </div>
+  </div>
+
+  <ul class="nav nav-pills mb-3">
+    {% if can_pedidos %}
+      <li class="nav-item">
+        <a class="nav-link {% if logistica_tab == 'op' %}active{% endif %}" href="{% url 'catalogos:pedidos_logistica' %}">Órdenes de Producción</a>
+      </li>
+    {% endif %}
+    {% if can_logistica_corta %}
+      <li class="nav-item">
+        <a class="nav-link {% if logistica_tab == 'corta' %}active{% endif %}" href="{% url 'catalogos:logistica_corta' %}">Corta</a>
+      </li>
+    {% endif %}
+  </ul>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Stock disponible</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-end">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in stocks %}
+                  <tr>
+                    <td class="fw-semibold">{{ s.producto.nombre }}</td>
+                    <td class="text-end">{{ s.stock }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin stock.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        <div class="card-header fw-semibold">Pedidos activos</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Orden</th>
+                  <th>Cliente</th>
+                  <th>Producto</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Apartado</th>
+                  <th class="text-end">Enviado</th>
+                  <th class="text-end">Saldo</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for it in activos %}
+                  <tr>
+                    <td class="fw-semibold">{{ it.pedido.folio }}</td>
+                    <td class="text-muted small">
+                      <div>{{ it.pedido.cliente }}</div>
+                      {% if it.pedido.telefono %}<div>{{ it.pedido.telefono }}</div>{% endif %}
+                      <div>Comp.: {{ it.pedido.fecha_compromiso|date:"Y-m-d" }}</div>
+                    </td>
+                    <td>{{ it.producto.nombre }}</td>
+                    <td class="text-end">{{ it.cantidad_total }}</td>
+                    <td class="text-end">{{ it.apartado }}</td>
+                    <td class="text-end">{{ it.enviado }}</td>
+                    <td class="text-end">{{ it.saldo_calc }}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <form method="post" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="apartar">
+                          <input type="hidden" name="item_id" value="{{ it.id }}">
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" placeholder="Apartar">
+                          <button class="btn btn-sm btn-outline-primary" type="submit">Apartar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">Sin pedidos activos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Apartados</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Orden</th>
+                  <th>Cliente</th>
+                  <th>Producto</th>
+                  <th class="text-end">Total</th>
+                  <th class="text-end">Apartado</th>
+                  <th class="text-end">Enviado</th>
+                  <th class="text-end">Saldo</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for it in apartados_items %}
+                  <tr>
+                    <td class="fw-semibold">{{ it.pedido.folio }}</td>
+                    <td class="text-muted small">
+                      <div>{{ it.pedido.cliente }}</div>
+                      {% if it.pedido.telefono %}<div>{{ it.pedido.telefono }}</div>{% endif %}
+                    </td>
+                    <td>{{ it.producto.nombre }}</td>
+                    <td class="text-end">{{ it.cantidad_total }}</td>
+                    <td class="text-end">{{ it.apartado }}</td>
+                    <td class="text-end">{{ it.enviado }}</td>
+                    <td class="text-end">{{ it.saldo_calc }}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <form method="post" enctype="multipart/form-data" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="enviar">
+                          <input type="hidden" name="item_id" value="{{ it.id }}">
+                          <button class="btn btn-sm btn-primary" type="submit">Enviar</button>
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" max="{{ it.apartado }}" value="{{ it.apartado }}">
+                          <input class="form-control form-control-sm" style="width: 220px;" name="comprobante_pdf" type="file" accept="application/pdf" required>
+                        </form>
+                        <form method="post" class="d-flex gap-1 align-items-center">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="revertir_apartado">
+                          <input type="hidden" name="item_id" value="{{ it.id }}">
+                          <button class="btn btn-sm btn-outline-secondary" type="submit">Liberar</button>
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" max="{{ it.apartado }}" value="{{ it.apartado }}">
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-center text-muted py-4">Sin apartados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Enviados</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Orden</th>
+                  <th>Cliente</th>
+                  <th>Compromiso</th>
+                  <th>Último envío</th>
+                  <th class="text-end">Días</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in enviados_pedidos %}
+                  <tr>
+                    <td class="fw-semibold">{{ p.folio }}</td>
+                    <td class="text-muted small">{{ p.cliente }}</td>
+                    <td>{% if p.fecha_compromiso %}{{ p.fecha_compromiso|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                    <td>{% if p.last_envio_fecha %}{{ p.last_envio_fecha|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.enviados_age_days != None %}{{ p.enviados_age_days }}{% else %}—{% endif %}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <a class="btn btn-sm btn-outline-dark" href="{% url 'catalogos:pedidos_expediente_zip' p.id %}">
+                          Descargar expediente
+                        </a>
+                        {% if p.expediente_descargado %}
+                          <span class="badge bg-success-subtle text-success">Descargado ({{ p.expediente_descargas_count }})</span>
+                        {% else %}
+                          <span class="badge bg-warning-subtle text-warning">Pendiente</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin enviados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div>
+            <div class="fw-semibold">Decote</div>
+            <div class="text-muted small">Enviados hace más de {{ decote_days }} días y con expediente descargado al menos una vez</div>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Orden</th>
+                  <th>Cliente</th>
+                  <th>Último envío</th>
+                  <th class="text-end">Días</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in decote_pedidos %}
+                  <tr>
+                    <td class="fw-semibold">{{ p.folio }}</td>
+                    <td class="text-muted small">{{ p.cliente }}</td>
+                    <td>{% if p.last_envio_fecha %}{{ p.last_envio_fecha|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+                    <td class="text-end">{% if p.enviados_age_days != None %}{{ p.enviados_age_days }}{% else %}—{% endif %}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <a class="btn btn-sm btn-outline-dark" href="{% url 'catalogos:pedidos_expediente_zip' p.id %}">
+                          Descargar expediente
+                        </a>
+                        <form method="post" class="d-inline js-confirm-decote-delete">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="decote_delete">
+                          <input type="hidden" name="pedido_id" value="{{ p.id }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit" {% if not p.can_delete_decote %}disabled{% endif %}>
+                            Eliminar
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-center text-muted py-4">Sin decote.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Últimos envíos</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Orden</th>
+                  <th>Producto</th>
+                  <th class="text-end">Cantidad</th>
+                  <th class="text-end">Revertido</th>
+                  <th class="text-end">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ei in envios_items %}
+                  <tr>
+                    <td class="text-muted">{{ ei.id }}</td>
+                    <td class="fw-semibold">{{ ei.pedido_item.pedido.folio }}</td>
+                    <td>{{ ei.producto.nombre }}</td>
+                    <td class="text-end">{{ ei.cantidad }}</td>
+                    <td class="text-end">{{ ei.revertido }}</td>
+                    <td class="text-end">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <form method="post" class="d-flex gap-1 align-items-center js-confirm-revert">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="revertir_envio">
+                          <input type="hidden" name="envio_item_id" value="{{ ei.id }}">
+                          <input type="hidden" name="destino" value="stock">
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" placeholder="Revertir">
+                          <button class="btn btn-sm btn-outline-secondary" type="submit">A Stock</button>
+                        </form>
+                        <form method="post" class="d-flex gap-1 align-items-center js-confirm-revert">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="revertir_envio">
+                          <input type="hidden" name="envio_item_id" value="{{ ei.id }}">
+                          <input type="hidden" name="destino" value="apartado">
+                          <input class="form-control form-control-sm" style="width: 92px;" name="cantidad" type="number" min="1" placeholder="Revertir">
+                          <button class="btn btn-sm btn-outline-warning" type="submit">A Apartado</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin envíos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">Comprobantes (PDF)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Orden</th>
+                  <th>Fecha</th>
+                  <th class="text-end">PDF</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in envios %}
+                  <tr>
+                    <td class="text-muted">{{ e.id }}</td>
+                    <td class="fw-semibold">{{ e.pedido.folio }}</td>
+                    <td>{{ e.fecha|date:"Y-m-d" }}</td>
+                    <td class="text-end">
+                      {% if e.comprobante_pdf %}
+                        <a class="btn btn-sm btn-outline-dark js-pdf-preview" href="{{ e.comprobante_pdf.url }}" data-pdf-url="{{ e.comprobante_pdf.url }}">Ver PDF</a>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted py-4">Sin comprobantes.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="fw-semibold">Previsualizador PDF</div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body p-0" style="height: 80vh;">
+          <iframe id="pdfPreviewFrame" src="about:blank" style="width: 100%; height: 100%; border: 0;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener(
+      "click",
+      function (e) {
+        const a = e.target && e.target.closest ? e.target.closest("a.js-pdf-preview") : null;
+        if (!a) return;
+        e.preventDefault();
+        const url = a.getAttribute("data-pdf-url") || a.getAttribute("href") || "";
+        const frame = document.getElementById("pdfPreviewFrame");
+        if (frame) frame.src = url;
+        const modalEl = document.getElementById("pdfPreviewModal");
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+          window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      },
+      true
+    );
+
+    const pdfModal = document.getElementById("pdfPreviewModal");
+    if (pdfModal) {
+      pdfModal.addEventListener("hidden.bs.modal", function () {
+        const frame = document.getElementById("pdfPreviewFrame");
+        if (frame) frame.src = "about:blank";
+      });
+    }
+
+    document.addEventListener(
+      "submit",
+      function (e) {
+        const form = e.target;
+        if (!form || !form.matches) return;
+        if (form.matches(".js-confirm-revert")) {
+          if (!confirm("¿Confirmas revertir este envío?")) e.preventDefault();
+        }
+        if (form.matches(".js-confirm-decote-delete")) {
+          if (!confirm("¿Confirmas eliminar este pedido de Decote? Esta acción borra historial y archivos.")) e.preventDefault();
+        }
+      },
+      true
+    );
+  </script>
+{% endblock %}

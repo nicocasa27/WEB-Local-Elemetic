@@ -1,0 +1,1563 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Producción{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">
+        {% if mode == "corte" %}Corte{% elif mode == "soldadura" %}Soldadura{% else %}Producción{% endif %}
+      </div>
+      <div class="h3 mb-0">
+        {% if mode == "corte" %}Área Corte{% elif mode == "soldadura" %}Área Soldadura{% else %}Control de producción{% endif %}
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-light bg-white border" type="button" data-bs-toggle="offcanvas" data-bs-target="#filtersCanvas" aria-controls="filtersCanvas">
+        <i class="bi bi-funnel me-1"></i> Filtros
+      </button>
+      {% if mode == "admin" %}
+        <a class="btn btn-argon text-white" href="{% url 'produccion:viga_create' %}?next={{ request.get_full_path|urlencode }}">
+          <i class="bi bi-plus-lg me-1"></i> Nueva pieza
+        </a>
+      {% else %}
+        <a class="btn btn-outline-secondary" href="{% url 'produccion:home' %}">
+          <i class="bi bi-house-door me-1"></i> Menú
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="filtersCanvas" aria-labelledby="filtersCanvasLabel">
+    <div class="offcanvas-header">
+      <h5 class="offcanvas-title" id="filtersCanvasLabel">Filtros</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+      <form method="get" class="vstack gap-3">
+        <input type="hidden" name="src" value="{{ request.GET.src|default:'nav' }}">
+        <div>
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            {% for e in estados_filtro %}
+              <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Proyecto</label>
+          <select class="form-select" name="proyecto">
+            {% for p in proyectos %}
+              <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Buscar</label>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Código / Proyecto / Descripción" />
+        </div>
+        <div>
+          <label class="form-label">Orden</label>
+          <select class="form-select" name="order">
+          <option value="ultimo_mov_desc" {% if filters.order == "ultimo_mov_desc" %}selected{% endif %}>Último movimiento (reciente)</option>
+          <option value="ultimo_mov_asc" {% if filters.order == "ultimo_mov_asc" %}selected{% endif %}>Último movimiento (antiguo)</option>
+            <option value="prioridad_asc" {% if filters.order == "prioridad_asc" %}selected{% endif %}>Prioridad (asc)</option>
+            <option value="prioridad_desc" {% if filters.order == "prioridad_desc" %}selected{% endif %}>Prioridad (desc)</option>
+            <option value="fecha_asc" {% if filters.order == "fecha_asc" %}selected{% endif %}>Fecha (asc)</option>
+            <option value="fecha_desc" {% if filters.order == "fecha_desc" %}selected{% endif %}>Fecha (desc)</option>
+            <option value="estado" {% if filters.order == "estado" %}selected{% endif %}>Estado</option>
+            <option value="proyecto" {% if filters.order == "proyecto" %}selected{% endif %}>Proyecto</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-argon text-white w-100"><i class="bi bi-check2 me-1"></i> Aplicar</button>
+        <a class="btn btn-outline-secondary w-100 js-reset-vigas" href="{{ reset_url }}?src={{ request.GET.src|default:'nav' }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer filtros</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge badge-soft">Resultados</span>
+        <span class="text-muted small">Mostrando hasta 2000 registros</span>
+      </div>
+      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+        <input type="hidden" name="src" value="{{ request.GET.src|default:'nav' }}">
+        <input type="hidden" name="estado" value="{{ filters.estado }}">
+        <input type="hidden" name="order" value="{{ filters.order }}">
+        <select class="form-select form-select-sm" name="proyecto" style="max-width: 240px;">
+          {% for p in proyectos %}
+            <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+        <div class="input-group input-group-sm" style="min-width: 280px;">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar viga (código / proyecto / descripción)..." list="vigaSuggestions" autocomplete="off" />
+          <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+        <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}?src={{ request.GET.src|default:'nav' }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
+      </form>
+    </div>
+    <datalist id="vigaSuggestions"></datalist>
+    <div class="d-lg-none">
+      <div class="p-3 border-bottom bg-white">
+        <label class="form-label mb-1">Fecha de operación (obligatoria)</label>
+        <input id="globalFechaOperacion" class="form-control" type="date" required>
+        <div class="text-muted small mt-1">Esta fecha se usa para registrar el cambio en production_log.</div>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for v in vigas %}
+          <div class="list-group-item js-viga-item" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-proyecto="{{ v.proyecto|escape }}" data-descripcion="{{ v.descripcion|escape }}">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
+                <div class="text-muted small">{{ v.proyecto }}</div>
+              </div>
+              <div class="text-end">
+                <div class="text-muted small">Estado actual</div>
+                <span class="badge text-white js-bg js-estado-badge px-3 py-2" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mt-2">
+              <div>
+                <i class="bi bi-calendar3 me-1"></i>
+                <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
+                <span class="badge text-bg-light ms-2 js-prioridad">P{{ v.prioridad }}</span>
+              </div>
+              <div><i class="bi bi-box-seam me-1"></i> {{ v.peso_kg }} kg</div>
+            </div>
+            <div class="mt-2">
+                {% if v.next_estado %}
+                <form method="post" action="{% url 'produccion:viga_change_status_json' v.internal_id %}" class="d-grid gap-2 js-require-fecha js-status-ajax" data-viga="{{ v.internal_id }}">
+                  {% csrf_token %}
+                  <input type="hidden" name="estado_nuevo" value="{{ v.next_estado }}">
+                  <input type="hidden" name="fecha_operacion" value="">
+                  <input type="hidden" name="comentario" value="">
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn text-white btn-lg js-next-btn" data-color="{{ v.estado_color }}">
+                    <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
+                  </button>
+                </form>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <button type="button" class="btn btn-outline-secondary flex-fill js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}">
+                    <i class="bi bi-sliders me-1"></i> Cambiar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-success flex-fill js-open-asignaciones"
+                    data-viga="{{ v.internal_id }}"
+                    data-codigo="{{ v.codigo_viga|escape }}"
+                    data-corte="{{ v.asig_corte|escape }}"
+                    data-soldadura="{{ v.asig_soldadura|escape }}"
+                    data-pintura="{{ v.asig_pintura|escape }}"
+                    data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
+                    data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
+                  >
+                    <i class="bi bi-people me-1"></i> Asignaciones
+                  </button>
+                  {% if mode == "admin" %}
+                    <button type="button" class="btn btn-outline-warning flex-fill js-open-meta-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-fecha="{{ v.fecha_compromiso|date:"Y-m-d" }}" data-prioridad="{{ v.prioridad }}">
+                      <i class="bi bi-calendar-check me-1"></i> Meta
+                    </button>
+                    <a class="btn btn-outline-primary flex-fill" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
+                      <i class="bi bi-pencil me-1"></i> Editar
+                    </a>
+                  {% endif %}
+                  {% if v.plano_url %}
+                    <button type="button" class="btn btn-outline-dark flex-fill js-open-plano" data-url="{{ v.plano_url|escape }}">
+                      <i class="bi bi-file-earmark-pdf me-1"></i> Plano
+                    </button>
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="d-grid gap-2">
+                  {% if v.show_badge %}
+                    <button type="button" class="btn btn-secondary btn-lg" disabled>
+                      <i class="bi bi-arrow-right-circle me-1"></i> {{ v.show_badge }}
+                    </button>
+                  {% else %}
+                    <button type="button" class="btn {% if v.estado == 'Enviado' %}btn-info{% else %}btn-success{% endif %} btn-lg" disabled>
+                      {% if v.estado == "Enviado" %}
+                        <i class="bi bi-truck me-1"></i> Enviado
+                      {% else %}
+                        <i class="bi bi-check2-circle me-1"></i> Terminado
+                      {% endif %}
+                    </button>
+                  {% endif %}
+                </div>
+                {% if v.estado == "Terminado" %}
+                  {% if mode == "admin" %}
+                    <form method="post" action="{% url 'produccion:viga_enviar' v.internal_id %}" class="d-grid gap-2 mt-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="btn btn-outline-info">
+                        <i class="bi bi-truck me-1"></i> Enviar a obra
+                      </button>
+                    </form>
+                  {% endif %}
+                {% endif %}
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <button type="button" class="btn btn-outline-secondary flex-fill js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}">
+                    <i class="bi bi-sliders me-1"></i> Cambiar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-success flex-fill js-open-asignaciones"
+                    data-viga="{{ v.internal_id }}"
+                    data-codigo="{{ v.codigo_viga|escape }}"
+                    data-corte="{{ v.asig_corte|escape }}"
+                    data-soldadura="{{ v.asig_soldadura|escape }}"
+                    data-pintura="{{ v.asig_pintura|escape }}"
+                    data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
+                    data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
+                  >
+                    <i class="bi bi-people me-1"></i> Asignaciones
+                  </button>
+                  {% if mode == "admin" %}
+                    <a class="btn btn-outline-primary flex-fill" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
+                      <i class="bi bi-pencil me-1"></i> Editar
+                    </a>
+                  {% endif %}
+                  {% if v.plano_url %}
+                    <button type="button" class="btn btn-outline-dark flex-fill js-open-plano" data-url="{{ v.plano_url|escape }}">
+                      <i class="bi bi-file-earmark-pdf me-1"></i> Plano
+                    </button>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% empty %}
+          <div class="list-group-item text-center text-muted py-4">Sin resultados.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="table-responsive d-none d-lg-block">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Código</th>
+            <th>Proyecto</th>
+            <th class="d-none d-lg-table-cell">Descripción</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th class="text-end">Kg</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in vigas %}
+            <tr class="js-viga-item" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-proyecto="{{ v.proyecto|escape }}" data-descripcion="{{ v.descripcion|escape }}">
+              <td class="text-muted">{{ v.internal_id }}</td>
+              <td>
+                <div class="fw-semibold">{{ v.codigo_viga }}</div>
+                <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
+              </td>
+              <td class="fw-semibold">{{ v.proyecto }}</td>
+              <td class="d-none d-lg-table-cell text-muted">{{ v.descripcion }}</td>
+              <td>
+                <div class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</div>
+                <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
+              </td>
+              <td>
+                <span class="badge text-white js-bg js-estado-badge" data-color="{{ v.estado_color }}">
+                  {{ v.estado }}
+                </span>
+                <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
+              </td>
+              <td class="text-end">{{ v.peso_kg }}</td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end align-items-center flex-wrap gap-2 js-action-wrap">
+                  <div class="btn-group btn-group-sm js-action-buttons" role="group">
+                    {% if mode == "admin" %}
+                      <a class="btn btn-outline-primary" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-pencil"></i></a>
+                      <button type="button" class="btn btn-outline-warning js-open-meta-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-fecha="{{ v.fecha_compromiso|date:"Y-m-d" }}" data-prioridad="{{ v.prioridad }}"><i class="bi bi-calendar-check"></i></button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline-secondary js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}"><i class="bi bi-arrow-repeat"></i></button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-success js-open-asignaciones"
+                      data-viga="{{ v.internal_id }}"
+                      data-codigo="{{ v.codigo_viga|escape }}"
+                      data-corte="{{ v.asig_corte|escape }}"
+                      data-soldadura="{{ v.asig_soldadura|escape }}"
+                      data-pintura="{{ v.asig_pintura|escape }}"
+                      data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
+                      data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
+                    >
+                      <i class="bi bi-people"></i>
+                    </button>
+                    {% if mode == "admin" %}
+                      <a class="btn btn-outline-danger" href="{% url 'produccion:viga_delete' v.internal_id %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-trash"></i></a>
+                    {% endif %}
+                  </div>
+                  {% if v.plano_url %}
+                    <button type="button" class="btn btn-sm btn-outline-dark js-open-plano" data-url="{{ v.plano_url|escape }}" title="Plano">
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    </button>
+                  {% endif %}
+                  {% if mode == "admin" and v.estado == "Terminado" %}
+                    <form method="post" action="{% url 'produccion:viga_enviar' v.internal_id %}" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="btn btn-sm btn-outline-info" title="Enviar a obra">
+                        <i class="bi bi-truck"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">Sin resultados.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if mode == "admin" %}
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="kpi-label">Enviado</div>
+        <div class="fw-semibold">Piezas enviadas (menos de {{ decote_days }} días)</div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small">{{ enviados_total }} piezas</span>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="d-lg-none">
+        {% for proyecto, items in enviados_por_proyecto %}
+          <div class="px-3 py-2 border-bottom bg-white">
+            <div class="fw-semibold">{{ proyecto }}</div>
+            <div class="text-muted small">{{ items|length }} piezas</div>
+          </div>
+          <div class="list-group list-group-flush">
+            {% for v in items %}
+              <div class="list-group-item">
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                  <div>
+                    <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
+                    <div class="text-muted small">{{ v.proyecto }}</div>
+                  </div>
+                  <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+                </div>
+                <div class="d-flex justify-content-between text-muted small mt-2">
+                  <div><i class="bi bi-calendar3 me-1"></i> {{ v.enviado_fecha|date:"Y-m-d" }}</div>
+                  <div><i class="bi bi-clock-history me-1"></i> {{ v.enviado_dias }} días</div>
+                </div>
+                <div class="d-grid gap-2 mt-2">
+                  <form method="post" action="{% url 'produccion:viga_regresar_produccion' v.internal_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-outline-secondary">
+                      <i class="bi bi-arrow-left-circle me-1"></i> Regresar a producción
+                    </button>
+                  </form>
+                  {% if v.plano_url %}
+                    <button type="button" class="btn btn-outline-dark js-open-plano" data-url="{{ v.plano_url|escape }}">
+                      <i class="bi bi-file-earmark-pdf me-1"></i> Ver plano
+                    </button>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% empty %}
+          <div class="p-4 text-center text-muted">Sin piezas enviadas.</div>
+        {% endfor %}
+      </div>
+
+      <div class="table-responsive d-none d-lg-block">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Proyecto</th>
+              <th>Código</th>
+              <th>Enviado</th>
+              <th class="text-end">Días</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for proyecto, items in enviados_por_proyecto %}
+              {% for v in items %}
+                <tr>
+                  <td class="fw-semibold">{{ v.proyecto }}</td>
+                  <td>
+                    <div class="fw-semibold">{{ v.codigo_viga }}</div>
+                    <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
+                  </td>
+                  <td>{{ v.enviado_fecha|date:"Y-m-d" }}</td>
+                  <td class="text-end">{{ v.enviado_dias }}</td>
+                  <td class="text-end">
+                    <div class="d-flex justify-content-end align-items-center flex-wrap gap-2 js-action-wrap">
+                      <form method="post" action="{% url 'produccion:viga_regresar_produccion' v.internal_id %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Regresar a producción">
+                          <i class="bi bi-arrow-left-circle"></i>
+                        </button>
+                      </form>
+                      {% if v.plano_url %}
+                        <button type="button" class="btn btn-sm btn-outline-dark js-open-plano" data-url="{{ v.plano_url|escape }}" title="Ver plano">
+                          <i class="bi bi-file-earmark-pdf"></i>
+                        </button>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-4">Sin piezas enviadas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="kpi-label">Decote</div>
+        <div class="fw-semibold">Enviadas hace más de {{ decote_days }} días</div>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-muted small">{{ decote_total }} piezas</span>
+        {% if decote_total %}
+          <button
+            type="button"
+            class="btn btn-sm btn-danger js-decote-bulk-open"
+            data-action="{% url 'produccion:viga_delete_decote_all' %}"
+            data-next="{{ request.get_full_path|escape }}"
+            data-proyecto="{{ filters.proyecto|escape }}"
+            data-q="{{ filters.q|escape }}"
+            data-total="{{ decote_total }}"
+          >
+            <i class="bi bi-trash me-1"></i> Eliminar decote
+          </button>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="list-group list-group-flush d-lg-none">
+        {% for v in decote_vigas %}
+          <div class="list-group-item">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
+                <div class="text-muted small">{{ v.proyecto }}</div>
+              </div>
+              <span class="badge text-white js-bg" data-color="{{ v.estado_color }}">{{ v.estado }}</span>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mt-2">
+              <div><i class="bi bi-calendar3 me-1"></i> {{ v.enviado_fecha|date:"Y-m-d" }}</div>
+              <div><i class="bi bi-clock-history me-1"></i> {{ v.enviado_dias }} días</div>
+            </div>
+            <div class="d-grid mt-2">
+              <div class="d-grid gap-2">
+                <form method="post" action="{% url 'produccion:viga_regresar_produccion' v.internal_id %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left-circle me-1"></i> Regresar a producción
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger js-decote-open"
+                  data-action="{% url 'produccion:viga_delete_decote' v.internal_id %}"
+                  data-codigo="{{ v.codigo_viga|escape }}"
+                  data-pieza="{{ v.pieza_no }}/{{ v.total_piezas }}"
+                data-dias="{{ v.enviado_dias }}"
+                  data-next="{{ request.get_full_path|escape }}"
+                >
+                  <i class="bi bi-trash me-1"></i> Dar de baja
+                </button>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="list-group-item text-center text-muted py-4">Sin piezas para decote.</div>
+        {% endfor %}
+      </div>
+
+      <div class="table-responsive d-none d-lg-block">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Proyecto</th>
+              <th>Fecha enviado</th>
+              <th class="text-end">Días</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in decote_vigas %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ v.codigo_viga }}</div>
+                  <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
+                </td>
+                <td class="fw-semibold">{{ v.proyecto }}</td>
+                <td>{{ v.enviado_fecha|date:"Y-m-d" }}</td>
+                <td class="text-end">{{ v.enviado_dias }}</td>
+                <td class="text-end">
+                  <form method="post" action="{% url 'produccion:viga_regresar_produccion' v.internal_id %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="Regresar a producción">
+                      <i class="bi bi-arrow-left-circle"></i>
+                    </button>
+                  </form>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger js-decote-open"
+                    data-action="{% url 'produccion:viga_delete_decote' v.internal_id %}"
+                    data-codigo="{{ v.codigo_viga|escape }}"
+                    data-pieza="{{ v.pieza_no }}/{{ v.total_piezas }}"
+                data-dias="{{ v.enviado_dias }}"
+                    data-next="{{ request.get_full_path|escape }}"
+                  >
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-center text-muted py-4">Sin piezas para decote.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  {{ participantes_payload|json_script:"participantesPayload" }}
+  {{ estados_order|json_script:"estadosOrderPayload" }}
+  {{ maquinas_info_payload|json_script:"maquinasInfoPayload" }}
+  {{ maquinas_estado_payload|json_script:"maquinasEstadoPayload" }}
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+    const fechaInput = document.getElementById("globalFechaOperacion");
+    const maquinasInfoEl = document.getElementById("maquinasInfoPayload");
+    const maquinasEstadoEl = document.getElementById("maquinasEstadoPayload");
+    const maquinasInfo = maquinasInfoEl ? JSON.parse(maquinasInfoEl.textContent) : {};
+    const maquinasEstado = maquinasEstadoEl ? JSON.parse(maquinasEstadoEl.textContent) : {};
+    const machineBlockModalEl = document.getElementById("machineBlockModal");
+    const machineBlockModal = machineBlockModalEl ? new bootstrap.Modal(machineBlockModalEl) : null;
+    const machineBlockTitleEl = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-title") : null;
+    const machineBlockBodyEl = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-body") : null;
+    const machineBlockSelectWrap = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-select-wrap") : null;
+    const machineBlockSelect = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-select") : null;
+    const machineBlockGoParos = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-go-paros") : null;
+    const machineBlockReanudar = machineBlockModalEl ? machineBlockModalEl.querySelector(".js-reanudar") : null;
+    const machineActionForm = document.getElementById("machineActionForm");
+
+    if (fechaInput) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      fechaInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    document.querySelectorAll(".js-bg").forEach((el) => {
+      const c = el.getAttribute("data-color");
+      if (c) el.style.background = c;
+    });
+    document.querySelectorAll(".js-next-btn").forEach((el) => {
+      const c = el.getAttribute("data-color");
+      if (c) {
+        el.style.background = c;
+        el.style.borderColor = c;
+      }
+    });
+
+    document.querySelectorAll("form.js-require-fecha").forEach((form) => {
+      form.addEventListener("submit", (e) => {
+        const fecha = fechaInput ? (fechaInput.value || "").trim() : "";
+        if (!fecha) {
+          e.preventDefault();
+          alert("Debes seleccionar la fecha de operación antes de cambiar el estado.");
+          if (fechaInput) fechaInput.focus();
+          return;
+        }
+        const hidden = form.querySelector('input[name="fecha_operacion"]');
+        if (hidden) hidden.value = fecha;
+
+        const estadoNuevo = (form.querySelector('input[name="estado_nuevo"]')?.value || "").trim();
+        const container = form.closest(".js-viga-item");
+        const estadoActual = ((container?.querySelector(".js-estado-badge")?.textContent || "").toString().trim()) || ((container?.getAttribute("data-estado") || "").toString().trim());
+        if (machineBlockModal && estadoActual === "Espera de corte" && estadoNuevo === "Corte") {
+          const asigBtn = container ? container.querySelector(".js-open-asignaciones") : null;
+          const raw = asigBtn ? (asigBtn.getAttribute("data-corte-maquinas") || "").trim() : "";
+          const mids = raw ? raw.split(",").map((x) => parseInt(x.trim(), 10)).filter((x) => Number.isFinite(x)) : [];
+          const fallaIds = [];
+          const paroIds = [];
+          mids.forEach((id) => {
+            const st = maquinasEstado[String(id)] || maquinasEstado[id];
+            if (st && st.falla) fallaIds.push(id);
+            else if (st && st.paro) paroIds.push(id);
+          });
+          if (fallaIds.length > 0) {
+            if (machineBlockTitleEl) machineBlockTitleEl.textContent = "Máquina con falla activa";
+            if (machineBlockBodyEl) {
+              const lines = fallaIds.map((id) => {
+                const info = maquinasInfo[String(id)] || maquinasInfo[id] || {};
+                const st = maquinasEstado[String(id)] || maquinasEstado[id] || {};
+                const name = info.nombre || `Máquina #${id}`;
+                const tipo = st.tipo_falla ? ` · ${st.tipo_falla}` : "";
+                const since = st.falla_inicio ? ` · desde ${st.falla_inicio}` : "";
+                return `<li>${name}${tipo}${since}</li>`;
+              });
+              machineBlockBodyEl.innerHTML = `<div>No se puede pasar a <strong>${estadoNuevo}</strong> porque la máquina asignada tiene falla activa. Atiéndelo en Paros.</div><ul class="mb-0 mt-2">${lines.join("")}</ul>`;
+            }
+            if (machineBlockSelectWrap) machineBlockSelectWrap.style.display = "none";
+            if (machineBlockReanudar) machineBlockReanudar.style.display = "none";
+            if (machineBlockGoParos) {
+              const focus = fallaIds[0] || 0;
+              machineBlockGoParos.href = `{% url 'catalogos:paros' %}?focus=${focus}`;
+              machineBlockGoParos.style.display = "";
+            }
+            e.preventDefault();
+            machineBlockModal.show();
+            return;
+          }
+          if (paroIds.length > 0) {
+            if (machineBlockTitleEl) machineBlockTitleEl.textContent = "Máquina en paro";
+            if (machineBlockBodyEl) {
+              const lines = paroIds.map((id) => {
+                const info = maquinasInfo[String(id)] || maquinasInfo[id] || {};
+                const st = maquinasEstado[String(id)] || maquinasEstado[id] || {};
+                const name = info.nombre || `Máquina #${id}`;
+                const motivo = st.motivo ? ` · ${st.motivo}` : "";
+                const since = st.paro_inicio ? ` · desde ${st.paro_inicio}` : "";
+                return `<li>${name}${motivo}${since}</li>`;
+              });
+              machineBlockBodyEl.innerHTML = `<div>Antes de pasar a <strong>${estadoNuevo}</strong>, debes reanudar la máquina (está en paro).</div><ul class="mb-0 mt-2">${lines.join("")}</ul>`;
+            }
+            if (machineBlockSelect) {
+              machineBlockSelect.innerHTML = "";
+              paroIds.forEach((id) => {
+                const info = maquinasInfo[String(id)] || maquinasInfo[id] || {};
+                const opt = document.createElement("option");
+                opt.value = String(id);
+                opt.textContent = info.nombre || `Máquina #${id}`;
+                machineBlockSelect.appendChild(opt);
+              });
+            }
+            if (machineBlockSelectWrap) machineBlockSelectWrap.style.display = "";
+            if (machineBlockGoParos) machineBlockGoParos.style.display = "none";
+            if (machineBlockReanudar) machineBlockReanudar.style.display = "";
+            if (machineBlockReanudar && machineActionForm) {
+              machineBlockReanudar.onclick = () => {
+                const mid = machineBlockSelect ? (machineBlockSelect.value || "") : "";
+                machineActionForm.querySelector("input[name='action']").value = "end_paro";
+                machineActionForm.querySelector("input[name='maquina_id']").value = mid;
+                machineActionForm.querySelector("input[name='next']").value = window.location.pathname + window.location.search;
+                machineActionForm.submit();
+              };
+            }
+            e.preventDefault();
+            machineBlockModal.show();
+            return;
+          }
+        }
+        const codigo = (container?.getAttribute("data-codigo") || "").toString().trim();
+        const modalEl = document.getElementById("confirmModal");
+        const modal = new bootstrap.Modal(modalEl);
+        modalEl.querySelector(".js-viga-codigo").textContent = codigo || "(sin código)";
+        modalEl.querySelector(".js-viga-estado").textContent = estadoNuevo || "(sin estado)";
+        modalEl.querySelector(".js-viga-fecha").textContent = fecha;
+        const comentarioInput = modalEl.querySelector("textarea[name='comentario_modal']");
+        comentarioInput.value = "";
+        e.preventDefault();
+        modal.show();
+
+        const confirmBtn = modalEl.querySelector(".js-confirm");
+        const cancelBtn = modalEl.querySelector(".js-cancel");
+        const handler = (confirm) => {
+          confirmBtn.removeEventListener("click", onConfirm);
+          cancelBtn.removeEventListener("click", onCancel);
+        };
+        function onConfirm() {
+          const comentarioHidden = form.querySelector("input[name='comentario']");
+          if (comentarioHidden && comentarioInput) comentarioHidden.value = comentarioInput.value || "";
+          handler(true);
+          modal.hide();
+          submitStatusAjax(form);
+        }
+        function onCancel() {
+          handler(false);
+          modal.hide();
+        }
+        confirmBtn.addEventListener("click", onConfirm);
+        cancelBtn.addEventListener("click", onCancel);
+      });
+    });
+
+    const liveSearchInput = document.getElementById("liveSearchViga");
+    const clearLiveSearchBtn = document.getElementById("clearLiveSearch");
+    const suggestions = document.getElementById("vigaSuggestions");
+    const vigaItems = Array.from(document.querySelectorAll(".js-viga-item"));
+    const codigoUniverse = Array.from(
+      new Set(
+        vigaItems
+          .map((el) => (el.getAttribute("data-codigo") || "").toString().trim())
+          .filter((c) => !!c)
+      )
+    ).sort();
+
+    function normalize(v) {
+      return (v || "").toString().toLowerCase().trim();
+    }
+
+    function itemText(el) {
+      const codigo = el.getAttribute("data-codigo") || "";
+      const proyecto = el.getAttribute("data-proyecto") || "";
+      const descripcion = el.getAttribute("data-descripcion") || "";
+      return normalize(codigo + " " + proyecto + " " + descripcion);
+    }
+
+    function renderSuggestions(term) {
+      if (!suggestions) return;
+      suggestions.innerHTML = "";
+      if (!term) return;
+      const t = term.toLowerCase();
+      const matches = [];
+      for (const codigo of codigoUniverse) {
+        if (codigo.toLowerCase().includes(t)) matches.push(codigo);
+        if (matches.length >= 12) break;
+      }
+      matches.forEach((codigo) => {
+        const opt = document.createElement("option");
+        opt.value = codigo;
+        suggestions.appendChild(opt);
+      });
+    }
+
+    function applyLiveFilter() {
+      const term = normalize(liveSearchInput ? liveSearchInput.value : "");
+
+      vigaItems.forEach((el) => {
+        const ok = !term || itemText(el).includes(term);
+        el.style.display = ok ? "" : "none";
+      });
+      renderSuggestions(term);
+    }
+
+    if (liveSearchInput) {
+      liveSearchInput.addEventListener("input", applyLiveFilter);
+      liveSearchInput.addEventListener("change", applyLiveFilter);
+      applyLiveFilter();
+    }
+
+    if (clearLiveSearchBtn && liveSearchInput) {
+      clearLiveSearchBtn.addEventListener("click", () => {
+        liveSearchInput.value = "";
+        applyLiveFilter();
+        liveSearchInput.focus();
+        try { localStorage.removeItem("viga_list_q"); } catch (e) {}
+        const u = new URL(window.location.href);
+        if (u.searchParams.has("q")) {
+          u.searchParams.delete("q");
+          window.history.replaceState({}, "", u.toString());
+        }
+      });
+    }
+
+    document.querySelectorAll(".js-reset-vigas").forEach((el) => {
+      el.addEventListener("click", () => {
+        try { localStorage.removeItem("viga_list_q"); } catch (e) {}
+      });
+    });
+
+    const urlNow = new URL(window.location.href);
+    const urlQ = (urlNow.searchParams.get("q") || "").trim();
+    if (urlQ) {
+      try { localStorage.setItem("viga_list_q", urlQ); } catch (e) {}
+    } else {
+      const savedQ = (() => { try { return (localStorage.getItem("viga_list_q") || "").trim(); } catch (e) { return ""; } })();
+      if (savedQ && liveSearchInput && !normalize(liveSearchInput.value)) {
+        urlNow.searchParams.set("q", savedQ);
+        window.location.replace(urlNow.toString());
+        return;
+      }
+    }
+
+    if (liveSearchInput) {
+      liveSearchInput.addEventListener("input", () => {
+        const v = (liveSearchInput.value || "").trim();
+        try {
+          if (v) localStorage.setItem("viga_list_q", v);
+          else localStorage.removeItem("viga_list_q");
+        } catch (e) {}
+
+        if (!v) {
+          applyLiveFilter();
+          const u = new URL(window.location.href);
+          if (u.searchParams.has("q")) {
+            u.searchParams.delete("q");
+            window.history.replaceState({}, "", u.toString());
+          }
+        }
+      });
+    }
+
+    function getCookie(name) {
+      const v = `; ${document.cookie}`;
+      const parts = v.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return "";
+    }
+
+    async function submitStatusAjax(form) {
+      const action = form.getAttribute("action") || "";
+      if (!action) return;
+      const fd = new FormData(form);
+      const csrf = getCookie("csrftoken");
+      try {
+        const res = await fetch(action, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: csrf ? { "X-CSRFToken": csrf } : {},
+        });
+        const data = await res.json();
+        if (!data || !data.ok) {
+          alert((data && data.error) ? data.error : "No se pudo cambiar el estado.");
+          return;
+        }
+        updateVigaUI(String(data.id), data.estado, data.estado_color, data.next_estado || "", data.ultimo_mov || "", data.next_label || "");
+      } catch (err) {
+        alert("No se pudo cambiar el estado.");
+      }
+    }
+
+    function updateVigaUI(vid, estado, color, nextEstado, ultimoMov, nextLabel) {
+      document.querySelectorAll(`.js-viga-item[data-viga='${vid}']`).forEach((container) => {
+        const badges = container.querySelectorAll(".js-bg");
+        badges.forEach((b) => {
+          b.textContent = estado;
+          b.setAttribute("data-color", color || "");
+          if (color) b.style.background = color;
+        });
+        container.querySelectorAll(".js-open-status-modal").forEach((btn) => {
+          btn.setAttribute("data-estado", estado);
+        });
+        if (ultimoMov) {
+          container.querySelectorAll(".js-ultimo-mov").forEach((el) => {
+            el.textContent = ultimoMov;
+          });
+        }
+        const quickForm = container.querySelector("form.js-status-ajax");
+        const existingIndicator = container.querySelector(".js-next-indicator");
+        if (existingIndicator) existingIndicator.remove();
+        if (quickForm) {
+          const estadoInput = quickForm.querySelector("input[name='estado_nuevo']");
+          const btn = quickForm.querySelector("button[type='submit']");
+          if (nextEstado) {
+            if (estadoInput) estadoInput.value = nextEstado;
+            if (btn) btn.innerHTML = `<i class=\"bi bi-arrow-right-circle me-1\"></i> Pasar a ${nextEstado}`;
+            if (btn && color) {
+              btn.style.background = color;
+              btn.style.borderColor = color;
+              btn.setAttribute("data-color", color);
+            }
+            quickForm.style.display = "";
+          } else {
+            quickForm.style.display = "none";
+            const label = (nextLabel || "").trim();
+            if (label) {
+              const wrap = document.createElement("div");
+              wrap.className = "d-grid gap-2 js-next-indicator";
+              wrap.innerHTML = `<button type="button" class="btn btn-secondary btn-lg" disabled><i class="bi bi-info-circle me-1"></i> ${label}</button>`;
+              quickForm.insertAdjacentElement("afterend", wrap);
+            }
+          }
+        }
+        container.setAttribute("data-estado", estado);
+      });
+    }
+
+    const statusModalEl = document.getElementById("statusModal");
+    const statusModal = statusModalEl ? new bootstrap.Modal(statusModalEl) : null;
+    const statusForm = document.getElementById("statusModalForm");
+    const statusVidEl = document.getElementById("statusModalVigaId");
+    const statusCodigoEl = document.getElementById("statusModalCodigo");
+    const statusEstadoSel = document.getElementById("statusModalEstado");
+    const statusFecha = document.getElementById("statusModalFecha");
+    const statusComentario = document.getElementById("statusModalComentario");
+    const statusMotivoWrap = document.getElementById("statusMotivoWrap");
+    const statusMotivoSel = document.getElementById("statusModalMotivo");
+    const statusUrlTemplate = "{% url 'produccion:viga_change_status_json' 0 %}";
+    const estadosOrder = JSON.parse(document.getElementById("estadosOrderPayload").textContent);
+
+    function idxEstado(name) {
+      return estadosOrder.indexOf((name || "").toString());
+    }
+
+    function isRetroceso(actual, nuevo) {
+      const a = idxEstado(actual);
+      const n = idxEstado(nuevo);
+      return a >= 0 && n >= 0 && n < a;
+    }
+
+    function updateMotivoVisibility() {
+      if (!statusForm || !statusEstadoSel || !statusMotivoWrap || !statusMotivoSel) return;
+      const actual = statusForm.getAttribute("data-estado-actual") || "";
+      const nuevo = (statusEstadoSel.value || "").trim();
+      const retro = isRetroceso(actual, nuevo);
+      statusMotivoWrap.style.display = retro ? "" : "none";
+      if (!retro) statusMotivoSel.value = "";
+    }
+
+    function openStatusModal(vid, codigo, estadoActual) {
+      if (!statusModal || !statusForm) return;
+      statusForm.action = statusUrlTemplate.replace("/0/", `/${vid}/`);
+      statusForm.setAttribute("data-estado-actual", estadoActual || "");
+      if (statusVidEl) statusVidEl.textContent = `#${vid}`;
+      if (statusCodigoEl) statusCodigoEl.textContent = codigo || "";
+      if (statusEstadoSel && estadoActual) statusEstadoSel.value = estadoActual;
+      if (statusFecha && fechaInput) statusFecha.value = (fechaInput.value || "").trim();
+      if (statusComentario) statusComentario.value = "";
+      if (statusMotivoSel) statusMotivoSel.value = "";
+      updateMotivoVisibility();
+      statusModal.show();
+    }
+
+    document.querySelectorAll(".js-open-status-modal").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const vid = (btn.getAttribute("data-viga") || "").trim();
+        const codigo = (btn.getAttribute("data-codigo") || "").trim();
+        const estado = (btn.getAttribute("data-estado") || "").trim();
+        if (!vid) return;
+        openStatusModal(vid, codigo, estado);
+      });
+    });
+
+    if (statusForm) {
+      statusForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!statusFecha || !(statusFecha.value || "").trim()) {
+          alert("Debes seleccionar la fecha de operación antes de cambiar el estado.");
+          return;
+        }
+        if (statusMotivoWrap && statusMotivoWrap.style.display !== "none") {
+          const val = statusMotivoSel ? (statusMotivoSel.value || "").trim() : "";
+          if (!val) {
+            alert("Debes seleccionar el motivo del retroceso.");
+            return;
+          }
+        }
+        submitStatusAjax(statusForm);
+        if (statusModal) statusModal.hide();
+      });
+    }
+
+    if (statusEstadoSel) {
+      statusEstadoSel.addEventListener("change", updateMotivoVisibility);
+    }
+
+    const metaModalEl = document.getElementById("metaModal");
+    const metaModal = metaModalEl ? new bootstrap.Modal(metaModalEl) : null;
+    const metaForm = document.getElementById("metaModalForm");
+    const metaVigaEl = document.getElementById("metaModalViga");
+    const metaFechaEl = document.getElementById("metaModalFecha");
+    const metaPrioridadEl = document.getElementById("metaModalPrioridad");
+    const metaUrlTemplate = "{% url 'produccion:viga_update_meta_json' 0 %}";
+
+    function openMetaModal(vid, codigo, fecha, prioridad) {
+      if (!metaModal || !metaForm) return;
+      metaForm.action = metaUrlTemplate.replace("/0/", `/${vid}/`);
+      metaForm.setAttribute("data-viga", String(vid));
+      if (metaVigaEl) metaVigaEl.textContent = codigo ? `#${vid} · ${codigo}` : `#${vid}`;
+      if (metaFechaEl) metaFechaEl.value = (fecha || "").trim();
+      if (metaPrioridadEl) metaPrioridadEl.value = String(prioridad || "3");
+      metaModal.show();
+    }
+
+    document.querySelectorAll(".js-open-meta-modal").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const vid = (btn.getAttribute("data-viga") || "").trim();
+        const codigo = (btn.getAttribute("data-codigo") || "").trim();
+        const fecha = (btn.getAttribute("data-fecha") || "").trim();
+        const prioridad = (btn.getAttribute("data-prioridad") || "").trim();
+        if (!vid) return;
+        openMetaModal(vid, codigo, fecha, prioridad);
+      });
+    });
+
+    if (metaForm) {
+      metaForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const vid = (metaForm.getAttribute("data-viga") || "").trim();
+        const fd = new FormData(metaForm);
+        const csrf = getCookie("csrftoken");
+        fetch(metaForm.action, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            ...(csrf ? { "X-CSRFToken": csrf } : {}),
+          },
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data || !data.ok) {
+              showToast((data && data.error) ? data.error : "No se pudo guardar.", "danger");
+              return;
+            }
+            const id = String(data.id || vid);
+            document.querySelectorAll(`.js-viga-item[data-viga='${id}']`).forEach((container) => {
+              container.querySelectorAll(".js-fecha-compromiso").forEach((el) => {
+                el.textContent = data.fecha_compromiso || "";
+              });
+              container.querySelectorAll(".js-prioridad").forEach((el) => {
+                el.textContent = `P${data.prioridad}`;
+              });
+            });
+            document.querySelectorAll(`.js-open-meta-modal[data-viga='${id}']`).forEach((b) => {
+              b.setAttribute("data-fecha", data.fecha_compromiso || "");
+              b.setAttribute("data-prioridad", String(data.prioridad || ""));
+            });
+            showToast("Guardado.", "success");
+            if (metaModal) metaModal.hide();
+          })
+          .catch(() => {
+            showToast("No se pudo guardar.", "danger");
+          });
+      });
+    }
+
+    const decoteModalEl = document.getElementById("decoteModal");
+    const decoteModal = decoteModalEl ? new bootstrap.Modal(decoteModalEl) : null;
+    const decoteForm = document.getElementById("decoteForm");
+    const decoteInput = document.getElementById("decoteConfirmText");
+    const decoteBtn = document.getElementById("decoteConfirmBtn");
+    const decoteCodigo = document.getElementById("decoteCodigo");
+    const decoteDias = document.getElementById("decoteDias");
+    const decoteNext = document.getElementById("decoteNext");
+
+    function updateDecoteButton() {
+      const ok = (decoteInput.value || "").trim().toUpperCase() === "ELIMINAR";
+      decoteBtn.disabled = !ok;
+    }
+
+    document.querySelectorAll(".js-decote-open").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!decoteModal) return;
+        const action = btn.getAttribute("data-action") || "";
+        const codigo = btn.getAttribute("data-codigo") || "";
+        const pieza = btn.getAttribute("data-pieza") || "";
+        const dias = btn.getAttribute("data-dias") || "";
+        const next = btn.getAttribute("data-next") || "";
+        decoteForm.action = action;
+        decoteCodigo.textContent = `${codigo} (${pieza})`;
+        decoteDias.textContent = dias;
+        decoteNext.value = next;
+        decoteInput.value = "";
+        updateDecoteButton();
+        decoteModal.show();
+        decoteInput.focus();
+      });
+    });
+
+    if (decoteInput) {
+      decoteInput.addEventListener("input", updateDecoteButton);
+    }
+    const decoteBulkModalEl = document.getElementById("decoteBulkModal");
+    const decoteBulkModal = decoteBulkModalEl ? new bootstrap.Modal(decoteBulkModalEl) : null;
+    const decoteBulkForm = document.getElementById("decoteBulkForm");
+    const decoteBulkInput = document.getElementById("decoteBulkConfirmText");
+    const decoteBulkBtn = document.getElementById("decoteBulkConfirmBtn");
+    const decoteBulkTotal = document.getElementById("decoteBulkTotal");
+    const decoteBulkNext = document.getElementById("decoteBulkNext");
+    const decoteBulkProyecto = document.getElementById("decoteBulkProyecto");
+    const decoteBulkQ = document.getElementById("decoteBulkQ");
+
+    function updateDecoteBulkButton() {
+      const ok = (decoteBulkInput.value || "").trim().toUpperCase() === "ELIMINAR";
+      decoteBulkBtn.disabled = !ok;
+    }
+
+    document.querySelectorAll(".js-decote-bulk-open").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!decoteBulkModal) return;
+        decoteBulkForm.action = btn.getAttribute("data-action") || "";
+        decoteBulkNext.value = btn.getAttribute("data-next") || "";
+        decoteBulkProyecto.value = btn.getAttribute("data-proyecto") || "";
+        decoteBulkQ.value = btn.getAttribute("data-q") || "";
+        decoteBulkTotal.textContent = btn.getAttribute("data-total") || "0";
+        decoteBulkInput.value = "";
+        updateDecoteBulkButton();
+        decoteBulkModal.show();
+        decoteBulkInput.focus();
+      });
+    });
+
+    if (decoteBulkInput) {
+      decoteBulkInput.addEventListener("input", updateDecoteBulkButton);
+    }
+
+    const planoModalEl = document.getElementById("planoModal");
+    const planoModal = planoModalEl ? new bootstrap.Modal(planoModalEl) : null;
+    const planoEmbed = document.getElementById("planoModalEmbed");
+    const planoOpenTab = document.getElementById("planoModalOpenTab");
+    const planoTitle = document.getElementById("planoModalTitle");
+    if (planoModalEl) {
+      planoModalEl.addEventListener("hidden.bs.modal", () => {
+        if (planoEmbed) planoEmbed.setAttribute("src", "about:blank");
+      });
+    }
+    document.querySelectorAll(".js-open-plano").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!planoModal) return;
+        const url = (btn.getAttribute("data-url") || "").trim();
+        if (!url) return;
+        if (planoEmbed) {
+          planoEmbed.setAttribute("src", "about:blank");
+          window.setTimeout(() => {
+            planoEmbed.setAttribute("src", url + "#view=FitH&ts=" + Date.now());
+          }, 30);
+        }
+        if (planoOpenTab) planoOpenTab.setAttribute("href", url);
+        if (planoTitle) planoTitle.textContent = "Plano PDF";
+        planoModal.show();
+      });
+    });
+
+    const participantesEl = document.getElementById("participantesPayload");
+    const participantes = participantesEl ? JSON.parse(participantesEl.textContent) : {};
+    const asignacionesModalEl = document.getElementById("asignacionesModal");
+    const asignacionesModal = asignacionesModalEl ? new bootstrap.Modal(asignacionesModalEl) : null;
+    const asignacionesForm = document.getElementById("asignacionesForm");
+    const asignacionesCodigoEl = document.getElementById("asignacionesVigaCodigo");
+    const corteOperadoresList = document.getElementById("asigCorteOperadoresList");
+    const soldaduraList = document.getElementById("asigSoldaduraList");
+    const pinturaList = document.getElementById("asigPinturaList");
+    const corteMaquinasList = document.getElementById("asigCorteMaquinasList");
+    const asignUrlTemplate = "{% url 'produccion:viga_asignaciones' 0 %}";
+    const pageMode = "{{ mode|default:'admin' }}";
+
+    function idsToCsv(ids) {
+      return (ids || []).map((x) => String(x)).join(",");
+    }
+
+    function showToast(text, variant) {
+      const v = variant || "primary";
+      let container = document.getElementById("jsToastContainer");
+      if (!container) {
+        container = document.createElement("div");
+        container.id = "jsToastContainer";
+        container.className = "toast-container position-fixed top-0 end-0 p-3";
+        container.style.zIndex = "1080";
+        document.body.appendChild(container);
+      }
+      const toastEl = document.createElement("div");
+      toastEl.className = `toast align-items-center text-bg-${v} border-0 mb-2`;
+      toastEl.setAttribute("role", "alert");
+      toastEl.setAttribute("aria-live", "assertive");
+      toastEl.setAttribute("aria-atomic", "true");
+      toastEl.setAttribute("data-bs-delay", "1400");
+      toastEl.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${text}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+      container.appendChild(toastEl);
+      try {
+        bootstrap.Toast.getOrCreateInstance(toastEl).show();
+      } catch (e) {}
+      toastEl.addEventListener("hidden.bs.toast", () => {
+        try { toastEl.remove(); } catch (e) {}
+      });
+    }
+
+    function parseCsvIds(raw) {
+      const s = (raw || "").toString().trim();
+      if (!s) return [];
+      return s.split(",").map((x) => x.trim()).filter((x) => x).map((x) => parseInt(x, 10)).filter((x) => Number.isFinite(x));
+    }
+    function fillChecklist(container, items, selectedIds, inputName, withRol) {
+      if (!container) return;
+      container.innerHTML = "";
+      const selectedSet = new Set(selectedIds || []);
+      (items || []).forEach((it) => {
+        const id = String(it.id);
+        const checkId = `chk_${inputName}_${id}`;
+        const wrap = document.createElement("div");
+        wrap.className = "form-check";
+
+        const input = document.createElement("input");
+        input.className = "form-check-input";
+        input.type = "checkbox";
+        input.name = inputName;
+        input.value = id;
+        input.id = checkId;
+        if (selectedSet.has(it.id)) input.checked = true;
+
+        const label = document.createElement("label");
+        label.className = "form-check-label";
+        label.htmlFor = checkId;
+        label.textContent = withRol ? `${it.nombre} (${it.rol})` : it.nombre;
+
+        wrap.appendChild(input);
+        wrap.appendChild(label);
+        container.appendChild(wrap);
+      });
+    }
+
+    function fillOperadores(select, items, selectedIds) {
+      if (!select) return;
+      select.innerHTML = "";
+      const selectedSet = new Set(selectedIds || []);
+      (items || []).forEach((it) => {
+        const o = document.createElement("option");
+        o.value = String(it.id);
+        o.textContent = it.nombre;
+        if (selectedSet.has(it.id)) o.selected = true;
+        select.appendChild(o);
+      });
+    }
+
+    document.querySelectorAll(".js-open-asignaciones").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const vid = (btn.getAttribute("data-viga") || "").trim();
+        const codigo = (btn.getAttribute("data-codigo") || "").trim();
+        if (!vid || !asignacionesForm || !asignacionesModal) return;
+        asignacionesForm.action = asignUrlTemplate.replace("/0/", `/${vid}/`);
+        if (asignacionesCodigoEl) asignacionesCodigoEl.textContent = codigo ? `#${vid} · ${codigo}` : `#${vid}`;
+        fillChecklist(corteOperadoresList, participantes.Corte?.operadores || [], parseCsvIds(btn.getAttribute("data-corte-operadores")), "corte_operador_ids", false);
+        fillChecklist(corteMaquinasList, (participantes.Corte?.maquinas || []).map((m) => ({id: m.id, nombre: m.nombre, rol: "Máquina"})), parseCsvIds(btn.getAttribute("data-corte-maquinas")), "corte_maquina_ids", true);
+        fillChecklist(soldaduraList, participantes.Soldadura?.items || [], parseCsvIds(btn.getAttribute("data-soldadura")), "soldadura_ids", true);
+        fillChecklist(pinturaList, participantes.Pintura?.items || [], parseCsvIds(btn.getAttribute("data-pintura")), "pintura_ids", true);
+        asignacionesModal.show();
+      });
+    });
+
+    if (asignacionesForm) {
+      asignacionesForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const vidMatch = (asignacionesForm.action || "").match(/\/(\d+)\/?$/);
+        const vid = vidMatch ? vidMatch[1] : "";
+        if (pageMode !== "soldadura") {
+          const checks = asignacionesForm.querySelectorAll("input[name='corte_operador_ids']:checked");
+          if (!checks || checks.length < 1) {
+            showToast("Debes seleccionar al menos 1 operador en Corte.", "danger");
+            return;
+          }
+        }
+        const fd = new FormData(asignacionesForm);
+        const csrf = getCookie("csrftoken");
+        fetch(asignacionesForm.action, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            ...(csrf ? { "X-CSRFToken": csrf } : {}),
+          },
+        })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data || !data.ok) {
+              showToast((data && data.error) ? data.error : "No se pudieron guardar las asignaciones.", "danger");
+              return;
+            }
+            const id = String(data.id || vid);
+            document.querySelectorAll(`.js-open-asignaciones[data-viga='${id}']`).forEach((b) => {
+              b.setAttribute("data-corte-operadores", idsToCsv(data.corte_operador_ids || []));
+              b.setAttribute("data-corte-maquinas", idsToCsv(data.corte_maquina_ids || []));
+              b.setAttribute("data-soldadura", idsToCsv(data.soldadura_ids || []));
+              b.setAttribute("data-pintura", idsToCsv(data.pintura_ids || []));
+            });
+            showToast("Asignaciones guardadas.", "success");
+            if (asignacionesModal) asignacionesModal.hide();
+          })
+          .catch(() => {
+            showToast("No se pudieron guardar las asignaciones.", "danger");
+          });
+      });
+    }
+
+    });
+  </script>
+  <form id="machineActionForm" method="post" action="{% url 'catalogos:paros' %}" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="end_paro">
+    <input type="hidden" name="maquina_id" value="">
+    <input type="hidden" name="next" value="">
+  </form>
+  <div class="modal fade" id="machineBlockModal" tabindex="-1" aria-labelledby="machineBlockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title js-title" id="machineBlockModalLabel">Máquina</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="js-body"></div>
+          <div class="mt-3 js-select-wrap" style="display:none;">
+            <label class="form-label">Máquina a reanudar</label>
+            <select class="form-select js-select"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <a class="btn btn-outline-primary js-go-paros" href="#" style="display:none;">Ir a Paros</a>
+          <button type="button" class="btn btn-warning text-dark js-reanudar" style="display:none;">Reanudar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmModalLabel">Confirmar cambio de estado</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2"><span class="text-muted">Viga:</span> <strong class="js-viga-codigo"></strong></div>
+          <div class="mb-2"><span class="text-muted">Nuevo estado:</span> <strong class="js-viga-estado"></strong></div>
+          <div class="mb-3"><span class="text-muted">Fecha:</span> <strong class="js-viga-fecha"></strong></div>
+          <label class="form-label">Comentario (opcional)</label>
+          <textarea class="form-control" name="comentario_modal" rows="2" placeholder="Ej.: Observación rápida"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary js-cancel" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-argon text-white js-confirm"><i class="bi bi-check2 me-1"></i> Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="statusModalForm" method="post">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="statusModalLabel">Cambiar estado</h5>
+              <div class="text-muted small"><span id="statusModalVigaId"></span> <span id="statusModalCodigo"></span></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Fecha de operación</label>
+              <input id="statusModalFecha" class="form-control" type="date" name="fecha_operacion" required>
+              <div class="text-muted small mt-1">Se registra en production_log.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nuevo estado</label>
+              <select id="statusModalEstado" class="form-select" name="estado_nuevo" required>
+                {% for e in estados_operables %}
+                  <option value="{{ e }}">{{ e }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3" id="statusMotivoWrap" style="display:none;">
+              <label class="form-label">Motivo del retroceso</label>
+              <select id="statusModalMotivo" class="form-select" name="motivo_retroceso">
+                <option value="">Seleccionar…</option>
+                <option value="error_dedo">Error de dedo</option>
+                <option value="retrabajo">Retrabajo</option>
+              </select>
+              <div class="text-muted small mt-1">Solo aplica cuando regresas una pieza a una etapa anterior.</div>
+            </div>
+            <div class="mb-0">
+              <label class="form-label">Comentario (opcional)</label>
+              <textarea id="statusModalComentario" class="form-control" name="comentario" rows="2" placeholder="Ej.: Observación rápida"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="metaModal" tabindex="-1" aria-labelledby="metaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="metaModalForm" method="post">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="metaModalLabel">Prioridad y compromiso</h5>
+              <div class="text-muted small"><span id="metaModalViga"></span></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Fecha compromiso</label>
+              <input id="metaModalFecha" class="form-control" type="date" name="fecha_compromiso" required>
+            </div>
+            <div class="mb-0">
+              <label class="form-label">Prioridad</label>
+              <select id="metaModalPrioridad" class="form-select" name="prioridad" required>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="asignacionesModal" tabindex="-1" aria-labelledby="asignacionesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="asignacionesForm" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title" id="asignacionesModalLabel">Asignaciones por etapa</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" style="max-height: 75vh; overflow:auto;">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="mb-3">
+              <div class="text-muted">Viga</div>
+              <div class="fw-semibold" id="asignacionesVigaCodigo"></div>
+            </div>
+            <div class="alert alert-primary py-2 mb-3">
+              <div class="small">Selecciona a las personas involucradas por etapa. Esto se usa para KPIs e historial.</div>
+            </div>
+            <div class="row g-3">
+              <div class="col-12 col-md-4 {% if mode == "soldadura" %}d-none{% endif %}">
+                <label class="form-label">Corte</label>
+                <div class="mb-2">
+                  <label class="form-label">Operador(es) (obligatorio)</label>
+                  <div id="asigCorteOperadoresList" class="border rounded p-2" style="max-height: 260px; overflow:auto;"></div>
+                </div>
+                <div class="mt-2">
+                  <label class="form-label">Máquinas usadas (opcional)</label>
+                  <div id="asigCorteMaquinasList" class="border rounded p-2" style="max-height: 200px; overflow:auto;"></div>
+                </div>
+              </div>
+              <div class="col-12 col-md-4 {% if mode == "corte" %}d-none{% endif %}">
+                <label class="form-label">Soldadura / Armado</label>
+                <div id="asigSoldaduraList" class="border rounded p-2" style="max-height: 340px; overflow:auto;"></div>
+              </div>
+              <div class="col-12 col-md-4 {% if mode == "corte" %}d-none{% endif %}">
+                <label class="form-label">Pintura</label>
+                <div id="asigPinturaList" class="border rounded p-2" style="max-height: 340px; overflow:auto;"></div>
+              </div>
+            </div>
+            <div class="text-muted small mt-2">Marca las casillas para seleccionar múltiples.</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="decoteModal" tabindex="-1" aria-labelledby="decoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="decoteForm" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title" id="decoteModalLabel">Eliminar pieza (Decote)</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {% csrf_token %}
+            <input type="hidden" id="decoteNext" name="next" value="">
+            <div class="mb-2"><span class="text-muted">Pieza:</span> <strong id="decoteCodigo"></strong></div>
+            <div class="mb-3"><span class="text-muted">Días en enviado:</span> <strong id="decoteDias"></strong></div>
+            <div class="alert alert-warning mb-3">
+              Esta acción elimina la pieza y su historial.
+            </div>
+            <label class="form-label">Escribe ELIMINAR para confirmar</label>
+            <input id="decoteConfirmText" class="form-control" autocomplete="off">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button id="decoteConfirmBtn" type="submit" class="btn btn-danger" disabled><i class="bi bi-trash me-1"></i> Eliminar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="decoteBulkModal" tabindex="-1" aria-labelledby="decoteBulkModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="decoteBulkForm" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title" id="decoteBulkModalLabel">Eliminar decote</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            {% csrf_token %}
+            <input type="hidden" id="decoteBulkNext" name="next" value="">
+            <input type="hidden" id="decoteBulkProyecto" name="proyecto" value="">
+            <input type="hidden" id="decoteBulkQ" name="q" value="">
+            <div class="alert alert-warning mb-3">
+              Se eliminarán <strong id="decoteBulkTotal"></strong> piezas y su historial.
+            </div>
+            <label class="form-label">Escribe ELIMINAR para confirmar</label>
+            <input id="decoteBulkConfirmText" class="form-control" autocomplete="off">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button id="decoteBulkConfirmBtn" type="submit" class="btn btn-danger" disabled><i class="bi bi-trash me-1"></i> Eliminar todo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="planoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="planoModalTitle" class="modal-title">Plano PDF</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          <embed id="planoModalEmbed" type="application/pdf" style="width: 100%; height: 78vh; background: #fff;">
+        </div>
+        <div class="modal-footer">
+          <a id="planoModalOpenTab" class="btn btn-outline-secondary" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
+          <button type="button" class="btn btn-argon text-white" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

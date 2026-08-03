@@ -1,0 +1,362 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Orden {{ orden.folio }}{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Robótica</div>
+      <div class="h3 mb-0">{{ orden.folio }} · {{ orden.nombre|default:orden.producto }}</div>
+      <div class="text-muted small">Proyecto: {% if orden.proyecto %}{{ orden.proyecto.nombre }}{% else %}-{% endif %} · Cantidad objetivo: {{ orden.cantidad_objetivo }} · Estado: {{ orden.estado }}</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:robotica_ordenes' %}"><i class="bi bi-arrow-left me-1"></i> Órdenes</a>
+      {% if orden.estado == "Abierta" %}
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#ordenEditModal">
+          <i class="bi bi-pencil me-1"></i> Editar
+        </button>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="orden_close">
+          <button class="btn btn-outline-success" type="submit"><i class="bi bi-check2-circle me-1"></i> Cerrar</button>
+        </form>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="orden_cancel">
+          <button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-circle me-1"></i> Cancelar</button>
+        </form>
+        <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#ordenDeleteModal" {% if not can_delete %}disabled{% endif %}>
+          <i class="bi bi-trash me-1"></i> Eliminar
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="modal fade" id="ordenEditModal" tabindex="-1" aria-labelledby="ordenEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ordenEditModalLabel">Editar {{ orden.folio }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="orden_update">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Proyecto</label>
+              {{ edit_form.proyecto }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nombre de la orden</label>
+              {{ edit_form.nombre }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Producto final (opcional)</label>
+              {{ edit_form.producto }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Cantidad</label>
+              {{ edit_form.cantidad_objetivo }}
+            </div>
+            <div>
+              <label class="form-label">Observaciones</label>
+              {{ edit_form.observaciones }}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-argon text-white">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="ordenDeleteModal" tabindex="-1" aria-labelledby="ordenDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ordenDeleteModalLabel">Eliminar {{ orden.folio }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          {% if can_delete %}
+            <div>Esta acción no se puede deshacer.</div>
+          {% else %}
+            <div class="text-muted">No se puede eliminar porque ya hay producción registrada en la orden.</div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          {% if can_delete %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="orden_delete">
+              <button type="submit" class="btn btn-danger">Eliminar</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Avance</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="kpi">{{ avance_pct }}%</div>
+            <span class="badge badge-soft">OP</span>
+          </div>
+          <div class="progress" role="progressbar" aria-valuenow="{{ avance_pct }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+            <div id="avanceBarRobot" class="progress-bar" data-pct="{{ avance_pct }}" style="width: 0%;"></div>
+          </div>
+          <script>
+            (function () {
+              const el = document.getElementById("avanceBarRobot");
+              if (!el) return;
+              const v = parseFloat(el.getAttribute("data-pct") || "0");
+              const pct = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0));
+              el.style.width = `${pct}%`;
+            })();
+          </script>
+          {% if orden.observaciones %}
+            <div class="text-muted small mt-3">{{ orden.observaciones }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Agregar pieza requerida</div>
+        <div class="card-body">
+          {% if orden.estado != "Abierta" %}
+            <div class="text-muted">La orden está cerrada/cancelada.</div>
+          {% else %}
+            <form method="post" class="vstack gap-3">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="item_add">
+              <div>
+                <label class="form-label">Etapa</label>
+                {{ item_form.etapa }}
+              </div>
+              <div>
+                <label class="form-label">Pieza (catálogo)</label>
+                {{ item_form.pieza }}
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-md-8">
+                  <label class="form-label">Pieza única (nombre)</label>
+                  {{ item_form.pieza_custom_nombre }}
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label">Peso (kg/pza)</label>
+                  {{ item_form.pieza_custom_peso_kg }}
+                </div>
+              </div>
+              <div class="row g-2">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Cantidad requerida</label>
+                  {{ item_form.cantidad_requerida }}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Robot sugerido (opcional)</label>
+                  {{ item_form.robot_sugerido }}
+                </div>
+              </div>
+              <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Agregar</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Asignaciones</div>
+        <div class="card-body">
+          {% if orden.estado != "Abierta" %}
+            <div class="text-muted">La orden está cerrada/cancelada.</div>
+          {% else %}
+            <form method="post" class="row g-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="asig_add">
+              <div class="col-12 col-md-5">
+                <label class="form-label">Etapa</label>
+                {{ assign_form.etapa }}
+              </div>
+              <div class="col-12 col-md-7">
+                <label class="form-label">Colaborador</label>
+                {{ assign_form.colaborador }}
+              </div>
+              <div class="col-12">
+                <button class="btn btn-outline-primary" type="submit"><i class="bi bi-person-plus me-1"></i> Asignar</button>
+              </div>
+            </form>
+            <div class="mt-3">
+              {% for a in asignaciones %}
+                <div class="d-flex align-items-center justify-content-between border rounded px-2 py-2 mb-2">
+                  <div>
+                    <div class="fw-semibold">{{ a.colaborador.nombre }}</div>
+                    <div class="text-muted small">Etapa: {{ a.etapa }}</div>
+                  </div>
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="asig_delete">
+                    <input type="hidden" name="asig_id" value="{{ a.id }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-trash"></i></button>
+                  </form>
+                </div>
+              {% empty %}
+                <div class="text-muted">Sin asignaciones.</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header fw-semibold">Registrar producción en esta orden</div>
+        <div class="card-body">
+          {% if orden.estado != "Abierta" %}
+            <div class="text-muted">La orden está cerrada/cancelada.</div>
+          {% else %}
+            <form method="post" class="vstack gap-3">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="prod_add">
+              <div class="row g-2">
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Fecha</label>
+                  {{ prod_form.fecha }}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label">Cantidad</label>
+                  {{ prod_form.cantidad }}
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Pieza (de la orden)</label>
+                {{ prod_form.orden_item }}
+              </div>
+              <div>
+                <label class="form-label">Robot</label>
+                {{ prod_form.robot }}
+              </div>
+              <div>
+                <label class="form-label">Operador</label>
+                {% with selected_ops=prod_form.operador.value %}
+                  <div class="border rounded p-2" style="max-height: 240px; overflow:auto;">
+                    {% for c in prod_form.operador.field.queryset %}
+                      {% with sid=c.id|stringformat:"s" %}
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" name="operador" value="{{ c.id }}" id="id_operador_{{ c.id }}" {% if selected_ops and sid in selected_ops %}checked{% endif %}>
+                          <label class="form-check-label" for="id_operador_{{ c.id }}">{{ c.nombre }}{% if c.rol %} ({{ c.rol }}){% endif %}</label>
+                        </div>
+                      {% endwith %}
+                    {% endfor %}
+                  </div>
+                {% endwith %}
+                {% if prod_form.operador.errors %}<div class="invalid-feedback d-block">{{ prod_form.operador.errors }}</div>{% endif %}
+              </div>
+              <div>
+                <label class="form-label">Máquina de corte (opcional)</label>
+                {{ prod_form.corte_maquina }}
+              </div>
+              <div>
+                <label class="form-label">Observaciones</label>
+                {{ prod_form.observaciones }}
+              </div>
+              <button class="btn btn-argon text-white" type="submit"><i class="bi bi-plus-circle me-1"></i> Guardar</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+      <div class="card mb-3">
+        <div class="card-header fw-semibold">Material requerido</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Pieza</th>
+                  <th class="text-end">Requeridas</th>
+                  <th class="text-end">Producidas</th>
+                  <th class="text-end">Faltan</th>
+                  <th class="text-end">Avance</th>
+                  <th class="text-end">Kg</th>
+                  <th class="text-end"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in resumen %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ r.item.pieza_nombre }}</div>
+                      <div class="text-muted small">Etapa: {{ r.item.etapa }}</div>
+                      {% if r.item.robot_sugerido %}
+                        <div class="text-muted small">Robot sugerido: {{ r.item.robot_sugerido.nombre }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">{{ r.requeridas }}</td>
+                    <td class="text-end">{{ r.producidas }}</td>
+                    <td class="text-end">{{ r.faltan }}</td>
+                    <td class="text-end">{{ r.pct }}%</td>
+                    <td class="text-end">{{ r.kg|floatformat:3 }}</td>
+                    <td class="text-end">
+                      {% if orden.estado == "Abierta" %}
+                        <form method="post" class="d-inline">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="item_delete">
+                          <input type="hidden" name="item_id" value="{{ r.item.id }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="7" class="text-center text-muted py-4">Agrega piezas requeridas para calcular el avance.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header fw-semibold">Historial de producción (orden)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Pieza</th>
+                  <th class="text-end">Cantidad</th>
+                  <th>Robot</th>
+                  <th>Operador</th>
+                  <th class="text-end">Kg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in historial %}
+                  <tr>
+                    <td>{{ p.fecha|date:"Y-m-d" }}</td>
+                    <td class="fw-semibold">{% if p.orden_item %}{{ p.orden_item.pieza_nombre }}{% elif p.pieza %}{{ p.pieza.nombre }}{% else %}{{ p.pieza_custom_nombre }}{% endif %}</td>
+                    <td class="text-end">{{ p.cantidad }}</td>
+                    <td>{{ p.robot.nombre }}</td>
+                    <td>{{ p.operador.nombre }}</td>
+                    <td class="text-end">{{ p.total_kg|floatformat:3 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-center text-muted py-4">Sin registros.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

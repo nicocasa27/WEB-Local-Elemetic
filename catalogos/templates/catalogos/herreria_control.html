@@ -1,0 +1,370 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Herrería Control{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Herrería</div>
+      <div class="h3 mb-0">Control de producción</div>
+      <div class="text-muted small">Piezas individuales y OP moviéndose por etapas como Producción.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:herreria_catalogo' %}"><i class="bi bi-list-check me-1"></i> Catálogo</a>
+      <button class="btn btn-argon text-white" type="button" data-bs-toggle="modal" data-bs-target="#nuevoTrabajoModal"><i class="bi bi-plus-circle me-1"></i> Nueva pieza</button>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+          <label class="form-label">Estado</label>
+          <select class="form-select" name="estado">
+            {% for e in estados_filtro %}
+              <option value="{{ e }}" {% if filters.estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label">Proyecto</label>
+          <select class="form-select" name="proyecto">
+            {% for p in proyectos %}
+              <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label">Buscar</label>
+          <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (folio / proyecto / descripción)…">
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-2">
+          <button class="btn btn-outline-primary w-100" type="submit">Buscar</button>
+          <a class="btn btn-outline-secondary w-100" href="{% url 'catalogos:herreria_control' %}">Restablecer</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>CÓDIGO</th>
+              <th>PROYECTO</th>
+              <th>DESCRIPCIÓN</th>
+              <th>FECHA</th>
+              <th>ESTADO</th>
+              <th class="text-end">KG</th>
+              <th class="text-end">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in ordenes %}
+              <tr class="js-herr-item" data-orden="{{ o.id }}" data-folio="{{ o.folio|escape }}" data-estado="{{ o.estado_etapa|escape }}">
+                <td class="text-muted">{{ o.id }}</td>
+                <td class="fw-semibold">{{ o.folio }}</td>
+                <td class="fw-semibold">{% if o.proyecto %}{{ o.proyecto.nombre }}{% else %}-{% endif %}</td>
+                <td class="text-muted">{{ o.descripcion|default:o.nombre }}</td>
+                <td class="text-muted">{{ o.creado_en|date:"Y-m-d" }}</td>
+                <td>
+                  <span class="badge text-white js-bg js-estado-badge" data-color="{{ o.estado_color }}">{{ o.estado_etapa }}</span>
+                </td>
+                <td class="text-end">{{ o.kg|floatformat:2 }}</td>
+                <td class="text-end">
+                  {% if o.plano_pdf %}<a class="btn btn-sm btn-outline-secondary" target="_blank" href="{{ o.plano_pdf.url }}"><i class="bi bi-file-earmark-pdf"></i></a>{% endif %}
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#editTrabajo{{ o.id }}" title="Editar"><i class="bi bi-pencil"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-open-status-modal" data-orden="{{ o.id }}" data-codigo="{{ o.folio|escape }}" data-estado="{{ o.estado_etapa|escape }}" title="Cambiar estado"><i class="bi bi-arrow-repeat"></i></button>
+                  {% if o.next_estado %}
+                    <form method="post" class="d-inline">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="etapa_next">
+                      <input type="hidden" name="orden_id" value="{{ o.id }}">
+                      <button class="btn btn-sm btn-outline-primary" type="submit" title="Siguiente"><i class="bi bi-arrow-right-circle"></i></button>
+                    </form>
+                  {% endif %}
+                  <form method="post" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="trabajo_delete">
+                    <input type="hidden" name="orden_id" value="{{ o.id }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              <div class="modal fade" id="editTrabajo{{ o.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title">Editar {{ o.folio }}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" enctype="multipart/form-data">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="trabajo_update">
+                      <input type="hidden" name="orden_id" value="{{ o.id }}">
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Proyecto</label>
+                            <select class="form-select" name="proyecto">
+                              {% for p in proyectos %}
+                                {% if p != "Todos" %}
+                                  <option value="{{ p }}" {% if o.proyecto and o.proyecto.nombre == p %}selected{% endif %}>{{ p }}</option>
+                                {% endif %}
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Nombre</label>
+                            <input class="form-control" name="nombre" value="{{ o.nombre }}">
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">Descripción</label>
+                            <input class="form-control" name="descripcion" value="{{ o.descripcion }}">
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Pieza (catálogo)</label>
+                            <select class="form-select" name="pieza">
+                              <option value="" {% if not o.pieza_id %}selected{% endif %}>-</option>
+                              {% for cp in create_form.pieza.field.queryset %}
+                                <option value="{{ cp.id }}" {% if o.pieza_id == cp.id %}selected{% endif %}>{{ cp.nombre }}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Eventual (nombre)</label>
+                            <input class="form-control" name="pieza_custom_nombre" value="{{ o.custom_nombre }}">
+                          </div>
+                          <div class="col-12 col-md-4">
+                            <label class="form-label">Kg/pza (eventual)</label>
+                            <input class="form-control" name="pieza_custom_peso_kg" value="{{ o.custom_peso|floatformat:3 }}">
+                          </div>
+                          <div class="col-12 col-md-8">
+                            <label class="form-label">Plano (PDF)</label>
+                            <input class="form-control" type="file" name="plano_pdf">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-argon text-white">Guardar</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            {% empty %}
+              <tr><td colspan="8" class="text-center text-muted py-4">Sin registros.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="nuevoTrabajoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Nueva pieza / OP</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="crear_trabajo">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label">Tipo</label>
+                {{ create_form.tipo }}
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label">Proyecto</label>
+                {{ create_form.proyecto }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Nombre</label>
+                {{ create_form.nombre }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Descripción</label>
+                {{ create_form.descripcion }}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Cantidad (OP)</label>
+                {{ create_form.cantidad_objetivo }}
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label">Plano (PDF)</label>
+                {{ create_form.plano_pdf }}
+              </div>
+              <div class="col-12">
+                <div class="fw-semibold mb-1">Pieza</div>
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Catálogo</label>
+                {{ create_form.pieza }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">Eventual (nombre)</label>
+                {{ create_form.pieza_custom_nombre }}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">Kg/pza (eventual)</label>
+                {{ create_form.pieza_custom_peso_kg }}
+              </div>
+              <div class="col-12">
+                {% if create_form.non_field_errors %}<div class="alert alert-danger mb-0">{{ create_form.non_field_errors }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-argon text-white">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <form id="statusModalForm" method="post">
+          {% csrf_token %}
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="statusModalLabel">Cambiar estado</h5>
+              <div class="text-muted small"><span id="statusModalVigaId"></span> <span id="statusModalCodigo"></span></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Fecha de operación</label>
+              <input id="statusModalFecha" class="form-control" type="date" name="fecha_operacion" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Nuevo estado</label>
+              <select id="statusModalEstado" class="form-select" name="estado_nuevo" required>
+                {% for e in estados_filtro %}
+                  {% if e != "Todos" %}
+                    <option value="{{ e }}">{{ e }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Comentario</label>
+              <textarea id="statusModalComentario" class="form-control" name="comentario" rows="2" placeholder="Ej.: Observación rápida"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {{ status_colors|json_script:"statusColors" }}
+{% endblock %}
+
+{% block extra_scripts %}
+  {{ block.super }}
+  <script>
+    const colorsEl = document.getElementById("statusColors");
+    const colors = colorsEl ? JSON.parse(colorsEl.textContent) : {};
+    document.querySelectorAll(".js-bg").forEach((el) => {
+      const raw = (el.getAttribute("data-color") || "").trim();
+      const c = raw || colors[(el.textContent || "").trim()] || "";
+      if (c) el.style.background = c;
+    });
+
+    function getCookie(name) {
+      const v = `; ${document.cookie}`;
+      const parts = v.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return "";
+    }
+
+    async function submitStatusAjax(form) {
+      const action = form.getAttribute("action") || "";
+      if (!action) return;
+      const fd = new FormData(form);
+      const csrf = getCookie("csrftoken");
+      try {
+        const res = await fetch(action, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          headers: csrf ? { "X-CSRFToken": csrf } : {},
+        });
+        const data = await res.json();
+        if (!data || !data.ok) {
+          alert((data && data.error) ? data.error : "No se pudo cambiar el estado.");
+          return;
+        }
+        const id = String(data.id || "");
+        document.querySelectorAll(`.js-herr-item[data-orden='${id}']`).forEach((row) => {
+          row.setAttribute("data-estado", data.estado || "");
+          const badge = row.querySelector(".js-estado-badge");
+          if (badge) {
+            badge.textContent = data.estado || "";
+            badge.setAttribute("data-color", data.estado_color || "");
+            if (data.estado_color) badge.style.background = data.estado_color;
+          }
+          const btn = row.querySelector(".js-open-status-modal");
+          if (btn) btn.setAttribute("data-estado", data.estado || "");
+        });
+      } catch (err) {
+        alert("No se pudo cambiar el estado.");
+      }
+    }
+
+    const statusModalEl = document.getElementById("statusModal");
+    const statusModal = statusModalEl ? new bootstrap.Modal(statusModalEl) : null;
+    const statusForm = document.getElementById("statusModalForm");
+    const statusVidEl = document.getElementById("statusModalVigaId");
+    const statusCodigoEl = document.getElementById("statusModalCodigo");
+    const statusEstadoSel = document.getElementById("statusModalEstado");
+    const statusFecha = document.getElementById("statusModalFecha");
+    const statusComentario = document.getElementById("statusModalComentario");
+    const statusUrlTemplate = "{% url 'catalogos:herreria_change_status_json' 0 %}";
+
+    function openStatusModal(oid, codigo, estadoActual) {
+      if (!statusModal || !statusForm) return;
+      statusForm.action = statusUrlTemplate.replace("/0/", `/${oid}/`);
+      if (statusVidEl) statusVidEl.textContent = `#${oid}`;
+      if (statusCodigoEl) statusCodigoEl.textContent = codigo || "";
+      if (statusEstadoSel && estadoActual) statusEstadoSel.value = estadoActual;
+      if (statusFecha) statusFecha.valueAsDate = new Date();
+      if (statusComentario) statusComentario.value = "";
+      statusModal.show();
+    }
+
+    document.querySelectorAll(".js-open-status-modal").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const oid = (btn.getAttribute("data-orden") || "").trim();
+        const codigo = (btn.getAttribute("data-codigo") || "").trim();
+        const estado = (btn.getAttribute("data-estado") || "").trim();
+        if (!oid) return;
+        openStatusModal(oid, codigo, estado);
+      });
+    });
+
+    if (statusForm) {
+      statusForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!statusFecha || !(statusFecha.value || "").trim()) {
+          alert("Debes seleccionar la fecha de operación antes de cambiar el estado.");
+          return;
+        }
+        submitStatusAjax(statusForm);
+        if (statusModal) statusModal.hide();
+      });
+    }
+  </script>
+{% endblock %}

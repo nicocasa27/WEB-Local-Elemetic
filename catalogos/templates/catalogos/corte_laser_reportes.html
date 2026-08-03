@@ -1,0 +1,308 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Reportes · Corta.mx{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Corta.mx</div>
+      <div class="h3 mb-0">Reportes</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-arrow-down-circle-fill me-1 text-success"></i> Exportar
+        </button>
+        <ul class="dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="{% url 'catalogos:corte_laser_reportes_export_html' %}?{{ request.GET.urlencode }}">
+              <i class="bi bi-filetype-html me-2"></i> Exportar HTML
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'catalogos:corte_laser_reportes_export_xlsx' %}?{{ request.GET.urlencode }}">
+              <i class="bi bi-file-earmark-excel-fill me-2 text-success"></i> Exportar Excel
+            </a>
+          </li>
+        </ul>
+      </div>
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:corte_laser_control' %}">
+        <i class="bi bi-arrow-left me-1"></i> Volver
+      </a>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Periodo (Jueves → Jueves)</div>
+    <div class="card-body">
+      <form class="row g-2 align-items-end" method="get">
+        <div class="col-12 col-md-4">
+          <label class="form-label">Semana (elige cualquier día)</label>
+          <input class="form-control" type="date" name="week_start" value="{{ week_selected_start }}">
+          <div class="form-text">{{ week_start }} → {{ week_end }}</div>
+        </div>
+        <div class="col-12 col-md-2 d-grid">
+          <button class="btn btn-argon text-white" type="submit"><i class="bi bi-filter me-1"></i> Ver</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Producción terminada</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div class="text-muted">Órdenes</div>
+            <div class="fw-semibold">{{ totales.ordenes }}</div>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <div class="text-muted">Piezas</div>
+            <div class="fw-semibold">{{ totales.piezas }}</div>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <div class="text-muted">Kg</div>
+            <div class="fw-semibold">{{ totales.kg|floatformat:"-3" }}</div>
+          </div>
+          <div class="d-flex justify-content-between mt-2">
+            <div class="text-muted">Ton</div>
+            <div class="fw-semibold">{{ totales.ton|floatformat:"-3" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-8">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Tiempo promedio por etapa (órdenes terminadas)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Etapa</th>
+                  <th class="text-end">Horas promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in stage_avg %}
+                  <tr>
+                    <td>{{ r.etapa }}</td>
+                    <td class="text-end">{{ r.horas_promedio|floatformat:2 }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-center text-muted py-4">Sin datos en el periodo.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header fw-semibold">Pedidos terminados (en el periodo)</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cliente/Proyecto</th>
+              <th class="text-end">Piezas</th>
+              <th class="text-end">Kg</th>
+              <th class="text-end">Terminado</th>
+              <th class="text-end">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in orders %}
+              <tr>
+                <td class="fw-semibold">{{ o.codigo }}</td>
+                <td class="text-muted small">{{ o.cliente|default:"—" }}</td>
+                <td class="text-end">{{ o.piezas }}</td>
+                <td class="text-end">{{ o.kg|floatformat:"-3" }}</td>
+                <td class="text-end text-muted small">{{ o.terminado_str }}</td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-primary js-open-terminado" type="button" data-id="{{ o.id }}" data-url="{% url 'catalogos:corte_laser_reportes_terminado_json' o.id %}">
+                    <i class="bi bi-eye me-1"></i> Ver
+                  </button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-4">Sin pedidos terminados en el periodo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="terminadoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="fw-semibold" id="terminadoTitle">Detalle</div>
+            <div class="text-muted small" id="terminadoSubtitle"></div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <div style="height:260px;">
+                <canvas id="terminadoChart"></canvas>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Etapa</th>
+                      <th class="text-end">Horas</th>
+                    </tr>
+                  </thead>
+                  <tbody id="terminadoEtapasBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  {% if export_static %}
+    {{ export_detail_map|json_script:"cortaExportDetail" }}
+  {% endif %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    (function () {
+      const modalEl = document.getElementById("terminadoModal");
+      const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+      const titleEl = document.getElementById("terminadoTitle");
+      const subtitleEl = document.getElementById("terminadoSubtitle");
+      const bodyEl = document.getElementById("terminadoEtapasBody");
+      const canvas = document.getElementById("terminadoChart");
+      let chart = null;
+
+      function n(v) {
+        const x = Number(v);
+        return Number.isFinite(x) ? x : 0;
+      }
+
+      function fmtHours(h) {
+        const x = n(h);
+        return (Math.round((x + Number.EPSILON) * 100) / 100).toFixed(2);
+      }
+
+      let exportMap = null;
+      try {
+        const el = document.getElementById("cortaExportDetail");
+        exportMap = el ? JSON.parse(el.textContent || "{}") : null;
+      } catch (e) {
+        exportMap = null;
+      }
+
+      async function open(url, id) {
+        if (!modal) return;
+        if (titleEl) titleEl.textContent = "Cargando…";
+        if (subtitleEl) subtitleEl.textContent = "";
+        if (bodyEl) bodyEl.innerHTML = "";
+        modal.show();
+
+        let payload = null;
+        const key = id != null ? String(id) : "";
+        if (exportMap && key && exportMap[key]) {
+          payload = exportMap[key];
+        } else {
+          try {
+            const resp = await fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } });
+            payload = await resp.json();
+          } catch (e) {
+            payload = { ok: false, error: "No se pudo cargar." };
+          }
+        }
+        if (!payload || !payload.ok) {
+          if (titleEl) titleEl.textContent = "Error";
+          if (subtitleEl) subtitleEl.textContent = String((payload && payload.error) || "No se pudo cargar.");
+          return;
+        }
+
+        const o = payload.orden || {};
+        const etapas = payload.etapas || [];
+        if (titleEl) titleEl.textContent = (o.codigo || o.folio || "Pedido") + " · " + (o.kg != null ? String(o.kg) + " kg" : "");
+        if (subtitleEl) subtitleEl.textContent = (o.cliente || "") + (o.piezas != null ? " · " + String(o.piezas) + " pzs" : "");
+
+        const labels = [];
+        const hours = [];
+        for (const e of etapas) {
+          labels.push(String(e.etapa || ""));
+          hours.push(n(e.horas));
+        }
+
+        if (bodyEl) {
+          bodyEl.innerHTML = "";
+          for (const e of etapas) {
+            const tr = document.createElement("tr");
+            const td1 = document.createElement("td");
+            td1.textContent = String(e.etapa || "");
+            const td2 = document.createElement("td");
+            td2.className = "text-end";
+            td2.textContent = fmtHours(e.horas) + " h";
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            bodyEl.appendChild(tr);
+          }
+        }
+
+        if (chart) {
+          try { chart.destroy(); } catch (e) {}
+          chart = null;
+        }
+        if (canvas && typeof Chart !== "undefined") {
+          chart = new Chart(canvas, {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [{
+                label: "Horas",
+                data: hours,
+                backgroundColor: "#11cdef",
+                borderRadius: 8,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true, title: { display: true, text: "Horas" } } }
+            }
+          });
+        }
+      }
+
+      document.addEventListener("click", (ev) => {
+        const btn = ev.target && ev.target.closest ? ev.target.closest(".js-open-terminado") : null;
+        if (!btn) return;
+        ev.preventDefault();
+        open(btn.getAttribute("data-url") || "", btn.getAttribute("data-id") || "");
+      });
+
+      if (modalEl) {
+        modalEl.addEventListener("hidden.bs.modal", () => {
+          if (chart) {
+            try { chart.destroy(); } catch (e) {}
+            chart = null;
+          }
+        });
+      }
+    })();
+  </script>
+{% endblock %}
