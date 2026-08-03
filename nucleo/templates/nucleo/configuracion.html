@@ -1,0 +1,169 @@
+{% extends "produccion/base.html" %}
+{% block title %}Puesta en marcha{% endblock %}
+
+{% block content %}
+<style>
+  .cfg-estado { font-size: .75rem; font-weight: 600; letter-spacing: .02em; }
+  .cfg-fila { border-left: 3px solid transparent; }
+  .cfg-fila.falta { border-left-color: #f5365c; background: rgba(245,54,92,.035); }
+  .cfg-fila.listo { border-left-color: #2dce89; }
+  .cfg-fila.opcional { border-left-color: #dee2e6; }
+  .cfg-cantidad { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+  .cfg-explica { font-size: .875rem; color: #6c757d; max-width: 62ch; }
+  .cfg-seccion-desc { font-size: .9rem; color: #6c757d; max-width: 78ch; }
+  .cfg-modo { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  @media (max-width: 767.98px) {
+    .cfg-accion { width: 100%; min-height: 44px; }
+  }
+</style>
+
+<div class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <h1 class="h3 mb-0">Puesta en marcha</h1>
+    {% if pendientes %}
+      <span class="badge bg-danger">{{ pendientes }} sin configurar</span>
+    {% else %}
+      <span class="badge bg-success">todo configurado</span>
+    {% endif %}
+  </div>
+
+  <p class="cfg-seccion-desc mb-4">
+    Todo lo que el sistema necesita saber para funcionar, y dónde se captura.
+    Nada de esto es trabajo de programación: son datos, y se editan desde aquí.
+  </p>
+
+  {% if not puede_entrar_al_admin %}
+    <div class="alert alert-warning">
+      <strong>Tu usuario no puede entrar a las pantallas de captura todavía.</strong>
+      Los botones de esta página te van a rechazar. Se habilita ejecutando una
+      vez en el servidor:
+      <code class="d-block mt-2">manage.py habilitar_configuracion</code>
+    </div>
+  {% endif %}
+
+  {% for seccion in secciones %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <h2 class="h5 mb-1">{{ seccion.titulo }}</h2>
+        <div class="cfg-seccion-desc">{{ seccion.descripcion }}</div>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for r in seccion.renglones %}
+          <div class="list-group-item cfg-fila {{ r.estado }}">
+            <div class="row align-items-center g-3">
+              <div class="col-auto text-center" style="min-width: 5.5rem;">
+                <div class="cfg-cantidad">{{ r.cantidad }}</div>
+                <div class="text-muted small">{{ r.unidad }}</div>
+              </div>
+              <div class="col">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="fw-semibold">{{ r.titulo }}</span>
+                  {% if r.estado == "falta" %}
+                    <span class="cfg-estado text-danger">FALTA</span>
+                  {% elif r.estado == "opcional" %}
+                    <span class="cfg-estado text-muted">OPCIONAL</span>
+                  {% else %}
+                    <span class="cfg-estado text-success">LISTO</span>
+                  {% endif %}
+                </div>
+                <div class="cfg-explica mt-1">{{ r.explicacion }}</div>
+              </div>
+              <div class="col-12 col-md-auto">
+                {% if r.enlace %}
+                  <a class="btn btn-sm btn-outline-primary cfg-accion" href="{{ r.enlace }}">
+                    {{ r.accion }}
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-1">Motor unificado</h2>
+      <div class="cfg-seccion-desc">
+        Las cuatro líneas eran el mismo programa copiado cuatro veces. El motor
+        único ya existe y está apagado: no cambia nada hasta que se encienda,
+        una línea cada vez, y se apaga igual de fácil. El cambio se hace con una
+        variable de entorno en el servidor, no desde aquí, porque encender esto
+        por accidente desde una pantalla sería el peor botón del sistema.
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Línea</th>
+            <th>Estado</th>
+            <th class="text-end">Órdenes migradas</th>
+            <th class="text-end">Diferencias sin resolver</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in migracion %}
+            <tr>
+              <td>{{ m.linea.nombre }}</td>
+              <td>
+                {% if m.modo == "corte" %}
+                  <span class="cfg-modo text-success">en uso</span>
+                {% elif m.modo == "doble" %}
+                  <span class="cfg-modo text-primary">en pruebas</span>
+                {% else %}
+                  <span class="cfg-modo text-muted">apagado</span>
+                {% endif %}
+              </td>
+              <td class="text-end">{{ m.ordenes }}</td>
+              <td class="text-end">
+                {% if m.divergencias %}
+                  <span class="text-danger fw-semibold">{{ m.divergencias }}</span>
+                {% else %}
+                  <span class="text-muted">0</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <h2 class="h5 mb-1">Tareas que deben correr solas</h2>
+      <div class="cfg-seccion-desc">
+        Se programan una vez en el servidor. Si no están puestas, el sistema
+        sigue funcionando pero con los defectos que se indican.
+      </div>
+    </div>
+    <div class="list-group list-group-flush">
+      <div class="list-group-item">
+        <code>manage.py consolidar_cierres</code> — cada minuto.
+        <div class="cfg-explica mt-1">
+          Sin esto, un cierre que vence un viernes a las 17:05 sigue pendiente el
+          lunes y figura así en todos los informes.
+        </div>
+      </div>
+      <div class="list-group-item">
+        <code>manage.py reconciliar_nucleo</code> — una vez al día.
+        <div class="cfg-explica mt-1">
+          Compara el motor viejo con el nuevo. Una línea no se enciende hasta que
+          esto lleve siete días seguidos sin encontrar ninguna diferencia.
+        </div>
+      </div>
+      <div class="list-group-item">
+        <code>manage.py verificar_inventario</code> — una vez al día.
+        <div class="cfg-explica mt-1">
+          Comprueba que las existencias cuadren con los movimientos y avisa de lo
+          que está por debajo del mínimo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

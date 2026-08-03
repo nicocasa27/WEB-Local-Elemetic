@@ -243,6 +243,11 @@
                       {% if is_admin %}
                         <li><hr class="dropdown-divider"></li>
                         <li>
+                          <a class="dropdown-item" href="{% url 'nucleo:configuracion' %}">
+                            <i class="bi bi-sliders me-2"></i> Puesta en marcha
+                          </a>
+                        </li>
+                        <li>
                           <a class="dropdown-item" href="/admin/">
                             <i class="bi bi-shield-lock me-2"></i> Admin
                           </a>
@@ -298,6 +303,7 @@
                       </button>
                     </li>
                     {% if is_admin %}
+                      <li><a class="dropdown-item" href="{% url 'nucleo:configuracion' %}"><i class="bi bi-sliders me-2"></i> Puesta en marcha</a></li>
                       <li><a class="dropdown-item" href="/admin/"><i class="bi bi-shield-lock me-2"></i> Admin</a></li>
                     {% endif %}
                     <li><hr class="dropdown-divider"></li>

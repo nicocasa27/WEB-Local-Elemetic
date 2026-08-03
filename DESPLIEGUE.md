@@ -223,6 +223,44 @@ Hace falta una sesión dedicada, con el respaldo recién hecho y sin prisa:
 La vuelta atrás es devolver la configuración anterior: el `db.sqlite3` queda
 intacto durante todo el proceso.
 
+## Configurar el sistema: por dónde se empieza
+
+Todo lo que los módulos nuevos necesitan saber son **datos**, no código: las
+etapas de producción, las reglas de qué movimiento está permitido, los
+materiales, las tarifas. Se editan desde la aplicación.
+
+**Menú → Configuración de planta → Puesta en marcha**, o directamente
+`/configuracion/`.
+
+Esa pantalla dice qué está configurado, qué falta, **qué pasa si falta** y
+lleva a donde se captura cada cosa. Distingue lo que bloquea de lo que no: sin
+tarifas el costeo da cero y no sirve; sin proveedores funciona igual, con menos
+detalle.
+
+### Antes hay que habilitar el acceso, una sola vez
+
+```bat
+.venv\Scripts\python.exe manage.py habilitar_configuracion --simular
+.venv\Scripts\python.exe manage.py habilitar_configuracion
+```
+
+Hacen falta dos arreglos que sólo se vieron al montar los módulos:
+
+- **Siete de los ocho usuarios de `admin_general` no tenían `is_staff`.** La
+  aplicación les enseñaba el enlace «Admin» en el menú y al pulsarlo los
+  rechazaba. Lleva así desde siempre; se notó ahora porque hasta ahora no había
+  nada que configurar ahí.
+- **Las aplicaciones nuevas no tenían permisos.** Django los crea al migrar,
+  pero en la base donde vive `auth`. Como el enrutador manda `nucleo`,
+  `inventario` y `costeo` a PostgreSQL y la autenticación sigue en SQLite, no
+  se crearon en ninguna parte, y sin permisos no se puede dar acceso a nadie
+  que no sea superusuario.
+
+El comando crea el grupo «configuracion» con **sólo** los permisos de
+configuración y los catálogos de planta. **No incluye usuarios ni
+contraseñas**: quien captura una tarifa no puede crear cuentas. Se deshace con
+`--quitar`.
+
 ## El núcleo unificado: cómo se pone en marcha
 
 Las cuatro líneas —vigas, herrería, corte láser y robótica— son hoy el mismo
