@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load static %}
 {% block title %}Taller Elemetic - Órdenes de Corta.mx{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -71,12 +72,6 @@
       </div>
     </div>
 
-    <script>
-      (function () {
-        const cp = document.getElementById("{{ form.cliente_proyecto.id_for_label }}");
-        if (cp) cp.setAttribute("list", "cortaClienteProyectoList");
-      })();
-    </script>
 
     <div class="col-12 col-lg-8">
       <div class="card mb-3">
@@ -178,4 +173,7 @@
       </div>
     </div>
   </div>
+  <div id="mesCfg" class="d-none"
+       data-campo-cliente="{{ form.cliente_proyecto.id_for_label }}"></div>
+  <script src="{% static 'js/corta-ordenes.js' %}"></script>
 {% endblock %}

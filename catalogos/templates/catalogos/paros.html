@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load static %}
 {% block title %}Taller Elemetic - Paros{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -324,43 +325,8 @@
 
 {% block extra_scripts %}
   {{ block.super }}
-  <script>
-    function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v || ""; }
-    function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ""; }
-
-    document.querySelectorAll(".js-open-start-paro").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        setVal("startParoMaquinaId", btn.getAttribute("data-maquina"));
-        setText("startParoMaquinaNombre", btn.getAttribute("data-nombre"));
-        new bootstrap.Modal(document.getElementById("startParoModal")).show();
-      });
-    });
-    document.querySelectorAll(".js-open-end-paro").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        setVal("endParoMaquinaId", btn.getAttribute("data-maquina"));
-        setText("endParoMaquinaNombre", btn.getAttribute("data-nombre"));
-        new bootstrap.Modal(document.getElementById("endParoModal")).show();
-      });
-    });
-    document.querySelectorAll(".js-open-start-falla").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        setVal("startFallaMaquinaId", btn.getAttribute("data-maquina"));
-        setText("startFallaMaquinaNombre", btn.getAttribute("data-nombre"));
-        new bootstrap.Modal(document.getElementById("startFallaModal")).show();
-      });
-    });
-    document.querySelectorAll(".js-open-end-falla").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        setVal("endFallaMaquinaId", btn.getAttribute("data-maquina"));
-        setText("endFallaMaquinaNombre", btn.getAttribute("data-nombre"));
-        new bootstrap.Modal(document.getElementById("endFallaModal")).show();
-      });
-    });
-
-    const focusId = Number("{{ focus_id|default:''|escapejs }}") || 0;
-    if (focusId) {
-      const el = document.getElementById(`machine-card-${focusId}`);
-      if (el) el.scrollIntoView({ block: "center" });
-    }
-  </script>
+  {# Lo que la plantilla sabe y el JavaScript necesita. #}
+  <div id="mesCfg" class="d-none"
+       data-foco="{{ focus_id|default:'' }}"></div>
+  <script src="{% static 'js/paros.js' %}"></script>
 {% endblock %}

@@ -10,6 +10,64 @@
 (function () {
   "use strict";
 
+  // --------------------------------------------------------------- galleta
+  //
+  // Django exige el testigo CSRF en cada POST. Esta función estaba copiada en
+  // cuatro plantillas.
+
+  function cookie(nombre) {
+    var partes = ("; " + document.cookie).split("; " + nombre + "=");
+    return partes.length === 2 ? partes.pop().split(";").shift() : "";
+  }
+
+  // ---------------------------------------------------------------- avisos
+  //
+  // Un mensaje flotante. Estaba copiado en tres plantillas, con tres tiempos
+  // de desaparición distintos por puro accidente.
+
+  function aviso(texto, tipo) {
+    var caja = document.getElementById("jsToastContainer");
+    if (!caja) {
+      caja = document.createElement("div");
+      caja.id = "jsToastContainer";
+      caja.className = "toast-container position-fixed top-0 end-0 p-3";
+      caja.style.zIndex = "1080";
+      document.body.appendChild(caja);
+    }
+    var el = document.createElement("div");
+    el.className = "toast align-items-center text-bg-" + (tipo || "primary") + " border-0 mb-2";
+    el.setAttribute("role", "alert");
+    el.setAttribute("aria-live", "assertive");
+    el.setAttribute("aria-atomic", "true");
+    el.setAttribute("data-bs-delay", "1400");
+
+    var fila = document.createElement("div");
+    fila.className = "d-flex";
+    var cuerpo = document.createElement("div");
+    cuerpo.className = "toast-body";
+    // Con textContent en vez de innerHTML: el texto puede venir de un mensaje
+    // del servidor y no tiene por qué interpretarse como HTML.
+    cuerpo.textContent = texto;
+    var cerrar = document.createElement("button");
+    cerrar.type = "button";
+    cerrar.className = "btn-close btn-close-white me-2 m-auto";
+    cerrar.setAttribute("data-bs-dismiss", "toast");
+    cerrar.setAttribute("aria-label", "Cerrar");
+    fila.appendChild(cuerpo);
+    fila.appendChild(cerrar);
+    el.appendChild(fila);
+    caja.appendChild(el);
+
+    try {
+      bootstrap.Toast.getOrCreateInstance(el).show();
+    } catch (e) {
+      el.classList.add("show");
+    }
+    el.addEventListener("hidden.bs.toast", function () {
+      el.remove();
+    });
+  }
+
   // --------------------------------------------- color del estado de orden
   //
   // El color del estado lo pone la hoja de estilos, por la clase `est-*` que
@@ -30,6 +88,8 @@
   }
 
   window.MES = window.MES || {};
+  window.MES.cookie = cookie;
+  window.MES.aviso = aviso;
   window.MES.aplicarClaseDeEstado = aplicarClaseDeEstado;
 
   // --------------------------------------------------------------- avisos

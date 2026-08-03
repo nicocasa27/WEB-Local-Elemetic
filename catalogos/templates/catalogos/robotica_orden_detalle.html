@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load static %}
 {% block title %}Taller Elemetic - Orden {{ orden.folio }}{% endblock %}
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
@@ -111,15 +112,6 @@
           <div class="progress" role="progressbar" aria-valuenow="{{ avance_pct }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
             <div id="avanceBarRobot" class="progress-bar" data-pct="{{ avance_pct }}" style="width: 0%;"></div>
           </div>
-          <script>
-            (function () {
-              const el = document.getElementById("avanceBarRobot");
-              if (!el) return;
-              const v = parseFloat(el.getAttribute("data-pct") || "0");
-              const pct = Math.max(0, Math.min(100, Number.isFinite(v) ? v : 0));
-              el.style.width = `${pct}%`;
-            })();
-          </script>
           {% if orden.observaciones %}
             <div class="text-muted small mt-3">{{ orden.observaciones }}</div>
           {% endif %}
@@ -359,4 +351,5 @@
       </div>
     </div>
   </div>
+  <script src="{% static 'js/robotica-orden-detalle.js' %}"></script>
 {% endblock %}

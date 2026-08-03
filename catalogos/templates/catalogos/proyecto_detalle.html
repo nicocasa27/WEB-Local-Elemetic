@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load static %}
 {% load produccion_extras %}
 {% block title %}Taller Elemetic - {{ proyecto.nombre }}{% endblock %}
 {% block content %}
@@ -61,14 +62,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-  <script>
-    window.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll(".js-avance").forEach((el) => {
-        const pct = (el.getAttribute("data-pct") || "0").replace(",", ".");
-        requestAnimationFrame(() => {
-          el.style.width = pct + "%";
-        });
-      });
-    });
-  </script>
+  <script src="{% static 'js/proyecto-detalle.js' %}"></script>
 {% endblock %}
