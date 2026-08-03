@@ -2380,7 +2380,7 @@ def herreria_control(request):
                         it.aceptado_por = actor
                         it.aceptado_en = now
                         it.save(update_fields=["estado_herreria", "orden_herreria", "aceptado_por", "aceptado_en", "actualizado_en"])
-                    messages.success(request, "Aceptado y enviado a producción.")
+                        messages.success(request, "Aceptado y enviado a producción.")
                 return redirect("catalogos:herreria_control")
         elif action == "pedido_item_start":
             if not can_accept_solicitudes:
@@ -2435,7 +2435,7 @@ def herreria_control(request):
                         it.orden_herreria = orden
                         it.espera_material_salida_en = now
                         it.save(update_fields=["estado_herreria", "orden_herreria", "espera_material_salida_en", "actualizado_en"])
-                    messages.success(request, "Enviado a producción.")
+                        messages.success(request, "Enviado a producción.")
                 return redirect("catalogos:herreria_control")
         elif action == "pedido_item_delete":
             if not is_admin:
@@ -2449,7 +2449,7 @@ def herreria_control(request):
                     else:
                         it.estado_herreria = "Cancelado"
                         it.save(update_fields=["estado_herreria", "actualizado_en"])
-                    messages.success(request, "Eliminado.")
+                        messages.success(request, "Eliminado.")
                 return redirect("catalogos:herreria_control")
     estados = [
         "Espera de corte",
