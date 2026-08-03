@@ -4133,7 +4133,7 @@ def herreria_enviar(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic():
+    with transaction.atomic(using="mes"):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Enviado"
         orden.ultimo_cambio = now
@@ -4173,7 +4173,7 @@ def herreria_regresar_produccion(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic():
+    with transaction.atomic(using="mes"):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Terminado"
         orden.ultimo_cambio = now
@@ -4229,7 +4229,7 @@ def herreria_delete_decote(request, pk: int):
         exp = LogisticaExpediente.objects.filter(pedido_id=int(pedido_id)).first()
         if not exp or not getattr(exp, "generado_en", None) or int(getattr(exp, "descargas_count", 0) or 0) <= 0:
             return redirect("catalogos:herreria_control")
-        with transaction.atomic():
+        with transaction.atomic(using="mes"):
             HerrProduccion.objects.filter(orden_item__orden=orden).delete()
             HerrAsignacion.objects.filter(orden=orden).delete()
             orden.delete()
@@ -4240,7 +4240,7 @@ def herreria_delete_decote(request, pk: int):
         ult_fecha = timezone.localdate(ult) if ult else today
         if not ult_fecha or ult_fecha > cutoff:
             return redirect("catalogos:herreria_control")
-        with transaction.atomic():
+        with transaction.atomic(using="mes"):
             HerrProduccion.objects.filter(orden_item__orden=orden).delete()
             HerrAsignacion.objects.filter(orden=orden).delete()
             orden.delete()
@@ -4326,7 +4326,7 @@ def herreria_delete_decote_all(request):
         )
         all_ids = list({int(x) for x in (decote_ids + obra_ids) if x})
         if all_ids:
-            with transaction.atomic():
+            with transaction.atomic(using="mes"):
                 HerrProduccion.objects.filter(orden_item__orden_id__in=all_ids).delete()
                 HerrAsignacion.objects.filter(orden_id__in=all_ids).delete()
                 HerrOrdenProduccion.objects.filter(id__in=all_ids).delete()
@@ -6249,7 +6249,7 @@ def corte_laser_enviar(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic():
+    with transaction.atomic(using="mes"):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Enviado"
         orden.ultimo_cambio = now
@@ -6282,7 +6282,7 @@ def corte_laser_regresar_produccion(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic():
+    with transaction.atomic(using="mes"):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Terminado"
         orden.ultimo_cambio = now
@@ -6327,7 +6327,7 @@ def corte_laser_delete_decote(request, pk: int):
     exp = LogisticaExpediente.objects.filter(orden_corta_id=int(orden.id)).first()
     if not exp or not getattr(exp, "generado_en", None) or int(getattr(exp, "descargas_count", 0) or 0) <= 0:
         return redirect("catalogos:corte_laser_control")
-    with transaction.atomic():
+    with transaction.atomic(using="mes"):
         LaserProduccion.objects.filter(orden_item__orden=orden).delete()
         LaserAsignacion.objects.filter(orden=orden).delete()
         orden.delete()
@@ -6385,7 +6385,7 @@ def corte_laser_delete_decote_all(request):
                 continue
             decote_ids.append(int(oid))
         if decote_ids:
-            with transaction.atomic():
+            with transaction.atomic(using="mes"):
                 LaserProduccion.objects.filter(orden_item__orden_id__in=decote_ids).delete()
                 LaserAsignacion.objects.filter(orden_id__in=decote_ids).delete()
                 LaserOrdenProduccion.objects.filter(id__in=decote_ids).delete()

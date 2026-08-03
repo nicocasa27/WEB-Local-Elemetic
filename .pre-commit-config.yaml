@@ -14,6 +14,28 @@ repos:
       - id: ruff
         name: ruff (errores de sintaxis y nombres indefinidos)
 
+  - repo: local
+    hooks:
+      # Impide que vuelva a colarse un transaction.atomic() sin using, que
+      # abre la transacción sobre SQLite mientras se escribe en PostgreSQL.
+      - id: verificar-atomic
+        name: transaction.atomic siempre con using
+        entry: python3 tools/verificar_atomic.py
+        language: system
+        files: ^(catalogos|produccion)/.*\.py$
+        pass_filenames: false
+
+      # Detecta bloques cuyo cuerpo quedó indentado de más respecto a su
+      # sentencia de control, que es como se colaron los seis else mal
+      # colgados. Informativo: no bloquea el commit.
+      - id: detectar-sobreindentacion
+        name: bloques sobre-indentados (informativo)
+        entry: python3 tools/detectar_bloques_sobreindentados.py catalogos/views.py produccion/views.py
+        language: system
+        files: ^(catalogos|produccion)/.*\.py$
+        pass_filenames: false
+        verbose: true
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
