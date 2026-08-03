@@ -359,6 +359,101 @@ Los eventos son de sólo lectura y no se pueden borrar. Es deliberado: un
 registro que se puede editar deja de ser un registro, y con él se va la única
 razón para fiarse de los números.
 
+## Inventario de materia prima
+
+Hoy el sistema sabe qué se produce pero no con qué. Lo más parecido a un
+catálogo de material es `LaserMaterialPlaca`: 113 placas con su geometría y su
+peso, sin costo, sin proveedor y sin existencias. Cuando un cliente reclama, no
+hay forma de saber de qué colada salió la pieza.
+
+El módulo `inventario` añade lo que faltaba. **Está instalado y vacío**: no
+cambia nada hasta que se cargue el conteo inicial.
+
+### Puesta en marcha
+
+```bat
+.venv\Scripts\python.exe manage.py migrate inventario --database=mes
+.venv\Scripts\python.exe manage.py sembrar_inventario
+```
+
+Eso crea el almacén, los motivos y trae las 113 placas ya catalogadas, con su
+peso y su densidad. **Todo queda en existencia cero, a propósito**: un almacén
+que arranca con cifras inventadas no vuelve a cuadrar nunca, y encima se cree.
+
+### El conteo físico
+
+```bat
+.venv\Scripts\python.exe manage.py inventario_fisico --plantilla conteo.csv
+```
+
+Sale una hoja con una fila por material. Se baja al almacén, se cuenta y se
+rellena la columna `contado`. Las filas en blanco no se tocan, así que se puede
+contar por partes.
+
+**Las columnas `lote` y `colada` importan más de lo que parecen**: son lo que
+después permite responder de qué colada salió una pieza. Si no se saben, se
+dejan vacías y el material entra en un lote de inventario inicial que deja
+constancia explícita de que llegó sin certificado.
+
+```bat
+.venv\Scripts\python.exe manage.py inventario_fisico --cargar conteo.csv --simular
+.venv\Scripts\python.exe manage.py inventario_fisico --cargar conteo.csv
+```
+
+La primera carga es el inventario inicial. **Las siguientes registran la
+diferencia** entre lo contado y lo que el sistema creía, con motivo «conteo
+físico». Esa diferencia es la única medida real de si el inventario se está
+llevando bien, y por eso queda escrita en vez de sustituirse en silencio.
+
+### Las dos preguntas que ahora sí tienen respuesta
+
+```bat
+.venv\Scripts\python.exe manage.py trazar --colada H-48213
+.venv\Scripts\python.exe manage.py trazar --orden L-00014
+```
+
+La primera es la que llega cuando la acería avisa de un lote defectuoso o un
+cliente reclama: dónde está esa colada. La segunda es la inversa: de qué está
+hecha una orden, con qué proveedor y si hay certificado. También da el costo de
+material de la orden.
+
+### Vigilancia diaria
+
+```bat
+.venv\Scripts\python.exe manage.py verificar_inventario
+```
+
+Las existencias son una caché; el número bueno es la suma de los movimientos.
+Si se separan, alguien escribió por un camino que no pasa por el servicio.
+`--corregir` las reconstruye desde el historial. Informa además de qué está por
+debajo de su mínimo y de cuánto dinero hay parado en el almacén, valuado lote a
+lote y no por promedio.
+
+### Qué hace y qué no
+
+- El material **sale por antigüedad de lote**: primero lo que entró antes. Eso
+  es lo que hace que el costo de una orden sea el de lo que de verdad se metió
+  en ella.
+- **No se puede sacar lo que no hay.** Lo impide el servicio y lo impide la
+  base, así que no hay ningún camino —ni un `update` en bloque— capaz de dejar
+  el almacén debiendo material.
+- **La lista de materiales propone, no descuenta.** Una lista incorrecta que
+  descuenta sola vacía el inventario en una semana y nadie se entera hasta que
+  hay que comprar. Se automatiza cuando `comparar_consumo` demuestre que lo
+  previsto y lo real coinciden.
+- **La merma es un tipo propio, no un ajuste.** La merma es una pérdida que se
+  puede medir y reducir; el ajuste es que la cuenta estaba mal. Mezclarlas hace
+  imposible saber cuánto se está tirando.
+
+### Lo que decide si esto sirve, y no es técnico
+
+**Sin un conteo físico inicial y sin una persona responsable de capturar cada
+entrada, este módulo no funciona.** No es un problema de código. Un inventario
+que nadie alimenta da cifras peores que no tener inventario, porque además se
+creen. Si esas dos condiciones no se pueden cumplir todavía, conviene dejarlo
+parado —no estorba— y hacer antes el módulo de calidad, que sólo necesita el
+celular del operador.
+
 ## Volver atrás
 
 La configuración de entorno no toca la base de datos, así que revertir es
