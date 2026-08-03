@@ -1,6 +1,7 @@
 import json
 import zipfile
 from datetime import datetime, time, timedelta
+from functools import wraps
 from io import BytesIO
 from urllib.parse import quote
 
@@ -206,6 +207,28 @@ def _is_admin_user(user) -> bool:
         )
     except Exception:
         return False
+
+
+def admin_required(view_func):
+    """Exige sesión iniciada y rol de administración.
+
+    Las pantallas de configuración de planta (proyectos, equipos,
+    colaboradores y maquinaria) ya se muestran solo a `is_admin` en la
+    navbar, pero sus vistas nunca aplicaron esa restricción: cualquiera
+    en la red del taller podía llamarlas, incluidos los borrados por POST.
+    Este decorador aplica en el servidor la regla que la interfaz ya daba
+    por supuesta.
+    """
+
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not _is_admin_user(request.user):
+            messages.error(request, "No tienes permiso para acceder a esa sección.")
+            return redirect("/")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
 
 
 def _can_pedidos(user) -> bool:
@@ -680,6 +703,7 @@ class ColaboradorForm(forms.ModelForm):
         return cleaned
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def proyectos(request):
     if request.method == "POST":
@@ -730,6 +754,7 @@ def proyectos(request):
     )
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def equipos(request):
     if request.method == "POST":
@@ -781,6 +806,7 @@ def equipos(request):
     )
 
 
+@admin_required
 @require_http_methods(["POST"])
 def equipo_toggle(request, pk: int):
     equipo = get_object_or_404(EquipoTrabajo, pk=pk)
@@ -790,6 +816,7 @@ def equipo_toggle(request, pk: int):
     return redirect("catalogos:equipos")
 
 
+@admin_required
 @require_http_methods(["POST"])
 def equipo_delete(request, pk: int):
     equipo = get_object_or_404(EquipoTrabajo, pk=pk)
@@ -801,6 +828,7 @@ def equipo_delete(request, pk: int):
     return redirect("catalogos:equipos")
 
 
+@admin_required
 @require_http_methods(["POST"])
 def colaborador_toggle(request, pk: int):
     colab = get_object_or_404(Colaborador, pk=pk)
@@ -811,6 +839,7 @@ def colaborador_toggle(request, pk: int):
     return redirect("catalogos:equipos")
 
 
+@admin_required
 @require_http_methods(["POST"])
 def colaborador_delete(request, pk: int):
     colab = get_object_or_404(Colaborador, pk=pk)
@@ -825,6 +854,7 @@ def colaborador_delete(request, pk: int):
     return redirect("catalogos:equipos")
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def colaborador_editar(request, pk: int):
     colab = get_object_or_404(Colaborador, pk=pk)
@@ -863,6 +893,7 @@ class MaquinaForm(forms.ModelForm):
         return instance
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def maquinas(request):
     if request.method == "POST":
@@ -878,6 +909,7 @@ def maquinas(request):
     return render(request, "catalogos/maquinas.html", {"form": form, "maquinas": maquinas_qs})
 
 
+@admin_required
 @require_http_methods(["POST"])
 def maquina_toggle(request, pk: int):
     m = get_object_or_404(Maquina, pk=pk, es_robot=False)
@@ -887,6 +919,7 @@ def maquina_toggle(request, pk: int):
     return redirect("catalogos:maquinas")
 
 
+@admin_required
 @require_http_methods(["POST"])
 def maquina_delete(request, pk: int):
     m = get_object_or_404(Maquina, pk=pk, es_robot=False)
@@ -899,6 +932,7 @@ def maquina_delete(request, pk: int):
     return redirect("catalogos:maquinas")
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def maquina_editar(request, pk: int):
     m = get_object_or_404(Maquina, pk=pk, es_robot=False)
@@ -7025,6 +7059,7 @@ def paros_fallas(request):
     return render(request, "catalogos/paros_fallas.html", {"tipos": tipos})
 
 
+@admin_required
 @require_http_methods(["GET", "POST"])
 def equipo_editar(request, pk: int):
     equipo = get_object_or_404(EquipoTrabajo, pk=pk)
@@ -7039,6 +7074,7 @@ def equipo_editar(request, pk: int):
     return render(request, "catalogos/equipo_editar.html", {"form": form, "equipo": equipo})
 
 
+@admin_required
 @require_http_methods(["GET"])
 def proyecto_detalle(request, pk: int):
     proyecto = get_object_or_404(Proyecto, pk=pk)
