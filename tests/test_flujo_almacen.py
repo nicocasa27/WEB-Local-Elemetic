@@ -240,3 +240,58 @@ class TestAlmacenDeCorta:
         assert LogisticaStockCorta.objects.filter(stock__gt=0).exists(), (
             "la orden terminó pero no hay existencia que apartar ni enviar"
         )
+
+
+class TestApartarYEnviarPorLaPantalla:
+    """Recorre la logística por las vistas, ya apoyadas en el servicio.
+
+    Comprueba que la extracción del servicio no cambió el comportamiento que
+    ve el usuario, que es lo único que garantiza que el refactor fue seguro.
+    """
+
+    def test_apartar_descuenta_del_disponible_y_suma_al_apartado(self, cliente_como):
+        cliente = cliente_como("admin")
+        _, linea, orden, pieza = escenarios.pedido_completo_de_venta(cantidad=10)
+        registrar_avance(cliente, orden, 10, 10, 10)
+        assert escenarios.stock_de(pieza) == 10
+
+        cliente.post(
+            reverse("catalogos:pedidos_logistica"),
+            {"action": "apartar", "item_id": linea.id, "cantidad": 4},
+        )
+
+        linea.refresh_from_db()
+        assert escenarios.stock_de(pieza) == 6
+        assert linea.apartado == 4
+
+    def test_no_se_aparta_mas_de_lo_disponible(self, cliente_como):
+        cliente = cliente_como("admin")
+        _, linea, orden, pieza = escenarios.pedido_completo_de_venta(cantidad=10)
+        registrar_avance(cliente, orden, 3, 3, 3)
+
+        cliente.post(
+            reverse("catalogos:pedidos_logistica"),
+            {"action": "apartar", "item_id": linea.id, "cantidad": 9},
+        )
+
+        linea.refresh_from_db()
+        assert escenarios.stock_de(pieza) == 3, "no debería haber salido material que no existe"
+        assert linea.apartado == 0
+
+    def test_liberar_el_apartado_devuelve_el_material_al_almacen(self, cliente_como):
+        cliente = cliente_como("admin")
+        _, linea, orden, pieza = escenarios.pedido_completo_de_venta(cantidad=10)
+        registrar_avance(cliente, orden, 10, 10, 10)
+        cliente.post(
+            reverse("catalogos:pedidos_logistica"),
+            {"action": "apartar", "item_id": linea.id, "cantidad": 4},
+        )
+
+        cliente.post(
+            reverse("catalogos:pedidos_logistica"),
+            {"action": "revertir_apartado", "item_id": linea.id, "cantidad": 4},
+        )
+
+        linea.refresh_from_db()
+        assert escenarios.stock_de(pieza) == 10
+        assert linea.apartado == 0

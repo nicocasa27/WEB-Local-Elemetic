@@ -24,6 +24,9 @@ from openpyxl.utils import get_column_letter
 
 from produccion.models import ESTADOS, Viga
 
+from core.excepciones import ErrorDeDominio
+from core.servicios import almacen as servicio_almacen
+
 logger = logging.getLogger("mes.catalogos")
 
 STATUS_COLORS = {
@@ -4061,10 +4064,7 @@ def herreria_change_status_json(request, pk: int):
             if it and getattr(it, "pieza", None):
                 qty = max(0, int(getattr(orden, "total_piezas", 0) or 0))
                 if qty > 0:
-                    stock = _get_or_create_stock_locked(it.pieza)
-                    stock.stock = int(stock.stock or 0) + int(qty)
-                    stock.save(update_fields=["stock", "actualizado_en"])
-                    LogisticaMovimiento.objects.create(tipo="stock_in", producto=it.pieza, pedido_item=None, cantidad=int(qty), actor=actor)
+                    servicio_almacen.registrar_entrada(it.pieza, qty, actor)
     HerrEstadoCambio.objects.create(
         orden=orden,
         estado_anterior=prev,
@@ -7392,10 +7392,7 @@ def pedidos_orden_cancelar(request, pk: int):
         for it in items:
             apartado = int(getattr(it, "apartado", 0) or 0)
             if apartado > 0:
-                stock = _get_or_create_stock_locked(it.producto)
-                stock.stock = int(stock.stock or 0) + apartado
-                stock.save(update_fields=["stock", "actualizado_en"])
-                LogisticaMovimiento.objects.create(tipo="revertir_a_stock", producto=it.producto, pedido_item=it, cantidad=apartado, actor=actor)
+                servicio_almacen.devolver_al_disponible(it.producto, apartado, actor, linea_pedido=it)
                 it.apartado = 0
             if not it.orden_herreria_id:
                 it.estado_herreria = "Cancelado"
@@ -7470,15 +7467,13 @@ def pedidos_logistica(request):
                         messages.error(request, "El pedido ya no tiene saldo.")
                     else:
                         qty = min(qty, int(it.saldo))
-                        stock = _get_or_create_stock_locked(it.producto)
-                        if int(stock.stock or 0) < qty:
-                            messages.error(request, "Stock insuficiente.")
+                        try:
+                            servicio_almacen.apartar(it.producto, qty, actor, linea_pedido=it)
+                        except ErrorDeDominio as e:
+                            messages.error(request, e.mensaje)
                         else:
-                            stock.stock = int(stock.stock or 0) - qty
-                            stock.save(update_fields=["stock", "actualizado_en"])
                             it.apartado = int(it.apartado or 0) + qty
                             it.save(update_fields=["apartado", "actualizado_en"])
-                            LogisticaMovimiento.objects.create(tipo="apartar", producto=it.producto, pedido_item=it, cantidad=-qty, actor=actor)
                             messages.success(request, "Apartado aplicado.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7543,10 +7538,7 @@ def pedidos_logistica(request):
                             messages.success(request, "Reversión aplicada a apartado.")
                         else:
                             it.save(update_fields=["enviado", "actualizado_en"])
-                            stock = _get_or_create_stock_locked(it.producto)
-                            stock.stock = int(stock.stock or 0) + qty
-                            stock.save(update_fields=["stock", "actualizado_en"])
-                            LogisticaMovimiento.objects.create(tipo="revertir_a_stock", producto=it.producto, pedido_item=it, cantidad=qty, actor=actor)
+                            servicio_almacen.devolver_al_disponible(it.producto, qty, actor, linea_pedido=it)
                             messages.success(request, "Reversión aplicada a stock.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7646,16 +7638,7 @@ def pedidos_logistica(request):
                         return redirect("catalogos:pedidos_logistica")
                     item.apartado = max(0, int(getattr(item, "apartado", 0) or 0) - cantidad)
                     item.save(update_fields=["apartado", "actualizado_en"])
-                    stock = _get_or_create_stock_locked(item.producto)
-                    stock.stock = int(getattr(stock, "stock", 0) or 0) + cantidad
-                    stock.save(update_fields=["stock", "actualizado_en"])
-                    LogisticaMovimiento.objects.create(
-                        tipo="revertir_a_stock",
-                        producto=item.producto,
-                        pedido_item=item,
-                        cantidad=cantidad,
-                        actor=actor,
-                    )
+                    servicio_almacen.devolver_al_disponible(item.producto, cantidad, actor, linea_pedido=item)
                     messages.success(request, f"Cantidad liberada: {cantidad}.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7920,21 +7903,13 @@ def logistica_corta(request):
                                 messages.error(request, "Producto inválido en la orden.")
                             else:
                                 qty = min(qty, saldo)
-                                stock = _get_or_create_stock_corta_locked(producto)
-                                if int(stock.stock or 0) < qty:
-                                    messages.error(request, "Stock insuficiente.")
+                                try:
+                                    servicio_almacen.apartar_corta(producto, qty, actor, orden=o)
+                                except ErrorDeDominio as e:
+                                    messages.error(request, e.mensaje)
                                 else:
-                                    stock.stock = int(stock.stock or 0) - qty
-                                    stock.save(update_fields=["stock", "actualizado_en"])
                                     o.apartado = int(getattr(o, "apartado", 0) or 0) + qty
                                     o.save(update_fields=["apartado", "actualizado_en"])
-                                    LogisticaMovimientoCorta.objects.create(
-                                        tipo="apartar",
-                                        producto=producto,
-                                        orden=o,
-                                        cantidad=-qty,
-                                        actor=actor,
-                                    )
                                     messages.success(request, "Apartado aplicado.")
             return redirect("catalogos:logistica_corta")
 
@@ -7951,22 +7926,7 @@ def logistica_corta(request):
                         o.save(update_fields=["apartado", "actualizado_en"])
                         producto = _corta_producto_from_orden(o)
                         if producto:
-                            stock = _get_or_create_stock_corta_locked(producto)
-                            stock.stock = int(stock.stock or 0) + qty
-                            stock.save(update_fields=["stock", "actualizado_en"])
-                            LogisticaMovimientoCorta.objects.create(
-                                # "revertir" es el valor declarado en TIPO_CHOICES y el
-                                # que usa herrería para esta misma operación. Antes se
-                                # escribía "revertir_apartado", que no existe en los
-                                # choices: Django no valida en create(), así que
-                                # Postgres lo aceptaba y luego esas filas quedaban
-                                # fuera de cualquier filtro o reporte por tipo.
-                                tipo="revertir_a_stock",
-                                producto=producto,
-                                orden=o,
-                                cantidad=qty,
-                                actor=actor,
-                            )
+                            servicio_almacen.devolver_al_disponible_corta(producto, qty, actor, orden=o)
                         messages.success(request, f"Apartado liberado: {qty}.")
             return redirect("catalogos:logistica_corta")
 
