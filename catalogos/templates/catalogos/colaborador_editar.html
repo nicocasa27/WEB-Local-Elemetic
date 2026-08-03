@@ -31,6 +31,12 @@
               {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
             </div>
             <div class="col-12 col-md-6">
+              <label class="form-label" for="{{ form.usuario.id_for_label }}">{{ form.usuario.label }}</label>
+              {{ form.usuario }}
+              <div class="form-text">{{ form.usuario.help_text }}</div>
+              {% if form.usuario.errors %}<div class="invalid-feedback d-block">{{ form.usuario.errors }}</div>{% endif %}
+            </div>
+            <div class="col-12 col-md-6">
               <label class="form-label d-block">Activo</label>
               <div class="form-check form-switch">
                 {{ form.activo }}

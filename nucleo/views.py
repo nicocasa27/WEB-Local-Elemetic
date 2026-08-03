@@ -259,10 +259,46 @@ def _seccion_migracion():
     return lineas
 
 
+def _seccion_piso():
+    """Lo que hace falta para que el operador use el celular."""
+    from catalogos.models import Colaborador
+
+    activos = Colaborador.objects.using(BASE).filter(activo=True)
+    total = activos.count()
+    enlazados = activos.exclude(usuario="").count()
+
+    return {
+        "titulo": "El celular del piso",
+        "descripcion": (
+            "«Mi trabajo» enseña a cada persona sólo sus piezas y registra el "
+            "avance con un toque. Para eso el sistema tiene que saber que la "
+            "cuenta con la que alguien entra es la de tal colaborador."
+        ),
+        "renglones": [
+            _renglon(
+                "Colaboradores con cuenta", enlazados,
+                LISTO if total and enlazados else FALTA,
+                "Hasta ahora no existía ninguna relación entre quien inicia sesión y "
+                "la ficha a la que se le asigna el trabajo, así que el sistema no podía "
+                "responder a «qué me toca a mí»: sólo sabía enseñar las trescientas "
+                "órdenes del taller. Se captura en la ficha de cada colaborador, en "
+                "Equipos. Quien no la tenga verá la pantalla vacía y un aviso "
+                "explicándolo.",
+                None, f"de {total}",
+            ) | {"enlace": reverse("catalogos:equipos"), "accion": "Ir a Equipos"},
+        ],
+    }
+
+
 @login_required
 def configuracion(request):
     """Qué está configurado, qué falta y dónde se arregla."""
-    secciones = [_seccion_nucleo(), _seccion_inventario(), _seccion_costeo()]
+    secciones = [
+        _seccion_piso(),
+        _seccion_nucleo(),
+        _seccion_inventario(),
+        _seccion_costeo(),
+    ]
 
     pendientes = sum(
         1

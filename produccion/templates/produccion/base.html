@@ -99,6 +99,10 @@
                 {% endif %}
 
                 <li class="nav-item">
+                  <a class="nav-link" href="{% url 'produccion:movil' %}"><i class="bi bi-phone me-1"></i> Mi trabajo</a>
+                </li>
+
+                <li class="nav-item">
                   <a class="nav-link" href="{% url 'produccion:dashboard' %}"><i class="bi bi-bar-chart-line me-1"></i> Reportes</a>
                 </li>
 
@@ -212,6 +216,9 @@
                   </ul>
                 </div>
               {% endif %}
+              <a class="btn btn-light w-100 text-start" href="{% url 'produccion:movil' %}">
+                <i class="bi bi-phone me-2"></i> Mi trabajo
+              </a>
               <a class="btn btn-light w-100 text-start" href="{% url 'catalogos:paros' %}">
                 <i class="bi bi-exclamation-octagon me-2"></i> Paros
               </a>

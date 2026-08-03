@@ -1,11 +1,13 @@
 from django.urls import path
 
-from . import views
+from . import movil, views
 
 app_name = "produccion"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    # La pantalla del operador: sólo su trabajo, y un toque por pieza.
+    path("movil/", movil.mi_trabajo, name="movil"),
     path("menu/", views.home, name="menu"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("dashboard/export/", views.dashboard_export_html, name="dashboard_export_html"),

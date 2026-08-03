@@ -115,6 +115,19 @@ class Colaborador(models.Model):
     rol = models.CharField(max_length=20, choices=ROL_CHOICES)
     equipo = models.ForeignKey(EquipoTrabajo, on_delete=models.PROTECT, related_name="colaboradores")
     activo = models.BooleanField(default=True)
+
+    #: Cuenta con la que entra esta persona al sistema.
+    #:
+    #: Hasta ahora no había ninguna relación entre quien inicia sesión y la
+    #: ficha del colaborador al que se le asigna el trabajo, así que el
+    #: sistema no podía responder a «qué me toca a mí»: sólo sabía enseñar
+    #: las trescientas órdenes del taller y que cada quien buscara la suya.
+    #:
+    #: No es una llave foránea porque los usuarios viven en otra base
+    #: mientras no se unifiquen; se guarda el nombre de usuario. Vacío
+    #: significa que esa persona todavía no tiene cuenta enlazada, que es lo
+    #: normal el primer día.
+    usuario = models.CharField(max_length=150, blank=True, db_index=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

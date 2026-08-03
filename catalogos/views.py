@@ -640,7 +640,15 @@ class EquipoTrabajoForm(forms.ModelForm):
 class ColaboradorForm(forms.ModelForm):
     class Meta:
         model = Colaborador
-        fields = ["equipo", "rol", "nombre", "activo"]
+        fields = ["equipo", "rol", "nombre", "usuario", "activo"]
+        labels = {"usuario": "Cuenta con la que entra"}
+        help_texts = {
+            "usuario": (
+                "El nombre de usuario de esta persona. Es lo que hace que en "
+                "«Mi trabajo» vea sus piezas y no las de todo el taller. "
+                "Déjalo vacío si todavía no tiene cuenta."
+            )
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,0 +1,111 @@
+{% extends "produccion/base.html" %}
+{% load static %}
+{% block title %}Mi trabajo{% endblock %}
+
+{% block content %}
+<div class="mov">
+
+  <div class="mov-cabecera">
+    <div>
+      <div class="mov-quien">{% if colaborador %}{{ colaborador.nombre }}{% else %}{{ user.get_username }}{% endif %}</div>
+      {% if colaborador %}<div class="mov-equipo">{{ colaborador.equipo.nombre }} · {{ colaborador.rol }}</div>{% endif %}
+    </div>
+    <div class="mov-cuenta">
+      {{ trabajos|length }} pendiente{{ trabajos|length|pluralize }}
+    </div>
+  </div>
+
+  {% if not colaborador %}
+    <div class="alert alert-warning">
+      <strong>Tu cuenta todavía no está enlazada con tu ficha del taller.</strong>
+      Por eso esta pantalla no sabe qué te toca. Se arregla una vez: en
+      Configuración de planta → Colaboradores, poner
+      <code>{{ user.get_username }}</code> en el campo «usuario» de tu ficha.
+    </div>
+  {% elif not trabajos %}
+    <div class="mov-vacio">
+      <i class="bi bi-check2-circle"></i>
+      <div class="mt-2">No tienes piezas asignadas en curso.</div>
+      <div class="text-muted small mt-1">
+        Aparecen aquí en cuanto te asignen una y esté en corte, armado,
+        soldadura o pintura.
+      </div>
+    </div>
+  {% endif %}
+
+  {% for t in trabajos %}
+    <article class="mov-tarjeta" data-pieza="{{ t.id }}">
+      <div class="mov-titulo">
+        <span class="mov-codigo">{{ t.codigo }}</span>
+        <span class="badge {{ t.clase_etapa }}">{{ t.etapa }}</span>
+      </div>
+      <div class="mov-detalle">{{ t.detalle }}</div>
+      {% if t.descripcion %}<div class="mov-detalle">{{ t.descripcion }}</div>{% endif %}
+      <div class="mov-detalle">
+        <i class="bi bi-calendar3"></i> {{ t.fecha_compromiso|date:"d/m" }}
+        · P{{ t.prioridad }}
+        · {{ t.peso_kg }} kg
+      </div>
+
+      {% if not t.puede_mover %}
+        <div class="mov-aviso">
+          Tu cuenta no está en el grupo del área de esta etapa, así que no
+          puedes registrar el avance. Se arregla en Configuración de planta.
+        </div>
+      {% elif t.siguiente %}
+        <form method="post"
+              action="{% url 'produccion:viga_change_status_json' t.id %}"
+              class="js-mov-avanzar">
+          {% csrf_token %}
+          <input type="hidden" name="estado_nuevo" value="{{ t.siguiente }}">
+          <input type="hidden" name="comentario" value="">
+          {% comment %}
+            La fecha va siempre con la de hoy y no se pregunta. Era un campo
+            obligatorio que el operador no tiene por qué pensar, y el que
+            hacía que la lista se comportara distinto según el ancho de la
+            pantalla.
+          {% endcomment %}
+          <input type="hidden" name="fecha_operacion" value="" class="js-hoy">
+          <button type="submit" class="mov-boton mov-terminar">
+            <i class="bi bi-check2-circle"></i>
+            Terminé {{ t.etapa|lower }}
+          </button>
+        </form>
+      {% endif %}
+
+      <button type="button" class="mov-boton mov-problema js-mov-problema"
+              data-pieza="{{ t.id }}" data-codigo="{{ t.codigo }}">
+        <i class="bi bi-exclamation-triangle"></i> Reportar problema
+      </button>
+    </article>
+  {% endfor %}
+
+</div>
+
+{# La hoja de motivos, para reportar un problema sin salir de la pantalla. #}
+<div class="offcanvas offcanvas-bottom mov-hoja" tabindex="-1" id="movProblema"
+     aria-labelledby="movProblemaTitulo">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="movProblemaTitulo">¿Qué pasó?</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+  </div>
+  <div class="offcanvas-body">
+    <div class="text-muted small mb-2 js-mov-problema-pieza"></div>
+    <div class="d-grid gap-2">
+      {% for m in motivos_de_paro %}
+        <a class="mov-boton mov-motivo" href="{% url 'catalogos:paros' %}?motivo={{ m.id }}">
+          {{ m.nombre }}
+        </a>
+      {% empty %}
+        <div class="text-muted">
+          No hay motivos capturados. Se dan de alta en Configuración de planta.
+        </div>
+      {% endfor %}
+      <a class="mov-boton mov-motivo" href="{% url 'catalogos:paros' %}">Otro · ver paros</a>
+    </div>
+  </div>
+</div>
+
+<link href="{% static 'css/movil.css' %}" rel="stylesheet">
+<script src="{% static 'js/movil.js' %}"></script>
+{% endblock %}

@@ -72,7 +72,7 @@ class TestPantallaDePuestaEnMarcha:
         respuesta = navegador(usuario()).get(reverse("nucleo:configuracion"))
         for seccion in respuesta.context["secciones"]:
             for renglon in seccion["renglones"]:
-                assert renglon["enlace"].startswith("/admin/"), renglon["titulo"]
+                assert renglon["enlace"].startswith("/"), renglon["titulo"]
 
     def test_distingue_lo_que_bloquea_de_lo_que_no(self):
         """Sin tarifas el costeo da cero; sin proveedores funciona igual.
