@@ -1,0 +1,45 @@
+{% load produccion_extras %}
+{% comment %}
+  Paginador de una lista.
+
+  Sustituye al «Mostrando hasta 2000 registros» que traían las listas. Aquel
+  recorte era silencioso: el día que el taller pasara de dos mil piezas, las
+  que sobraran no aparecerían y nadie se enteraría.
+
+  Recibe:  pagina   una página de django.core.paginator
+{% endcomment %}
+{% if pagina %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 border-top">
+    <div class="text-muted small">
+      {% if pagina.paginator.count %}
+        {{ pagina.start_index }}–{{ pagina.end_index }} de {{ pagina.paginator.count }}
+      {% else %}
+        Sin resultados
+      {% endif %}
+    </div>
+
+    {% if pagina.paginator.num_pages > 1 %}
+      <nav aria-label="Páginas de resultados">
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not pagina.has_previous %}disabled{% endif %}">
+            <a class="page-link" href="{% if pagina.has_previous %}{% enlace_pagina pagina.previous_page_number %}{% else %}#{% endif %}"
+               aria-label="Página anterior">
+              <i class="bi bi-chevron-left"></i>
+              <span class="mes-oculto-visualmente">Anterior</span>
+            </a>
+          </li>
+          <li class="page-item disabled">
+            <span class="page-link">{{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+          </li>
+          <li class="page-item {% if not pagina.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{% if pagina.has_next %}{% enlace_pagina pagina.next_page_number %}{% else %}#{% endif %}"
+               aria-label="Página siguiente">
+              <i class="bi bi-chevron-right"></i>
+              <span class="mes-oculto-visualmente">Siguiente</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    {% endif %}
+  </div>
+{% endif %}

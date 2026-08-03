@@ -45,3 +45,18 @@ def estado_clase(valor):
     from core import estados
 
     return estados.clase(valor)
+
+
+@register.simple_tag(takes_context=True)
+def enlace_pagina(context, numero):
+    """La dirección actual cambiando sólo el número de página.
+
+    Conserva los filtros: perderlos al cambiar de página hace que la lista
+    cambie de contenido sin motivo aparente.
+    """
+    from core.paginacion import enlace_de_pagina
+
+    request = context.get("request")
+    if request is None:
+        return "#"
+    return enlace_de_pagina(request, numero)

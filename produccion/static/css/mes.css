@@ -270,3 +270,142 @@ body { background: var(--argon-bg); }
   white-space: nowrap;
   border: 0;
 }
+
+/* ================================================== listas de producción
+ *
+ * Una sola pasada sobre las órdenes, no dos.
+ *
+ * Antes cada lista recorría el mismo conjunto dos veces: un bloque de
+ * tarjetas con `d-lg-none` y una tabla con `d-none d-lg-block`. Eso duplicaba
+ * el HTML —hasta doce mil filas en el navegador— y, peor, los dos bloques se
+ * separaron: en el celular había un botón para avanzar la pieza y un campo de
+ * fecha de operación obligatorio que **en la PC no existían**. Qué se podía
+ * hacer con una orden dependía del ancho de la ventana.
+ *
+ * Ahora hay un solo recorrido. El CSS decide si esa fila se ve como tarjeta o
+ * como renglón de tabla.
+ */
+
+.mes-lista { display: block; }
+
+.mes-fila {
+  display: grid;
+  gap: .25rem .75rem;
+  padding: .85rem 1rem;
+  border-bottom: 1px solid var(--mes-hairline);
+  grid-template-areas:
+    "titulo   estado"
+    "datos    estado"
+    "acciones acciones";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+.mes-fila:last-child { border-bottom: 0; }
+
+.mes-col-id        { display: none; }
+.mes-col-titulo    { grid-area: titulo; min-width: 0; }
+.mes-col-proyecto,
+.mes-col-descripcion,
+.mes-col-fecha,
+.mes-col-peso      { grid-area: datos; }
+.mes-col-estado    { grid-area: estado; text-align: right; }
+.mes-col-acciones  { grid-area: acciones; }
+
+/* En el celular los cuatro datos secundarios van juntos en una línea. */
+.mes-col-datos { grid-area: datos; min-width: 0; }
+.mes-col-datos > * { margin-right: .6rem; }
+
+/* La botonera se envuelve en el celular; en pantalla ancha se pega como un
+ * grupo de botones. Con .btn-group de Bootstrap no se envolvía y el último
+ * botón se salía de la pantalla. */
+.mes-botonera { display: flex; flex-wrap: wrap; gap: .4rem; }
+.mes-botonera > * { flex: 1 1 auto; }
+
+.mes-encabezado { display: none; }
+
+/* Pantalla ancha: la misma fila se lee como un renglón de tabla. */
+@media (min-width: 992px) {
+  .mes-fila,
+  .mes-encabezado {
+    grid-template-areas: "id titulo proyecto descripcion fecha estado peso acciones";
+    /* Anchos fijos salvo la descripción. El encabezado y las filas son
+     * rejillas distintas, así que una columna `auto` se resolvería según el
+     * contenido de cada una y las columnas no quedarían alineadas. */
+    grid-template-columns:
+      3.5rem          /* id          */
+      8rem            /* código      */
+      9rem            /* proyecto    */
+      minmax(0, 1fr)  /* descripción */
+      8rem            /* fecha       */
+      10rem           /* estado      */
+      5rem            /* kg          */
+      21rem;          /* acciones    */
+    align-items: center;
+    gap: .75rem;
+  }
+  .mes-encabezado {
+    display: grid;
+    padding: .5rem 1rem;
+    color: var(--argon-muted);
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid var(--mes-hairline);
+  }
+  .mes-col-id          { display: block; grid-area: id; color: var(--argon-muted); }
+  /* El contenedor desaparece y sus cuatro hijos caen cada uno en su columna. */
+  .mes-col-datos       { display: contents; }
+  .mes-col-proyecto    { grid-area: proyecto; margin: 0; }
+  .mes-col-descripcion { grid-area: descripcion; margin: 0; }
+  .mes-col-fecha       { grid-area: fecha; margin: 0; }
+  .mes-col-peso        { grid-area: peso; margin: 0; text-align: right; }
+  .mes-botonera        { flex-wrap: nowrap; gap: 0; }
+  .mes-botonera > *    { flex: 0 0 auto; }
+  .mes-botonera > .btn:not(:last-child),
+  .mes-botonera > *:not(:last-child) > .btn { border-radius: 0; margin-right: -1px; }
+  .mes-botonera > *:first-child > .btn,
+  .mes-botonera > .btn:first-child { border-top-left-radius: .375rem; border-bottom-left-radius: .375rem; }
+  .mes-botonera > *:last-child > .btn,
+  .mes-botonera > .btn:last-child { border-top-right-radius: .375rem; border-bottom-right-radius: .375rem; }
+  .mes-col-estado      { grid-area: estado; text-align: left; }
+  .mes-col-acciones    { grid-area: acciones; }
+  .mes-encabezado-peso { text-align: right; }
+  .mes-fila:hover { background: rgba(0, 0, 0, .02); }
+  .mes-truncar { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* La acción principal ocupa todo el ancho en el celular y se encoge en la
+ * PC, donde hay ratón y caben más filas a la vista. */
+.mes-avanzar { width: 100%; min-height: var(--mes-touch-grande); }
+.mes-acciones-secundarias { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+.mes-acciones-secundarias > * { flex: 1 1 auto; }
+
+@media (min-width: 992px) {
+  .mes-col-acciones {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    justify-content: flex-end;
+    /* Sin esto, una etapa de nombre largo desborda la columna y se come el
+     * peso de la pieza, que está justo a la izquierda. */
+    overflow: hidden;
+  }
+  .mes-avanzar {
+    width: auto;
+    min-height: 38px;
+    max-width: 10.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  .mes-acciones-secundarias { margin-top: 0; flex-wrap: nowrap; }
+  .mes-acciones-secundarias > * { flex: 0 0 auto; }
+  /* En la tabla el botón sólo lleva el nombre de la etapa: con el icono
+   * delante, un nombre largo se recorta y deja el icono a medias. */
+  .mes-avanzar .mes-avanzar-largo,
+  .mes-avanzar .bi { display: none; }
+}
+@media (max-width: 991.98px) {
+  .mes-avanzar .mes-avanzar-corto { display: none; }
+}

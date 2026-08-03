@@ -1,0 +1,142 @@
+{% load produccion_extras %}
+{% comment %}
+  Una pieza de la lista de Estructuras metálicas.
+
+  Antes esto estaba escrito dos veces en cada tabla: una como tarjeta para el
+  celular y otra como renglón de tabla para la PC, con `d-lg-none` y
+  `d-none d-lg-block`. Aparte de duplicar el HTML, los dos bloques se
+  separaron: el botón de avanzar la pieza y el campo de fecha de operación
+  sólo existían en el bloque del celular. Qué se podía hacer con una orden
+  dependía del ancho de la ventana.
+
+  Ahora hay una sola fila y es el CSS (.mes-fila en mes.css) el que decide si
+  se ve como tarjeta o como renglón.
+
+  Recibe:  v       la pieza
+           mode    "admin" para las acciones de administración
+{% endcomment %}
+<div class="mes-fila js-viga-item"
+     data-viga="{{ v.internal_id }}"
+     data-codigo="{{ v.codigo_viga|escape }}"
+     data-proyecto="{{ v.proyecto|escape }}"
+     data-descripcion="{{ v.descripcion|escape }}">
+
+  <div class="mes-col-id">{{ v.internal_id }}</div>
+
+  <div class="mes-col-titulo">
+    <div class="fw-semibold mes-truncar">{{ v.codigo_viga }}</div>
+    <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
+  </div>
+
+  {% comment %}
+    En el celular estos cuatro campos comparten una sola línea corrida; en
+    pantalla ancha, `display: contents` los suelta y cada uno cae en su
+    columna.
+  {% endcomment %}
+  <div class="mes-col-datos">
+    <span class="mes-col-proyecto fw-semibold mes-truncar">{{ v.proyecto }}</span>
+    <span class="mes-col-descripcion text-muted small mes-truncar">{{ v.descripcion }}</span>
+    <span class="mes-col-fecha small">
+      <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
+      <span class="text-muted js-prioridad">P{{ v.prioridad }}</span>
+    </span>
+    <span class="mes-col-peso small">{{ v.peso_kg }} kg</span>
+  </div>
+
+  <div class="mes-col-estado">
+    <span class="badge js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
+    <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
+  </div>
+
+  <div class="mes-col-acciones">
+    {% if v.next_estado %}
+      {# Avanzar la pieza. Hasta ahora sólo existía en el celular. #}
+      <form method="post"
+            action="{% url 'produccion:viga_change_status_json' v.internal_id %}"
+            class="js-require-fecha js-status-ajax"
+            data-viga="{{ v.internal_id }}">
+        {% csrf_token %}
+        <input type="hidden" name="estado_nuevo" value="{{ v.next_estado }}">
+        <input type="hidden" name="fecha_operacion" value="">
+        <input type="hidden" name="comentario" value="">
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn text-white js-next-btn mes-avanzar {{ v.estado|estado_clase }}">
+          <i class="bi bi-arrow-right-circle me-1"></i>
+          <span class="mes-avanzar-largo">Pasar a {{ v.next_estado }}</span>
+          <span class="mes-avanzar-corto">{{ v.next_estado }}</span>
+        </button>
+      </form>
+    {% elif v.show_badge %}
+      <button type="button" class="btn btn-secondary mes-avanzar" disabled>
+        <i class="bi bi-arrow-right-circle me-1"></i> {{ v.show_badge }}
+      </button>
+    {% elif v.estado == "Enviado" %}
+      <button type="button" class="btn btn-info mes-avanzar" disabled>
+        <i class="bi bi-truck me-1"></i> Enviado
+      </button>
+    {% else %}
+      <button type="button" class="btn btn-success mes-avanzar" disabled>
+        <i class="bi bi-check2-circle me-1"></i> Terminado
+      </button>
+    {% endif %}
+
+    <div class="mes-acciones-secundarias js-action-wrap">
+      {% if mode == "admin" and v.estado == "Terminado" and not v.next_estado %}
+        <form method="post" action="{% url 'produccion:viga_enviar' v.internal_id %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn btn-outline-info w-100" title="Enviar a obra">
+            <i class="bi bi-truck"></i><span class="d-lg-none ms-1">Enviar a obra</span>
+          </button>
+        </form>
+      {% endif %}
+
+      <div class="mes-botonera js-action-buttons" role="group" aria-label="Acciones de la pieza">
+        <button type="button" class="btn btn-outline-secondary js-open-status-modal"
+                title="Cambiar estado"
+                data-viga="{{ v.internal_id }}"
+                data-codigo="{{ v.codigo_viga|escape }}"
+                data-estado="{{ v.estado|escape }}">
+          <i class="bi bi-sliders"></i><span class="d-lg-none ms-1">Cambiar</span>
+        </button>
+        <button type="button" class="btn btn-outline-success js-open-asignaciones"
+                title="Asignaciones"
+                data-viga="{{ v.internal_id }}"
+                data-codigo="{{ v.codigo_viga|escape }}"
+                data-corte="{{ v.asig_corte|escape }}"
+                data-soldadura="{{ v.asig_soldadura|escape }}"
+                data-pintura="{{ v.asig_pintura|escape }}"
+                data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
+                data-corte-operadores="{{ v.asig_corte_operadores|escape }}">
+          <i class="bi bi-people"></i><span class="d-lg-none ms-1">Asignaciones</span>
+        </button>
+        {% if mode == "admin" %}
+          <button type="button" class="btn btn-outline-warning js-open-meta-modal"
+                  title="Fecha compromiso y prioridad"
+                  data-viga="{{ v.internal_id }}"
+                  data-codigo="{{ v.codigo_viga|escape }}"
+                  data-fecha="{{ v.fecha_compromiso|date:'Y-m-d' }}"
+                  data-prioridad="{{ v.prioridad }}">
+            <i class="bi bi-calendar-check"></i><span class="d-lg-none ms-1">Meta</span>
+          </button>
+          <a class="btn btn-outline-primary" title="Editar"
+             href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
+            <i class="bi bi-pencil"></i><span class="d-lg-none ms-1">Editar</span>
+          </a>
+        {% endif %}
+        {% if v.plano_url %}
+          <button type="button" class="btn btn-outline-dark js-open-plano"
+                  title="Plano" data-url="{{ v.plano_url|escape }}">
+            <i class="bi bi-file-earmark-pdf"></i><span class="d-lg-none ms-1">Plano</span>
+          </button>
+        {% endif %}
+        {% if mode == "admin" %}
+          <a class="btn btn-outline-danger" title="Eliminar"
+             href="{% url 'produccion:viga_delete' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
+            <i class="bi bi-trash"></i><span class="d-lg-none ms-1">Eliminar</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

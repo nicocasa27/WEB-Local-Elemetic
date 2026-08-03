@@ -31,6 +31,7 @@ try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
     PdfReader = None
+from core import paginacion
 from core.estados import clase as clase_de_estado
 
 from catalogos.models import Proyecto
@@ -840,7 +841,10 @@ def viga_list(request):
         .values_list("nombre", flat=True)
         .order_by("nombre")
     )
-    vigas = list(qs[:2000])
+    # Antes: `qs[:2000]`. El recorte era silencioso y el navegador tenía que
+    # dibujar hasta dos mil filas antes de enseñar nada.
+    pagina = paginacion.paginar(request, qs)
+    vigas = list(pagina.object_list)
     plano_map = {}
     ids = [v.internal_id for v in vigas if getattr(v, "internal_id", None)]
     estados_index = {s: i for i, s in enumerate(ESTADOS)}
@@ -979,6 +983,7 @@ def viga_list(request):
         "produccion/viga_list.html",
         {
             "vigas": vigas,
+            "pagina": pagina,
             "mode": "admin",
             "reset_url": reverse("produccion:viga_list"),
             "estados_filtro": ["Todos", *[s for s in ESTADOS if s != "Enviado"]],
@@ -1026,7 +1031,9 @@ def area_corte(request):
     qs = qs.filter(estado__in=list(allowed_variants))
 
     projects = list(Proyecto.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre"))
-    vigas = list(qs[:2000])
+    # Antes: `qs[:2000]`, un recorte silencioso.
+    pagina = paginacion.paginar(request, qs)
+    vigas = list(pagina.object_list)
     ids = [v.internal_id for v in vigas if getattr(v, "internal_id", None)]
     plano_map = {}
     if ids:
@@ -1107,6 +1114,7 @@ def area_corte(request):
             "mode": "corte",
             "reset_url": reverse("produccion:area_corte"),
             "vigas": vigas,
+            "pagina": pagina,
             "estados_filtro": ["Todos", "Espera de corte", "Corte", "Espera de armado"],
             "estados_operables": ["Espera de corte", "Corte", "Espera de armado"],
             "estados_order": ESTADOS,
@@ -1152,7 +1160,9 @@ def area_soldadura(request):
     qs = qs.filter(estado__in=list(allowed_variants))
 
     projects = list(Proyecto.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre"))
-    vigas = list(qs[:2000])
+    # Antes: `qs[:2000]`, un recorte silencioso.
+    pagina = paginacion.paginar(request, qs)
+    vigas = list(pagina.object_list)
     ids = [v.internal_id for v in vigas if getattr(v, "internal_id", None)]
     plano_map = {}
     if ids:
@@ -1203,6 +1213,7 @@ def area_soldadura(request):
             "mode": "soldadura",
             "reset_url": reverse("produccion:area_soldadura"),
             "vigas": vigas,
+            "pagina": pagina,
             "estados_filtro": ["Todos", "Espera de armado", "Armado", "Espera de soldadura", "Soldadura", "Espera de pintura", "Pintura", "Terminado"],
             "estados_operables": ["Espera de armado", "Armado", "Espera de soldadura", "Soldadura", "Espera de pintura", "Pintura", "Terminado"],
             "estados_order": ESTADOS,
@@ -1231,7 +1242,9 @@ def solo_lectura_produccion(request):
     _sync_projects()
     qs, filters = _viga_queryset(request)
     projects = list(Proyecto.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre"))
-    vigas = list(qs[:2000])
+    # Antes: `qs[:2000]`, un recorte silencioso.
+    pagina = paginacion.paginar(request, qs)
+    vigas = list(pagina.object_list)
     ids = [v.internal_id for v in vigas if getattr(v, "internal_id", None)]
     plano_map = {}
     if ids:
@@ -1247,6 +1260,7 @@ def solo_lectura_produccion(request):
         "produccion/solo_lectura_produccion.html",
         {
             "vigas": vigas,
+            "pagina": pagina,
             "filters": filters,
             "proyectos": ["Todos", *projects],
             "status_colors": STATUS_COLORS,

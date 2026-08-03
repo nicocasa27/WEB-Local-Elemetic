@@ -147,6 +147,31 @@ class TestTactilPrimero:
         assert "font-size: 16px !important" in hoja
 
 
+class TestLosComentariosNoSeVenEnPantalla:
+    """`{# ... #}` es de una sola línea; repartido en varias, se imprime.
+
+    No falla al desplegar ni aparece en ningún registro: sale escrito en medio
+    de la página, en producción, delante del taller.
+    """
+
+    def test_ningun_comentario_se_queda_abierto(self):
+        culpables = []
+        for carpeta in ("produccion", "catalogos", "nucleo"):
+            raiz = Path(settings.BASE_DIR) / carpeta / "templates"
+            if not raiz.is_dir():
+                continue
+            for archivo in raiz.rglob("*.html"):
+                for n, linea in enumerate(
+                    archivo.read_text(encoding="utf-8").splitlines(), 1
+                ):
+                    if "{#" in linea and "#}" not in linea:
+                        culpables.append(f"{archivo.name}:{n}  {linea.strip()[:70]}")
+        assert not culpables, (
+            "Comentario que se va a imprimir en la página.\n"
+            "Para varias líneas hay que usar {% comment %}:\n" + "\n".join(culpables)
+        )
+
+
 class TestLaPlantillaBaseYaNoLlevaNadaDentro:
     def test_no_quedan_estilos_ni_scripts_incrustados(self):
         base = (

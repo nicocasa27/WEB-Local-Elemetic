@@ -79,7 +79,7 @@
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div class="d-flex align-items-center gap-2">
         <span class="badge badge-soft">Resultados</span>
-        <span class="text-muted small">Mostrando hasta 2000 registros</span>
+        <span class="text-muted small">{{ pagina.paginator.count }} pieza{{ pagina.paginator.count|pluralize }}</span>
       </div>
       <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
         <input type="hidden" name="src" value="{{ request.GET.src|default:'nav' }}">
@@ -102,226 +102,30 @@
       </form>
     </div>
     <datalist id="vigaSuggestions"></datalist>
-    <div class="d-lg-none">
-      <div class="p-3 border-bottom bg-white">
-        <label class="form-label mb-1">Fecha de operación (obligatoria)</label>
-        <input id="globalFechaOperacion" class="form-control" type="date" required>
-        <div class="text-muted small mt-1">Esta fecha se usa para registrar el cambio en production_log.</div>
-      </div>
-      <div class="list-group list-group-flush">
-        {% for v in vigas %}
-          <div class="list-group-item js-viga-item" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-proyecto="{{ v.proyecto|escape }}" data-descripcion="{{ v.descripcion|escape }}">
-            <div class="d-flex align-items-start justify-content-between gap-2">
-              <div>
-                <div class="fw-semibold">{{ v.codigo_viga }} <span class="text-muted">({{ v.pieza_no }}/{{ v.total_piezas }})</span></div>
-                <div class="text-muted small">{{ v.proyecto }}</div>
-              </div>
-              <div class="text-end">
-                <div class="text-muted small">Estado actual</div>
-                <span class="badge text-white js-bg js-estado-badge px-3 py-2 {{ v.estado|estado_clase }}">{{ v.estado }}</span>
-                <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
-              </div>
-            </div>
-            <div class="d-flex justify-content-between text-muted small mt-2">
-              <div>
-                <i class="bi bi-calendar3 me-1"></i>
-                <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
-                <span class="badge text-bg-light ms-2 js-prioridad">P{{ v.prioridad }}</span>
-              </div>
-              <div><i class="bi bi-box-seam me-1"></i> {{ v.peso_kg }} kg</div>
-            </div>
-            <div class="mt-2">
-                {% if v.next_estado %}
-                <form method="post" action="{% url 'produccion:viga_change_status_json' v.internal_id %}" class="d-grid gap-2 js-require-fecha js-status-ajax" data-viga="{{ v.internal_id }}">
-                  {% csrf_token %}
-                  <input type="hidden" name="estado_nuevo" value="{{ v.next_estado }}">
-                  <input type="hidden" name="fecha_operacion" value="">
-                  <input type="hidden" name="comentario" value="">
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="btn text-white btn-lg js-next-btn {{ v.estado|estado_clase }}">
-                    <i class="bi bi-arrow-right-circle me-1"></i> Pasar a {{ v.next_estado }}
-                  </button>
-                </form>
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <button type="button" class="btn btn-outline-secondary flex-fill js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}">
-                    <i class="bi bi-sliders me-1"></i> Cambiar
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-success flex-fill js-open-asignaciones"
-                    data-viga="{{ v.internal_id }}"
-                    data-codigo="{{ v.codigo_viga|escape }}"
-                    data-corte="{{ v.asig_corte|escape }}"
-                    data-soldadura="{{ v.asig_soldadura|escape }}"
-                    data-pintura="{{ v.asig_pintura|escape }}"
-                    data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
-                    data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
-                  >
-                    <i class="bi bi-people me-1"></i> Asignaciones
-                  </button>
-                  {% if mode == "admin" %}
-                    <button type="button" class="btn btn-outline-warning flex-fill js-open-meta-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-fecha="{{ v.fecha_compromiso|date:"Y-m-d" }}" data-prioridad="{{ v.prioridad }}">
-                      <i class="bi bi-calendar-check me-1"></i> Meta
-                    </button>
-                    <a class="btn btn-outline-primary flex-fill" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
-                      <i class="bi bi-pencil me-1"></i> Editar
-                    </a>
-                  {% endif %}
-                  {% if v.plano_url %}
-                    <button type="button" class="btn btn-outline-dark flex-fill js-open-plano" data-url="{{ v.plano_url|escape }}">
-                      <i class="bi bi-file-earmark-pdf me-1"></i> Plano
-                    </button>
-                  {% endif %}
-                </div>
-              {% else %}
-                <div class="d-grid gap-2">
-                  {% if v.show_badge %}
-                    <button type="button" class="btn btn-secondary btn-lg" disabled>
-                      <i class="bi bi-arrow-right-circle me-1"></i> {{ v.show_badge }}
-                    </button>
-                  {% else %}
-                    <button type="button" class="btn {% if v.estado == 'Enviado' %}btn-info{% else %}btn-success{% endif %} btn-lg" disabled>
-                      {% if v.estado == "Enviado" %}
-                        <i class="bi bi-truck me-1"></i> Enviado
-                      {% else %}
-                        <i class="bi bi-check2-circle me-1"></i> Terminado
-                      {% endif %}
-                    </button>
-                  {% endif %}
-                </div>
-                {% if v.estado == "Terminado" %}
-                  {% if mode == "admin" %}
-                    <form method="post" action="{% url 'produccion:viga_enviar' v.internal_id %}" class="d-grid gap-2 mt-2">
-                      {% csrf_token %}
-                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button type="submit" class="btn btn-outline-info">
-                        <i class="bi bi-truck me-1"></i> Enviar a obra
-                      </button>
-                    </form>
-                  {% endif %}
-                {% endif %}
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <button type="button" class="btn btn-outline-secondary flex-fill js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}">
-                    <i class="bi bi-sliders me-1"></i> Cambiar
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-outline-success flex-fill js-open-asignaciones"
-                    data-viga="{{ v.internal_id }}"
-                    data-codigo="{{ v.codigo_viga|escape }}"
-                    data-corte="{{ v.asig_corte|escape }}"
-                    data-soldadura="{{ v.asig_soldadura|escape }}"
-                    data-pintura="{{ v.asig_pintura|escape }}"
-                    data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
-                    data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
-                  >
-                    <i class="bi bi-people me-1"></i> Asignaciones
-                  </button>
-                  {% if mode == "admin" %}
-                    <a class="btn btn-outline-primary flex-fill" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}">
-                      <i class="bi bi-pencil me-1"></i> Editar
-                    </a>
-                  {% endif %}
-                  {% if v.plano_url %}
-                    <button type="button" class="btn btn-outline-dark flex-fill js-open-plano" data-url="{{ v.plano_url|escape }}">
-                      <i class="bi bi-file-earmark-pdf me-1"></i> Plano
-                    </button>
-                  {% endif %}
-                </div>
-              {% endif %}
-            </div>
-          </div>
-        {% empty %}
-          <div class="list-group-item text-center text-muted py-4">Sin resultados.</div>
-        {% endfor %}
-      </div>
+    <div class="p-3 border-bottom bg-white">
+      <label class="form-label mb-1" for="globalFechaOperacion">Fecha de operación (obligatoria)</label>
+      <input id="globalFechaOperacion" class="form-control" type="date" required>
+      <div class="text-muted small mt-1">Se usa para registrar el cambio en la bitácora de producción.</div>
     </div>
 
-    <div class="table-responsive d-none d-lg-block">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Código</th>
-            <th>Proyecto</th>
-            <th class="d-none d-lg-table-cell">Descripción</th>
-            <th>Fecha</th>
-            <th>Estado</th>
-            <th class="text-end">Kg</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for v in vigas %}
-            <tr class="js-viga-item" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-proyecto="{{ v.proyecto|escape }}" data-descripcion="{{ v.descripcion|escape }}">
-              <td class="text-muted">{{ v.internal_id }}</td>
-              <td>
-                <div class="fw-semibold">{{ v.codigo_viga }}</div>
-                <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
-              </td>
-              <td class="fw-semibold">{{ v.proyecto }}</td>
-              <td class="d-none d-lg-table-cell text-muted">{{ v.descripcion }}</td>
-              <td>
-                <div class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</div>
-                <div class="text-muted small js-prioridad">P{{ v.prioridad }}</div>
-              </td>
-              <td>
-                <span class="badge text-white js-bg js-estado-badge {{ v.estado|estado_clase }}">
-                  {{ v.estado }}
-                </span>
-                <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
-              </td>
-              <td class="text-end">{{ v.peso_kg }}</td>
-              <td class="text-end">
-                <div class="d-flex justify-content-end align-items-center flex-wrap gap-2 js-action-wrap">
-                  <div class="btn-group btn-group-sm js-action-buttons" role="group">
-                    {% if mode == "admin" %}
-                      <a class="btn btn-outline-primary" href="{% url 'produccion:viga_update' v.internal_id %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-pencil"></i></a>
-                      <button type="button" class="btn btn-outline-warning js-open-meta-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-fecha="{{ v.fecha_compromiso|date:"Y-m-d" }}" data-prioridad="{{ v.prioridad }}"><i class="bi bi-calendar-check"></i></button>
-                    {% endif %}
-                    <button type="button" class="btn btn-outline-secondary js-open-status-modal" data-viga="{{ v.internal_id }}" data-codigo="{{ v.codigo_viga|escape }}" data-estado="{{ v.estado|escape }}"><i class="bi bi-arrow-repeat"></i></button>
-                    <button
-                      type="button"
-                      class="btn btn-outline-success js-open-asignaciones"
-                      data-viga="{{ v.internal_id }}"
-                      data-codigo="{{ v.codigo_viga|escape }}"
-                      data-corte="{{ v.asig_corte|escape }}"
-                      data-soldadura="{{ v.asig_soldadura|escape }}"
-                      data-pintura="{{ v.asig_pintura|escape }}"
-                      data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
-                      data-corte-operadores="{{ v.asig_corte_operadores|escape }}"
-                    >
-                      <i class="bi bi-people"></i>
-                    </button>
-                    {% if mode == "admin" %}
-                      <a class="btn btn-outline-danger" href="{% url 'produccion:viga_delete' v.internal_id %}?next={{ request.get_full_path|urlencode }}"><i class="bi bi-trash"></i></a>
-                    {% endif %}
-                  </div>
-                  {% if v.plano_url %}
-                    <button type="button" class="btn btn-sm btn-outline-dark js-open-plano" data-url="{{ v.plano_url|escape }}" title="Plano">
-                      <i class="bi bi-file-earmark-pdf"></i>
-                    </button>
-                  {% endif %}
-                  {% if mode == "admin" and v.estado == "Terminado" %}
-                    <form method="post" action="{% url 'produccion:viga_enviar' v.internal_id %}" class="d-inline">
-                      {% csrf_token %}
-                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button type="submit" class="btn btn-sm btn-outline-info" title="Enviar a obra">
-                        <i class="bi bi-truck"></i>
-                      </button>
-                    </form>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="8" class="text-center text-muted py-4">Sin resultados.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="mes-encabezado">
+      <div class="mes-col-id">ID</div>
+      <div class="mes-col-titulo">Código</div>
+      <div class="mes-col-proyecto">Proyecto</div>
+      <div class="mes-col-descripcion">Descripción</div>
+      <div class="mes-col-fecha">Fecha</div>
+      <div class="mes-col-estado">Estado</div>
+      <div class="mes-col-peso mes-encabezado-peso">Kg</div>
+      <div class="mes-col-acciones">Acciones</div>
     </div>
+    <div class="mes-lista">
+      {% for v in vigas %}
+        {% include "produccion/_pieza_fila.html" %}
+      {% empty %}
+        <div class="text-center text-muted py-4">Sin resultados.</div>
+      {% endfor %}
+    </div>
+    {% include "produccion/_paginacion.html" %}
   </div>
 
   {% if mode == "admin" %}
