@@ -773,12 +773,29 @@ class LogisticaStock(models.Model):
 
 
 class LogisticaMovimiento(models.Model):
+    # El material pasa por tres estados: disponible, apartado y enviado. Cada
+    # tipo de movimiento es un salto entre dos de ellos, y de ahí depende si
+    # afecta o no al stock disponible:
+    #
+    #   stock_in             producción entrega        -> aumenta disponible
+    #   apartar              se reserva para un pedido -> baja disponible
+    #   enviar               sale del apartado         -> no toca disponible
+    #   revertir_a_stock     vuelve al almacén         -> aumenta disponible
+    #   revertir_a_apartado  vuelve a la reserva       -> no toca disponible
+    #   ajuste               corrección manual         -> afecta disponible
+    #
+    # "revertir" es histórico y ambiguo: se escribía igual tanto si el
+    # material volvía al almacén como si volvía al apartado, de modo que los
+    # registros anteriores a esta corrección no permiten distinguir un caso
+    # del otro. Se conserva para poder leerlos, pero no debe escribirse.
     TIPO_CHOICES = [
         ("stock_in", "stock_in"),
         ("ajuste", "ajuste"),
         ("apartar", "apartar"),
         ("enviar", "enviar"),
-        ("revertir", "revertir"),
+        ("revertir_a_stock", "revertir a stock"),
+        ("revertir_a_apartado", "revertir a apartado"),
+        ("revertir", "revertir (histórico, ambiguo)"),
     ]
 
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, db_index=True)
@@ -911,12 +928,29 @@ class LogisticaStockCorta(models.Model):
 
 
 class LogisticaMovimientoCorta(models.Model):
+    # El material pasa por tres estados: disponible, apartado y enviado. Cada
+    # tipo de movimiento es un salto entre dos de ellos, y de ahí depende si
+    # afecta o no al stock disponible:
+    #
+    #   stock_in             producción entrega        -> aumenta disponible
+    #   apartar              se reserva para un pedido -> baja disponible
+    #   enviar               sale del apartado         -> no toca disponible
+    #   revertir_a_stock     vuelve al almacén         -> aumenta disponible
+    #   revertir_a_apartado  vuelve a la reserva       -> no toca disponible
+    #   ajuste               corrección manual         -> afecta disponible
+    #
+    # "revertir" es histórico y ambiguo: se escribía igual tanto si el
+    # material volvía al almacén como si volvía al apartado, de modo que los
+    # registros anteriores a esta corrección no permiten distinguir un caso
+    # del otro. Se conserva para poder leerlos, pero no debe escribirse.
     TIPO_CHOICES = [
         ("stock_in", "stock_in"),
         ("ajuste", "ajuste"),
         ("apartar", "apartar"),
         ("enviar", "enviar"),
-        ("revertir", "revertir"),
+        ("revertir_a_stock", "revertir a stock"),
+        ("revertir_a_apartado", "revertir a apartado"),
+        ("revertir", "revertir (histórico, ambiguo)"),
     ]
 
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, db_index=True)

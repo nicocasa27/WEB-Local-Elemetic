@@ -7395,7 +7395,7 @@ def pedidos_orden_cancelar(request, pk: int):
                 stock = _get_or_create_stock_locked(it.producto)
                 stock.stock = int(stock.stock or 0) + apartado
                 stock.save(update_fields=["stock", "actualizado_en"])
-                LogisticaMovimiento.objects.create(tipo="revertir", producto=it.producto, pedido_item=it, cantidad=apartado, actor=actor)
+                LogisticaMovimiento.objects.create(tipo="revertir_a_stock", producto=it.producto, pedido_item=it, cantidad=apartado, actor=actor)
                 it.apartado = 0
             if not it.orden_herreria_id:
                 it.estado_herreria = "Cancelado"
@@ -7539,14 +7539,14 @@ def pedidos_logistica(request):
                         if destino == "apartado":
                             it.apartado = int(it.apartado or 0) + qty
                             it.save(update_fields=["enviado", "apartado", "actualizado_en"])
-                            LogisticaMovimiento.objects.create(tipo="revertir", producto=it.producto, pedido_item=it, cantidad=qty, actor=actor)
+                            LogisticaMovimiento.objects.create(tipo="revertir_a_apartado", producto=it.producto, pedido_item=it, cantidad=qty, actor=actor)
                             messages.success(request, "Reversión aplicada a apartado.")
                         else:
                             it.save(update_fields=["enviado", "actualizado_en"])
                             stock = _get_or_create_stock_locked(it.producto)
                             stock.stock = int(stock.stock or 0) + qty
                             stock.save(update_fields=["stock", "actualizado_en"])
-                            LogisticaMovimiento.objects.create(tipo="revertir", producto=it.producto, pedido_item=it, cantidad=qty, actor=actor)
+                            LogisticaMovimiento.objects.create(tipo="revertir_a_stock", producto=it.producto, pedido_item=it, cantidad=qty, actor=actor)
                             messages.success(request, "Reversión aplicada a stock.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7650,7 +7650,7 @@ def pedidos_logistica(request):
                     stock.stock = int(getattr(stock, "stock", 0) or 0) + cantidad
                     stock.save(update_fields=["stock", "actualizado_en"])
                     LogisticaMovimiento.objects.create(
-                        tipo="revertir",
+                        tipo="revertir_a_stock",
                         producto=item.producto,
                         pedido_item=item,
                         cantidad=cantidad,
@@ -7961,7 +7961,7 @@ def logistica_corta(request):
                                 # choices: Django no valida en create(), así que
                                 # Postgres lo aceptaba y luego esas filas quedaban
                                 # fuera de cualquier filtro o reporte por tipo.
-                                tipo="revertir",
+                                tipo="revertir_a_stock",
                                 producto=producto,
                                 orden=o,
                                 cantidad=qty,
@@ -8119,14 +8119,14 @@ def logistica_corta(request):
                         if destino == "apartado":
                             o.apartado = int(getattr(o, "apartado", 0) or 0) + qty
                             o.save(update_fields=["enviado", "apartado", "actualizado_en"])
-                            LogisticaMovimientoCorta.objects.create(tipo="revertir", producto=e.producto, orden=o, cantidad=qty, actor=actor)
+                            LogisticaMovimientoCorta.objects.create(tipo="revertir_a_apartado", producto=e.producto, orden=o, cantidad=qty, actor=actor)
                             messages.success(request, "Reversión aplicada a apartado.")
                         else:
                             o.save(update_fields=["enviado", "actualizado_en"])
                             stock = _get_or_create_stock_corta_locked(e.producto)
                             stock.stock = int(stock.stock or 0) + qty
                             stock.save(update_fields=["stock", "actualizado_en"])
-                            LogisticaMovimientoCorta.objects.create(tipo="revertir", producto=e.producto, orden=o, cantidad=qty, actor=actor)
+                            LogisticaMovimientoCorta.objects.create(tipo="revertir_a_stock", producto=e.producto, orden=o, cantidad=qty, actor=actor)
                             messages.success(request, "Reversión aplicada a stock.")
             return redirect("catalogos:logistica_corta")
 
