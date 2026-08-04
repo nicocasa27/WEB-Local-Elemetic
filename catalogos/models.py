@@ -385,6 +385,80 @@ class SeguimientoDespacho(models.Model):
         return f"{self.get_linea_display()} #{self.referencia} · {self.get_estado_display()}"
 
 
+class ApunteDeTrabajo(models.Model):
+    """Con qué equipo y con qué cuadrilla se hizo cada avance.
+
+    La bitácora heredada (`production_log`) guarda que una pieza pasó de Corte
+    a Espera de armado, y nada más. No dice en cuál de los seis equipos de
+    corte se hizo ni quién estaba. Sin eso no se puede responder «cuánto
+    produjo la cortadora 3 esta semana» ni «qué se hizo el día que salió mal»,
+    que es la mitad de para qué sirve medir.
+
+    No se le añaden columnas a `production_log` porque es una tabla heredada
+    que Django no maneja: tocarla es tocar el esquema vivo. Esto va aparte y se
+    escribe en la misma transacción que el cambio de estado, así que o quedan
+    los dos apuntes o no queda ninguno.
+
+    **Los integrantes se copian, no se consultan.** Una cuadrilla es un
+    registro vivo: mañana alguien la corrige y quita a quien no vino. Si el
+    apunte sólo guardara la llave, esa corrección reescribiría quién cortó la
+    pieza la semana pasada. Aquí se guarda a quién había en ese momento, y ya
+    no cambia.
+    """
+
+    #: Mismo vocabulario que la bandeja de despacho: son las mismas cuatro
+    #: líneas y no deben poder divergir.
+    linea = models.CharField(
+        max_length=12, choices=SeguimientoDespacho.Linea.choices, db_index=True
+    )
+
+    #: El identificador en su tabla de origen. No es llave foránea por lo
+    #: mismo que en `SeguimientoDespacho`: apunta a cuatro tablas y una es
+    #: heredada.
+    referencia = models.PositiveIntegerField(db_index=True)
+
+    #: El código visible de la pieza u orden. Se copia para que el histórico
+    #: se pueda leer aunque el renglón de origen se renombre o se borre.
+    codigo = models.CharField(max_length=120, blank=True, default="")
+
+    etapa = models.CharField(max_length=40, db_index=True)
+    etapa_anterior = models.CharField(max_length=40, blank=True, default="")
+
+    maquina = models.ForeignKey(
+        Maquina, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="apuntes",
+    )
+    cuadrilla = models.ForeignKey(
+        Cuadrilla, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="apuntes",
+    )
+
+    #: Los identificadores de quienes estaban en la cuadrilla en ese momento,
+    #: separados por comas. Es una copia deliberada: ver la explicación de
+    #: arriba.
+    integrantes = models.CharField(max_length=255, blank=True, default="")
+
+    actor = models.CharField(max_length=150, blank=True, default="")
+    ocurrido_en = models.DateTimeField(db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-ocurrido_en"]
+        indexes = [
+            models.Index(fields=["maquina", "ocurrido_en"]),
+            models.Index(fields=["linea", "referencia"]),
+        ]
+        verbose_name = "apunte de trabajo"
+        verbose_name_plural = "apuntes de trabajo"
+
+    def __str__(self):
+        return f"{self.codigo or self.referencia} · {self.etapa}"
+
+    @property
+    def integrantes_ids(self):
+        return [int(x) for x in self.integrantes.split(",") if x.strip().isdigit()]
+
+
 class MaquinaParoMotivo(models.Model):
     nombre = models.CharField(max_length=120)
     nombre_normalizado = models.CharField(max_length=120, unique=True, db_index=True)

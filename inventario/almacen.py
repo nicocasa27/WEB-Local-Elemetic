@@ -201,3 +201,63 @@ def existencias(request):
         "filas": filas,
         "puede_entregar": roles.puede_entregar_material(request.user),
     })
+
+
+@login_required
+@solo_almacen
+def por_proyecto(request):
+    """Despacho global: surtir la obra completa de una vez.
+
+    La manufactura por proyectos no descuenta pieza a pieza. El almacenista
+    entrega todo el material de la obra en un viaje y el avance en piso sirve
+    para medir, no para descontar. Renglón a renglón obligaría a capturar
+    consumo trescientas veces para un material que se cortó de una sola
+    lámina, y nadie lo haría.
+    """
+    grupos = servicio.proyectos_por_surtir()
+    return render(request, "inventario/por_proyecto.html", {
+        "grupos": grupos,
+        "completos": sum(1 for g in grupos if g["completo"]),
+    })
+
+
+@login_required
+@solo_almacen
+@require_POST
+def entregar_proyecto(request):
+    """Entrega todo lo apartado de un proyecto de una sola vez."""
+    from catalogos.models import Proyecto
+
+    identificador = (request.POST.get("proyecto") or "").strip()
+    proyecto = None
+    if identificador.isdigit():
+        proyecto = Proyecto.objects.using(BASE).filter(id=int(identificador)).first()
+    if proyecto is None:
+        messages.error(request, "Ese proyecto no existe.")
+        return redirect("inventario:por_proyecto")
+
+    entregados, faltantes, avisos = servicio.entregar_proyecto(
+        proyecto=proyecto,
+        actor=request.user,
+        comentario=(request.POST.get("comentario") or "")[:255],
+    )
+
+    if entregados:
+        messages.success(
+            request,
+            f"{proyecto.nombre}: {len(entregados)} materiales entregados.",
+        )
+    # No es todo o nada a propósito: se entrega lo que alcanza y se dice qué
+    # faltó. Negarse entero por un renglón deja al taller sin los otros trece.
+    for material, motivo in faltantes:
+        messages.warning(request, f"{material.codigo}: {motivo}")
+    for faltante, queda, comprar in avisos:
+        messages.warning(
+            request,
+            f"Comprar {faltante.nombre}: quedan {queda} y el mínimo es "
+            f"{faltante.stock_minimo}.",
+        )
+    if not entregados and not faltantes:
+        messages.info(request, f"{proyecto.nombre} no tiene nada apartado.")
+
+    return redirect("inventario:por_proyecto")

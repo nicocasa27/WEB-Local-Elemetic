@@ -33,6 +33,7 @@ except ModuleNotFoundError:
     PdfReader = None
 from core import metricas, paginacion
 from core.estados import clase as clase_de_estado
+from core.servicios import trabajo as servicio_trabajo
 
 from catalogos.models import Proyecto
 from catalogos.models import EquipoTrabajo
@@ -45,6 +46,7 @@ from catalogos.models import (
     PlantaEvento,
     VigaAsignacion,
 )
+from catalogos.models import SeguimientoDespacho
 from catalogos.models import RobotProduccion
 from catalogos.models import HerrOrdenAsignacion
 from catalogos.models import HerrAsignacion
@@ -629,6 +631,43 @@ def _delete_asignaciones_for_vigas(internal_ids):
     VigaAsignacion.objects.using("mes").filter(viga_internal_id__in=ids).delete()
 
 
+def _equipos_de_corte():
+    """Los seis equipos de corte, para el selector del avance.
+
+    Se ordenan por nombre y no por antigüedad: el operador los busca por
+    nombre, que es como los llama en el piso.
+    """
+    return list(
+        Maquina.objects.using("mes")
+        .filter(activo=True, tipo="Corte", es_robot=False)
+        .order_by("nombre")
+        .values("id", "nombre", "funcion")
+    )
+
+
+def _maquina_asignada(viga_internal_id, etapa):
+    """El equipo ya asignado a la pieza para esa etapa, si lo hay.
+
+    Existe para que quien ya asignó máquina desde la pantalla de asignaciones
+    no tenga que volver a elegirla al avanzar. Pedir dos veces el mismo dato es
+    la forma más rápida de que la gente deje de darlo.
+    """
+    identificador = (
+        VigaAsignacion.objects.using("mes")
+        .filter(
+            viga_internal_id=int(viga_internal_id),
+            etapa=etapa,
+            vigente=True,
+            maquina_id__isnull=False,
+        )
+        .values_list("maquina_id", flat=True)
+        .first()
+    )
+    if not identificador:
+        return None
+    return Maquina.objects.using("mes").filter(id=int(identificador)).first()
+
+
 def _validate_corte_asignacion(corte_operadores_ids, corte_maquina_ids):
     corte_operadores_ids = [int(x) for x in (corte_operadores_ids or []) if str(x).isdigit()]
     corte_maquina_ids = [int(x) for x in (corte_maquina_ids or []) if str(x).isdigit()]
@@ -991,6 +1030,7 @@ def viga_list(request):
             "filters": filters,
             "status_colors": STATUS_COLORS,
             "participantes_payload": _build_participantes_payload(),
+            "equipos_de_corte": _equipos_de_corte(),
             "maquinas_info_payload": maquinas_info,
             "maquinas_estado_payload": maquinas_estado,
             "enviados_por_proyecto": sorted(enviados_por_proyecto.items(), key=lambda x: x[0]),
@@ -1120,6 +1160,7 @@ def area_corte(request):
             "filters": filters,
             "status_colors": STATUS_COLORS,
             "participantes_payload": _build_participantes_payload(),
+            "equipos_de_corte": _equipos_de_corte(),
             "maquinas_info_payload": maquinas_info,
             "maquinas_estado_payload": maquinas_estado,
             "enviados_por_proyecto": [],
@@ -1219,6 +1260,7 @@ def area_soldadura(request):
             "filters": filters,
             "status_colors": STATUS_COLORS,
             "participantes_payload": _build_participantes_payload(),
+            "equipos_de_corte": _equipos_de_corte(),
             "maquinas_info_payload": {},
             "maquinas_estado_payload": {},
             "enviados_por_proyecto": [],
@@ -2594,6 +2636,39 @@ def viga_change_status_json(request, pk: int):
         return JsonResponse({"ok": False, "error": "Sin permiso."}, status=403)
     estado_nuevo = new_estado
 
+    # El equipo con el que se hace la etapa. Puede venir en la petición —el
+    # selector de la pantalla— o estar ya asignado a la pieza.
+    maquina_apunte = None
+    if servicio_trabajo.exige_maquina(new_estado):
+        pedida = request.POST.get("maquina_id")
+        if pedida:
+            maquina_apunte, error_maquina = servicio_trabajo.maquina_valida(
+                pedida, etapa=new_estado
+            )
+            if error_maquina:
+                return JsonResponse({"ok": False, "error": error_maquina}, status=400)
+        else:
+            maquina_apunte = _maquina_asignada(viga.internal_id, new_estado)
+        # Si el taller todavía no ha dado de alta ningún equipo de corte, no se
+        # puede exigir elegir uno: se quedaría sin poder mover una sola pieza,
+        # y el requisito de medición habría parado la producción.
+        if maquina_apunte is None and not _equipos_de_corte():
+            logger.warning(
+                "no se exige equipo en %s: no hay ninguno dado de alta", new_estado
+            )
+        elif maquina_apunte is None:
+            # Sin esto el avance se registra «en corte» a secas y la
+            # producción de los seis equipos queda en un solo montón: no se
+            # puede saber cuál va saturado ni cuál está parado.
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Elige en qué equipo de corte se va a trabajar.",
+                    "falta": "maquina",
+                },
+                status=400,
+            )
+
     if cur_estado == "Espera de corte" and new_estado == "Corte":
         mids = list(
             VigaAsignacion.objects.using("mes")
@@ -2601,6 +2676,8 @@ def viga_change_status_json(request, pk: int):
             .values_list("maquina_id", flat=True)
         )
         mids = [int(x) for x in mids if x]
+        if maquina_apunte is not None and maquina_apunte.id not in mids:
+            mids.append(int(maquina_apunte.id))
         if mids:
             if MaquinaFalla.objects.filter(maquina_id__in=mids, fin__isnull=True).exists():
                 return JsonResponse(
@@ -2678,7 +2755,20 @@ def viga_change_status_json(request, pk: int):
                 comentario=comentario,
                 timestamp=now,
             )
+            # En la misma transacción: un apunte de trabajo sin su cambio de
+            # estado mediría trabajo que no ocurrió.
+            servicio_trabajo.anotar(
+                linea=SeguimientoDespacho.Linea.VIGAS,
+                referencia=int(viga.internal_id),
+                codigo=getattr(viga, "codigo_viga", "") or "",
+                etapa=estado_nuevo,
+                etapa_anterior=_norm_estado(estado_anterior or ""),
+                maquina=maquina_apunte or _maquina_asignada(viga.internal_id, estado_nuevo),
+                actor=actor,
+                ocurrido_en=now,
+            )
     except Exception:
+        logger.exception("no se pudo cambiar el estado de la viga %s", viga.pk)
         return JsonResponse({"ok": False, "error": "No se pudo cambiar el estado."}, status=500)
 
     idx = estados_index.get(viga.estado)

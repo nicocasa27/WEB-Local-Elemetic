@@ -1,0 +1,130 @@
+{% extends "produccion/base.html" %}
+
+{% block title %}Carga inicial de inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <h1 class="h4 mb-1">Carga inicial de inventario</h1>
+  <p class="text-muted small mb-4">
+    Lo que hay hoy en el estante. El importador de OPUS da de alta el catálogo
+    y lo deja en cero; esto es el conteo físico con el que se arranca.
+  </p>
+
+  {% if paso == "subir" %}
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label for="campo-archivo" class="form-label">Archivo (CSV)</label>
+                <input id="campo-archivo" class="form-control" type="file" name="archivo" accept=".csv,text/csv" required>
+                <div class="form-text">
+                  Se revisa antes de aplicar nada. Nada entra al almacén hasta
+                  que lo confirmes.
+                </div>
+              </div>
+              <button type="submit" class="btn btn-argon text-white">
+                <i class="bi bi-search me-1"></i> Revisar
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="card">
+          <div class="card-body">
+            <h2 class="h6">Cómo tiene que venir</h2>
+            <p class="small text-muted">
+              El primer renglón es el encabezado. <strong>Clave</strong> y
+              <strong>Cantidad</strong> son obligatorias; el resto son
+              opcionales.
+            </p>
+            <pre class="mes-dato small bg-body-tertiary p-3 rounded"><code>Clave,Cantidad,Lote,Colada,Costo,Almacen,Proveedor,Fecha
+HSS4X3/16,320.5,INICIAL-2026,C-99871,182.40,Principal,Aceros SA,2026-08-01
+PL-3/8,88,INICIAL-2026,C-99880,210.00,Principal,,2026-08-01</code></pre>
+            <p class="small text-muted mb-0">
+              Sin lote se usa <span class="mes-dato">INICIAL-{% now "Y" %}</span>.
+              Se pide igualmente porque el día que un cliente reclame, es lo
+              que dice de qué colada salió su pieza.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="d-flex flex-wrap gap-3 mb-3">
+      <div><span class="text-muted small d-block">Listos para cargar</span>
+        <span class="h4 mes-dato">{{ listos|length }}</span></div>
+      <div><span class="text-muted small d-block">Con problema</span>
+        <span class="h4 mes-dato {% if con_avisos %}text-danger{% endif %}">{{ con_avisos|length }}</span></div>
+    </div>
+
+    {% if con_avisos %}
+      <div class="alert alert-warning">
+        Los renglones con problema <strong>no se van a cargar</strong>. Se
+        enseñan todos juntos para que puedas corregir el archivo de una vez.
+      </div>
+    {% endif %}
+
+    <div class="table-responsive mb-3">
+      <table class="table align-middle mes-tabla">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Clave</th>
+            <th scope="col" class="text-end">Cantidad</th>
+            <th scope="col">Lote</th>
+            <th scope="col">Colada</th>
+            <th scope="col" class="text-end">Costo</th>
+            <th scope="col">Qué va a pasar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in renglones %}
+            <tr {% if not r.listo %}class="table-warning"{% endif %}>
+              <td class="text-muted mes-dato">{{ r.numero }}</td>
+              <td class="mes-dato">{{ r.codigo|default:"—" }}</td>
+              <td class="text-end mes-dato">{{ r.cantidad|default_if_none:"—" }}</td>
+              <td>{{ r.lote }}</td>
+              <td class="text-muted">{{ r.colada|default:"—" }}</td>
+              <td class="text-end mes-dato">{{ r.costo }}</td>
+              <td>
+                {% if r.listo %}
+                  <span class="text-success">Entra al almacén</span>
+                  <span class="d-block text-muted small">{{ r.material.nombre }}</span>
+                {% else %}
+                  {% for aviso in r.avisos %}
+                    <span class="d-block text-danger small">{{ aviso }}</span>
+                  {% endfor %}
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="crudo" value="{{ crudo }}">
+      <input type="hidden" name="confirmar" value="sí">
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-argon text-white" {% if not listos %}disabled{% endif %}>
+          <i class="bi bi-check2 me-1"></i> Cargar {{ listos|length }} renglones
+        </button>
+        <a class="btn btn-outline-secondary" href="{% url 'inventario:carga_inicial' %}">Empezar de nuevo</a>
+      </div>
+      <p class="form-text mt-2 mb-0">
+        Se puede volver a subir el mismo archivo sin miedo: cada renglón lleva
+        clave de idempotencia, así que reintentar no duplica existencias.
+      </p>
+    </form>
+  {% endif %}
+
+</div>
+{% endblock %}

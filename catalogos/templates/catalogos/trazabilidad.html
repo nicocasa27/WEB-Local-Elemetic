@@ -1,0 +1,181 @@
+{% extends "produccion/base.html" %}
+
+{% block title %}Trazabilidad{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <h1 class="h4 mb-1">Trazabilidad</h1>
+  <p class="text-muted small mb-4">
+    Qué se hizo, con qué equipo y con quién. Sale de los apuntes de trabajo:
+    lo que no quedó anotado, aquí sale vacío — no se rellena con suposiciones.
+  </p>
+
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-6 col-md-3">
+      <label for="campo-desde" class="form-label">Desde</label>
+      <input id="campo-desde" class="form-control" type="date" name="desde" value="{{ desde|date:'Y-m-d' }}">
+    </div>
+    <div class="col-6 col-md-3">
+      <label for="campo-hasta" class="form-label">Hasta</label>
+      <input id="campo-hasta" class="form-control" type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
+    </div>
+    <div class="col-12 col-md-4">
+      <label for="campo-codigo" class="form-label">Seguir una pieza</label>
+      <input id="campo-codigo" class="form-control" type="search" name="codigo"
+             value="{{ codigo }}" placeholder="Ej.: V-00123">
+    </div>
+    <div class="col-12 col-md-2">
+      <button type="submit" class="btn btn-argon text-white w-100">Ver</button>
+    </div>
+  </form>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Avances anotados</div>
+        <div class="h3 mb-0 mes-dato">{{ total }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Cuadrillas armadas</div>
+        <div class="h3 mb-0 mes-dato">{{ cuadrillas }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6">
+      {% if sin_equipo %}
+        <div class="alert alert-warning mb-0 h-100 d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle"></i>
+          <div>
+            <strong>{{ sin_equipo }} avances de corte sin equipo.</strong>
+            Debería ser cero. Hay un camino que todavía registra sin decir en
+            qué equipo, y la producción por máquina está contando de menos.
+          </div>
+        </div>
+      {% else %}
+        <div class="alert alert-success mb-0 h-100 d-flex align-items-center gap-2">
+          <i class="bi bi-check2-circle"></i>
+          <div>Todos los avances de corte dicen en qué equipo se hicieron.</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if seguimiento %}
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="h6 mb-3">Por dónde pasó «{{ codigo }}»</h2>
+        <div class="table-responsive">
+          <table class="table align-middle mes-tabla mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Cuándo</th>
+                <th scope="col">Pieza</th>
+                <th scope="col">Etapa</th>
+                <th scope="col">Equipo</th>
+                <th scope="col">Cuadrilla</th>
+                <th scope="col">Registró</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in seguimiento %}
+                <tr>
+                  <td class="mes-dato">{{ a.ocurrido_en|date:"d/m H:i" }}</td>
+                  <td>{{ a.codigo|default:"—" }}</td>
+                  <td>
+                    {% if a.etapa_anterior %}<span class="text-muted small">{{ a.etapa_anterior }} →</span> {% endif %}
+                    {{ a.etapa }}
+                  </td>
+                  <td>{{ a.maquina.nombre|default:"—" }}</td>
+                  <td>
+                    {% if a.cuadrilla %}
+                      {{ a.cuadrilla.get_centro_display }} · {{ a.integrantes_ids|length }} personas
+                    {% else %}
+                      <span class="text-muted">sin cuadrilla</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">{{ a.actor|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% elif codigo %}
+    <div class="alert alert-secondary">
+      No hay apuntes de ninguna pieza que se llame «{{ codigo }}».
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Por equipo</h2>
+          <table class="table align-middle mes-tabla mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Equipo</th>
+                <th scope="col">Área</th>
+                <th scope="col" class="text-end">Avances</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in maquinas %}
+                <tr {% if not fila.avances %}class="text-muted"{% endif %}>
+                  <td>
+                    {{ fila.maquina.nombre }}
+                    {% if fila.maquina.funcion %}
+                      <span class="d-block text-muted small">{{ fila.maquina.funcion }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-muted">{{ fila.maquina.tipo }}</td>
+                  <td class="text-end mes-dato">{{ fila.avances }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted">No hay equipos dados de alta.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card h-100">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Por persona</h2>
+          <table class="table align-middle mes-tabla mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Persona</th>
+                <th scope="col">Rol</th>
+                <th scope="col" class="text-end">Avances</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in personas %}
+                <tr>
+                  <td>{{ fila.colaborador.nombre }}</td>
+                  <td class="text-muted">{{ fila.colaborador.rol }}</td>
+                  <td class="text-end mes-dato">{{ fila.avances }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="3" class="text-muted">
+                    Nadie todavía. Sale de las cuadrillas: si no se arman por
+                    la mañana, el trabajo no se atribuye a nadie.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

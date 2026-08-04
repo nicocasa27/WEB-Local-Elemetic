@@ -133,6 +133,14 @@ document.querySelectorAll("form.js-require-fecha").forEach((form) => {
     modalEl.querySelector(".js-viga-fecha").textContent = fecha;
     const comentarioInput = modalEl.querySelector("textarea[name='comentario_modal']");
     comentarioInput.value = "";
+    // Si la etapa a la que se entra necesita equipo, se pregunta aquí mismo.
+    // Enviar y que el servidor lo rechace costaría dos pasos más en una
+    // pantalla que se usa con guantes.
+    const equipoWrap = modalEl.querySelector(".js-equipo-wrap");
+    const equipoSel = modalEl.querySelector(".js-equipo-select");
+    const pideEquipo = exigeEquipo(estadoNuevo);
+    if (equipoWrap) equipoWrap.style.display = pideEquipo ? "" : "none";
+    if (equipoSel) equipoSel.value = "";
     e.preventDefault();
     modal.show();
 
@@ -143,8 +151,13 @@ document.querySelectorAll("form.js-require-fecha").forEach((form) => {
       cancelBtn.removeEventListener("click", onCancel);
     };
     function onConfirm() {
+      if (pideEquipo && (!equipoSel || !(equipoSel.value || "").trim())) {
+        alert("Elige en qué equipo de corte se va a trabajar.");
+        return;
+      }
       const comentarioHidden = form.querySelector("input[name='comentario']");
       if (comentarioHidden && comentarioInput) comentarioHidden.value = comentarioInput.value || "";
+      ponerEquipoEnFormulario(form, pideEquipo && equipoSel ? equipoSel.value : "");
       handler(true);
       modal.hide();
       submitStatusAjax(form);
@@ -356,6 +369,38 @@ function isRetroceso(actual, nuevo) {
   return a >= 0 && n >= 0 && n < a;
 }
 
+// Las etapas que no se pueden empezar sin decir en qué equipo. La lista vive
+// también en el servidor, que es quien la hace cumplir: esto sólo evita que el
+// operador descubra el requisito después de pulsar.
+const ETAPAS_CON_EQUIPO = ["Corte"];
+
+function exigeEquipo(estado) {
+  return ETAPAS_CON_EQUIPO.indexOf((estado || "").toString().trim()) >= 0;
+}
+
+function ponerEquipoEnFormulario(form, valor) {
+  let campo = form.querySelector("input[name='maquina_id']");
+  if (!campo) {
+    campo = document.createElement("input");
+    campo.type = "hidden";
+    campo.name = "maquina_id";
+    form.appendChild(campo);
+  }
+  campo.value = valor || "";
+}
+
+function updateEquipoVisibility() {
+  if (!statusForm || !statusEstadoSel) return;
+  const wrap = document.getElementById("statusEquipoWrap");
+  if (!wrap) return;
+  const hace_falta = exigeEquipo(statusEstadoSel.value);
+  wrap.style.display = hace_falta ? "" : "none";
+  if (!hace_falta) {
+    const sel = wrap.querySelector(".js-equipo-select");
+    if (sel) sel.value = "";
+  }
+}
+
 function updateMotivoVisibility() {
   if (!statusForm || !statusEstadoSel || !statusMotivoWrap || !statusMotivoSel) return;
   const actual = statusForm.getAttribute("data-estado-actual") || "";
@@ -376,6 +421,7 @@ function openStatusModal(vid, codigo, estadoActual) {
   if (statusComentario) statusComentario.value = "";
   if (statusMotivoSel) statusMotivoSel.value = "";
   updateMotivoVisibility();
+  updateEquipoVisibility();
   statusModal.show();
 }
 
@@ -403,13 +449,24 @@ if (statusForm) {
         return;
       }
     }
+    const equipoWrap = document.getElementById("statusEquipoWrap");
+    if (equipoWrap && equipoWrap.style.display !== "none") {
+      const sel = equipoWrap.querySelector(".js-equipo-select");
+      if (!sel || !(sel.value || "").trim()) {
+        alert("Elige en qué equipo de corte se va a trabajar.");
+        return;
+      }
+    }
     submitStatusAjax(statusForm);
     if (statusModal) statusModal.hide();
   });
 }
 
 if (statusEstadoSel) {
-  statusEstadoSel.addEventListener("change", updateMotivoVisibility);
+  statusEstadoSel.addEventListener("change", () => {
+    updateMotivoVisibility();
+    updateEquipoVisibility();
+  });
 }
 
 const metaModalEl = document.getElementById("metaModal");

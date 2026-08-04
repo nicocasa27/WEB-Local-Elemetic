@@ -428,6 +428,21 @@
           <div class="mb-2"><span class="text-muted">Viga:</span> <strong class="js-viga-codigo"></strong></div>
           <div class="mb-2"><span class="text-muted">Nuevo estado:</span> <strong class="js-viga-estado"></strong></div>
           <div class="mb-3"><span class="text-muted">Fecha:</span> <strong class="js-viga-fecha"></strong></div>
+          {% comment %}
+            El equipo con el que se va a cortar. Sólo aparece al entrar a
+            Corte, que es la única etapa con seis equipos intercambiables: en
+            soldadura y pintura no hay nada que elegir y preguntarlo sería
+            ruido en cada avance.
+          {% endcomment %}
+          <div class="mb-3 js-equipo-wrap" style="display:none;">
+            <label for="confirmModalEquipo" class="form-label">Equipo de corte</label>
+            <select id="confirmModalEquipo" class="form-select js-equipo-select">
+              <option value="">Elegir equipo…</option>
+              {% for m in equipos_de_corte %}
+                <option value="{{ m.id }}">{{ m.nombre }}{% if m.funcion %} · {{ m.funcion }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
           <label for="campo-comentario_modal" class="form-label">Comentario (opcional)</label>
           <textarea id="campo-comentario_modal" class="form-control" name="comentario_modal" rows="2" placeholder="Ej.: Observación rápida"></textarea>
         </div>
@@ -464,6 +479,16 @@
                   <option value="{{ e }}">{{ e }}</option>
                 {% endfor %}
               </select>
+            </div>
+            <div class="mb-3 js-equipo-wrap" id="statusEquipoWrap" style="display:none;">
+              <label for="statusModalEquipo" class="form-label">Equipo de corte</label>
+              <select id="statusModalEquipo" class="form-select js-equipo-select" name="maquina_id">
+                <option value="">Elegir equipo…</option>
+                {% for m in equipos_de_corte %}
+                  <option value="{{ m.id }}">{{ m.nombre }}{% if m.funcion %} · {{ m.funcion }}{% endif %}</option>
+                {% endfor %}
+              </select>
+              <div class="text-muted small mt-1">Queda anotado con la cuadrilla del turno.</div>
             </div>
             <div class="mb-3" id="statusMotivoWrap" style="display:none;">
               <label for="statusModalMotivo" class="form-label">Motivo del retroceso</label>

@@ -146,11 +146,47 @@
           </a>
         </div>
         <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'inventario:compras' %}">
+            <div class="tile-icon"><i class="bi bi-cart-plus"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Por comprar</div>
+              <div class="tile-sub">Almacén</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'catalogos:producto_terminado' %}">
+            <div class="tile-icon"><i class="bi bi-box2-heart"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Producto terminado</div>
+              <div class="tile-sub">Listo para entregar</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
           <a class="tile-link" href="{% url 'inventario:existencias' %}">
             <div class="tile-icon"><i class="bi bi-clipboard-data"></i></div>
             <div class="tile-text">
               <div class="tile-title">Existencias</div>
               <div class="tile-sub">Almacén</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'catalogos:cuadrillas' %}">
+            <div class="tile-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Cuadrillas</div>
+              <div class="tile-sub">Quién trabaja hoy</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'catalogos:trazabilidad' %}">
+            <div class="tile-icon"><i class="bi bi-diagram-3"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Trazabilidad</div>
+              <div class="tile-sub">Equipo y cuadrilla</div>
             </div>
           </a>
         </div>

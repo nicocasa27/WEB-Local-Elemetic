@@ -163,11 +163,18 @@ def valor_de_existencias(material=None, almacen=None):
 
 
 def bajo_minimo(almacen=None):
-    """Materiales por debajo de su mínimo. Lo que hay que comprar."""
+    """Materiales en o por debajo de su mínimo. Lo que hay que comprar.
+
+    El taller lo pidió con «≤»: quedarse justo en el mínimo ya es motivo de
+    compra, porque el mínimo es lo que cubre el tiempo que tarda en llegar el
+    pedido. Esta función usaba «<» mientras que el aviso de la entrega usaba
+    «≤», así que un material parado exactamente en su mínimo disparaba la
+    alerta al entregar y luego no aparecía en la lista de compras.
+    """
     faltantes = []
     for material in Material.objects.using(BASE).filter(activo=True, stock_minimo__gt=CERO):
         hay = existencia(material, almacen=almacen)
-        if hay < material.stock_minimo:
+        if hay <= material.stock_minimo:
             faltantes.append((material, hay, material.stock_minimo - hay))
     return faltantes
 
@@ -338,6 +345,7 @@ def consumir(
     cantidad,
     actor,
     orden=None,
+    proyecto=None,
     almacen=None,
     lote=None,
     evento=None,
@@ -389,6 +397,7 @@ def consumir(
                 cantidad=-porcion,
                 costo_unitario=lote_origen.costo_unitario if lote_origen else CERO,
                 orden=orden,
+                proyecto=proyecto,
                 evento=evento,
                 comentario=comentario[:255],
                 actor_username=nombre_de(actor),
@@ -545,6 +554,7 @@ def reservar(
     cantidad,
     actor,
     orden=None,
+    proyecto=None,
     almacen=None,
     comentario="",
     ocurrido_en=None,
@@ -588,6 +598,7 @@ def reservar(
                 cantidad=porcion,
                 costo_unitario=lote.costo_unitario if lote else CERO,
                 orden=orden,
+                proyecto=proyecto,
                 comentario=comentario[:255],
                 actor_username=nombre_de(actor),
                 ocurrido_en=ocurrido_en,
@@ -609,6 +620,7 @@ def liberar(
     cantidad,
     actor,
     orden=None,
+    proyecto=None,
     almacen=None,
     lote=None,
     comentario="",
@@ -668,6 +680,7 @@ def liberar(
                 cantidad=-porcion,
                 costo_unitario=lote_origen.costo_unitario if lote_origen else CERO,
                 orden=orden,
+                proyecto=proyecto,
                 comentario=comentario[:255],
                 actor_username=nombre_de(actor),
                 ocurrido_en=ocurrido_en,
@@ -684,6 +697,7 @@ def entregar(
     cantidad,
     actor,
     orden=None,
+    proyecto=None,
     almacen=None,
     comentario="",
     ocurrido_en=None,
@@ -724,6 +738,7 @@ def entregar(
             cantidad=min(apartado, cantidad),
             actor=actor,
             orden=orden,
+            proyecto=proyecto,
             almacen=almacen,
             comentario="Entrega de material",
             ocurrido_en=ocurrido_en,
@@ -734,6 +749,7 @@ def entregar(
         cantidad=cantidad,
         actor=actor,
         orden=orden,
+        proyecto=proyecto,
         almacen=almacen,
         comentario=comentario or "Entregado por almacén",
         ocurrido_en=ocurrido_en,
@@ -1036,3 +1052,118 @@ def descuadres():
                 )
             )
     return encontrados
+
+
+# ================================================== despacho por proyecto
+#
+# La manufactura por proyectos surte distinto: el almacenista entrega la obra
+# completa de una vez y el avance en piso sirve para medir, no para descontar.
+# Descontar pieza a pieza en una obra a medida obligaría a capturar consumo
+# trescientas veces para un material que se cortó de una sola lámina.
+
+def apartado_por_proyecto(proyecto=None):
+    """Cuánto queda apartado y sin entregar, material por material.
+
+    Sale del historial de movimientos y no de `Existencia`, porque las
+    existencias guardan el comprometido total del material sin decir de quién
+    es. La cuenta es reservas menos liberaciones menos lo ya consumido.
+    """
+    apuntes = MovimientoMaterial.objects.using(BASE).filter(proyecto__isnull=False)
+    if proyecto is not None:
+        apuntes = apuntes.filter(proyecto=proyecto)
+
+    saldos = {}
+    for apunte in apuntes.select_related("material", "proyecto"):
+        clave = (apunte.proyecto_id, apunte.material_id)
+        entrada = saldos.setdefault(clave, {
+            "proyecto": apunte.proyecto,
+            "material": apunte.material,
+            "pendiente": CERO,
+        })
+        if apunte.tipo == MovimientoMaterial.Tipo.RESERVA:
+            entrada["pendiente"] += apunte.cantidad
+        elif apunte.tipo == MovimientoMaterial.Tipo.LIBERACION:
+            entrada["pendiente"] -= abs(apunte.cantidad)
+        elif apunte.tipo == MovimientoMaterial.Tipo.CONSUMO:
+            # El consumo se guarda en negativo. Ya salió del estante, así que
+            # deja de estar pendiente de entregar.
+            entrada["pendiente"] -= abs(apunte.cantidad)
+
+    return [s for s in saldos.values() if s["pendiente"] > CERO]
+
+
+def proyectos_por_surtir():
+    """Los proyectos con material apartado esperando salir, agrupados.
+
+    Es la vista que pidió el taller: el almacenista surte contra el proyecto
+    en su totalidad, no renglón por renglón de una orden.
+    """
+    por_proyecto = {}
+    for saldo in apartado_por_proyecto():
+        grupo = por_proyecto.setdefault(saldo["proyecto"].id, {
+            "proyecto": saldo["proyecto"],
+            "renglones": [],
+            "materiales": 0,
+        })
+        # Lo que de verdad se puede sacar hoy. Si el estante no lo tiene, se
+        # enseña el tope: prometer una entrega que no se puede cumplir es
+        # peor que decir de entrada que falta.
+        hay = existencia(saldo["material"])
+        grupo["renglones"].append({
+            "material": saldo["material"],
+            "pendiente": saldo["pendiente"],
+            "hay": hay,
+            "alcanza": hay >= saldo["pendiente"],
+        })
+        grupo["materiales"] += 1
+
+    for grupo in por_proyecto.values():
+        grupo["renglones"].sort(key=lambda r: r["material"].nombre)
+        grupo["completo"] = all(r["alcanza"] for r in grupo["renglones"])
+
+    # Los que se pueden surtir enteros primero: son los que el almacenista
+    # puede cerrar hoy sin dejar nada a medias.
+    return sorted(
+        por_proyecto.values(),
+        key=lambda g: (not g["completo"], g["proyecto"].nombre),
+    )
+
+
+def entregar_proyecto(*, proyecto, actor, almacen=None, comentario=""):
+    """Entrega de una vez todo lo apartado de un proyecto.
+
+    Devuelve `(entregados, faltantes, avisos)`. **No es todo o nada**: se
+    entrega lo que alcanza y se informa de lo que no. Un despacho global que
+    se niega entero porque falta un renglón deja al taller sin los otros
+    trece, y el almacenista acaba entregando a mano fuera del sistema.
+
+    Cada renglón lleva su propia clave de idempotencia, así que reintentar
+    tras un corte de red no entrega el doble.
+    """
+    entregados, faltantes, avisos = [], [], []
+
+    for saldo in apartado_por_proyecto(proyecto):
+        material = saldo["material"]
+        try:
+            movimientos, aviso = entregar(
+                material=material,
+                cantidad=saldo["pendiente"],
+                actor=actor,
+                proyecto=proyecto,
+                almacen=almacen,
+                comentario=comentario or f"Despacho global de {proyecto.nombre}",
+                clave_idempotencia=(
+                    f"despacho-{proyecto.id}-{material.id}-{saldo['pendiente']}"
+                ),
+            )
+        except ErrorDeDominio as error:
+            faltantes.append((material, str(error)))
+            continue
+        entregados.append((material, saldo["pendiente"], movimientos))
+        avisos.extend(aviso)
+
+    logger.info(
+        "despacho global de %s: %s entregados, %s faltantes",
+        proyecto.nombre, len(entregados), len(faltantes),
+    )
+    return entregados, faltantes, avisos

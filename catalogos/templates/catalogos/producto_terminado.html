@@ -1,0 +1,99 @@
+{% extends "produccion/base.html" %}
+
+{% block title %}Producto terminado{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <h1 class="h4 mb-1">Producto terminado</h1>
+  <p class="text-muted small mb-4">
+    Lo que se puede entregar hoy mismo, de herrería y de Corta juntas. Sale de
+    los almacenes de cada línea: no hay un tercer número que pueda
+    desincronizarse.
+  </p>
+
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-12 col-md-6 col-lg-4">
+      <label for="campo-q" class="form-label">Buscar</label>
+      <input id="campo-q" class="form-control" type="search" name="q"
+             value="{{ busqueda }}" placeholder="Ej.: andamio, ancla, placa">
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <button type="submit" class="btn btn-argon text-white w-100">Buscar</button>
+    </div>
+    {% if busqueda %}
+      <div class="col-6 col-md-3 col-lg-2">
+        <a class="btn btn-outline-secondary w-100" href="{% url 'catalogos:producto_terminado' %}">Ver todo</a>
+      </div>
+    {% endif %}
+  </form>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Productos</div>
+        <div class="h3 mb-0 mes-dato">{{ renglones }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Piezas listas</div>
+        <div class="h3 mb-0 mes-dato">{{ piezas }}</div>
+      </div></div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="card h-100"><div class="card-body">
+        <div class="text-muted small">Peso</div>
+        <div class="h3 mb-0 mes-dato">{{ kilos|floatformat:0 }} kg</div>
+        {% if sin_peso %}
+          <div class="text-muted small mt-1">
+            {{ sin_peso }} productos de Corta no tienen ficha con peso, así que
+            no entran en esta suma.
+          </div>
+        {% endif %}
+      </div></div>
+    </div>
+  </div>
+
+  {% if filas %}
+    <div class="table-responsive">
+      <table class="table align-middle mes-tabla">
+        <thead>
+          <tr>
+            <th scope="col">Producto</th>
+            <th scope="col">Línea</th>
+            <th scope="col" class="text-end">Disponible</th>
+            <th scope="col" class="text-end">Peso unitario</th>
+            <th scope="col">Actualizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+            <tr>
+              <td>{{ fila.producto }}</td>
+              <td><span class="text-muted small">{{ fila.linea_nombre }}</span></td>
+              <td class="text-end mes-dato">{{ fila.disponible }}</td>
+              <td class="text-end mes-dato text-muted">
+                {% if fila.peso_kg %}{{ fila.peso_kg|floatformat:1 }} kg{% else %}—{% endif %}
+              </td>
+              <td class="text-muted small">{{ fila.actualizado|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif busqueda %}
+    <div class="alert alert-secondary">
+      No hay nada disponible que se llame «{{ busqueda }}».
+    </div>
+  {% else %}
+    <div class="text-center py-5">
+      <p class="text-muted mb-0">
+        No hay producto terminado en almacén. Aparece solo cuando se cierra
+        una orden de serie.
+      </p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

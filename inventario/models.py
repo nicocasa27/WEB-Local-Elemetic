@@ -304,6 +304,18 @@ class MovimientoMaterial(models.Model):
         "nucleo.OrdenProduccion", on_delete=models.PROTECT, null=True, blank=True,
         related_name="movimientos_material",
     )
+
+    #: A qué proyecto pertenece el apunte, cuando el material se aparta contra
+    #: un proyecto entero y no contra una orden.
+    #:
+    #: Es la manufactura por proyectos: el almacenista surte la obra completa
+    #: de una vez y el avance en piso sirve para medir, no para descontar. Sin
+    #: esta columna la única forma de agrupar sería leer el comentario, que es
+    #: texto libre y se rompe en cuanto alguien lo escribe distinto.
+    proyecto = models.ForeignKey(
+        "catalogos.Proyecto", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="movimientos_material",
+    )
     evento = models.ForeignKey(
         "nucleo.EventoProduccion", on_delete=models.SET_NULL, null=True, blank=True,
         related_name="movimientos_material",
@@ -555,3 +567,58 @@ class RenglonOrdenCompra(models.Model):
 
     def __str__(self) -> str:
         return f"{self.material.codigo} × {self.cantidad}"
+
+
+class SeguimientoCompra(models.Model):
+    """Lo que Compras ya hizo con un material que cayó bajo su mínimo.
+
+    Misma decisión que la bandeja de despacho, y por el mismo motivo: **aquí no
+    se guarda la alerta, sino la respuesta a la alerta**.
+
+    Lo natural sería crear un aviso cada vez que una entrega deja un material
+    bajo mínimo. Pero el físico también baja por ajustes, por devoluciones y por
+    correcciones a mano, y cualquier camino que se olvide de disparar deja un
+    material agotado del que Compras nunca se entera. Ese fallo es invisible:
+    la lista sale vacía y parece que no hay nada que comprar.
+
+    Por eso la lista se **deduce**: es lo que está en o por debajo de su mínimo,
+    ahora mismo. Cuando el material vuelve a subir, desaparece solo — no hay
+    que acordarse de cerrar nada. Esta tabla sólo recuerda que alguien ya lo
+    pidió, para que no se pida tres veces.
+    """
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        SOLICITADO = "solicitado", "Solicitado a compras"
+        ORDENADO = "ordenado", "Pedido al proveedor"
+
+    material = models.OneToOneField(
+        Material, on_delete=models.CASCADE, related_name="seguimiento_compra"
+    )
+    estado = models.CharField(
+        max_length=12, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True
+    )
+
+    #: A qué proveedor se le pidió, cuando ya se pidió. Informativo: la orden
+    #: de compra formal vive en `OrdenCompra`.
+    proveedor = models.ForeignKey(
+        Proveedor, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    cantidad_pedida = models.DecimalField(
+        max_digits=16, decimal_places=6, default=Decimal("0")
+    )
+    #: Cuándo dijo el proveedor que llega. Es lo que decide si una orden de
+    #: producción se puede prometer o no.
+    promesa = models.DateField(null=True, blank=True)
+    notas = models.CharField(max_length=255, blank=True, default="")
+    actor = models.CharField(max_length=150, blank=True, default="")
+    actualizado_en = models.DateTimeField(auto_now=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-actualizado_en"]
+        verbose_name = "seguimiento de compra"
+        verbose_name_plural = "seguimientos de compra"
+
+    def __str__(self) -> str:
+        return f"{self.material.codigo} · {self.get_estado_display()}"

@@ -47,6 +47,7 @@ OPERACION = [
     ("costeo", "TarifaManoObra"),
 
     # --- inventario
+    ("inventario", "SeguimientoCompra"),
     ("inventario", "RenglonOrdenCompra"),
     ("inventario", "OrdenCompra"),
     ("inventario", "RenglonListaMateriales"),
@@ -107,6 +108,10 @@ OPERACION = [
     ("produccion", "Viga"),
 
     # --- planta: paros, fallas y cuadrillas
+    #
+    # El apunte de trabajo va antes que la cuadrilla y que la máquina:
+    # apunta a las dos, y a la máquina con PROTECT.
+    ("catalogos", "ApunteDeTrabajo"),
     ("catalogos", "CuadrillaIntegrante"),
     ("catalogos", "Cuadrilla"),
     ("catalogos", "MaquinaFalla"),

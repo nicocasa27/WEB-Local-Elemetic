@@ -293,6 +293,8 @@ class Command(BaseCommand):
         self._herreria()
         self._reservas(materiales)
         self._cuadrillas(equipos, personal)
+        self._apuntes_de_trabajo()
+        self._producto_terminado()
         self._paros()
 
         self.stdout.write(self.style.SUCCESS("\nTaller simulado listo.\n"))
@@ -729,6 +731,10 @@ class Command(BaseCommand):
 
         apartados = 0
         for orden in en_proceso:
+            # Se aparta contra el proyecto de la orden cuando lo tiene: es lo
+            # que hace posible el despacho global, donde el almacenista surte
+            # la obra entera en un viaje en vez de renglón por renglón.
+            proyecto = orden.proyecto
             for renglon in recetas.get(orden.nombre_normalizado, []):
                 falta = renglon.cantidad_por_pieza * (
                     orden.total_piezas - orden.cantidad_terminada
@@ -744,6 +750,7 @@ class Command(BaseCommand):
                         material=renglon.material,
                         cantidad=falta,
                         actor=planificador,
+                        proyecto=proyecto,
                         comentario=f"Apartado para {orden.codigo}",
                         # Volver a sembrar sobre lo sembrado no debe apartar
                         # el doble: la clave hace que el segundo intento sea
@@ -805,6 +812,118 @@ class Command(BaseCommand):
                     integrantes += 1
             dia -= timedelta(days=1)
         self.stdout.write(f"  {armadas} cuadrillas · {integrantes} participaciones")
+
+    def _apuntes_de_trabajo(self):
+        """Con qué equipo y con qué cuadrilla se hizo cada avance.
+
+        Se reconstruyen desde la bitácora que ya se sembró. Sin ellos la
+        pantalla de trazabilidad sale vacía, y vacía no se distingue de «el
+        taller no trabajó».
+
+        Se anota sólo lo que pasó por un centro con equipos: entrar a «Espera
+        de corte» no es trabajo hecho, es una cola.
+        """
+        from catalogos.models import ApunteDeTrabajo, Maquina, SeguimientoDespacho
+        from core.servicios import trabajo
+        from produccion.models import ProductionLog, Viga
+
+        cortadoras = list(
+            Maquina.objects.using(BASE).filter(
+                activo=True, tipo="Corte", es_robot=False
+            )
+        )
+        piezas = {v.internal_id: v for v in Viga.objects.using(BASE).all()}
+
+        hechos = 0
+        for apunte in ProductionLog.objects.using(BASE).all():
+            etapa = est.normalizar(apunte.estado_nuevo or "")
+            centro = trabajo.centro_de(etapa)
+            if not centro:
+                continue
+
+            pieza = piezas.get(apunte.viga_internal_id)
+            maquina = None
+            if trabajo.exige_maquina(etapa) and cortadoras:
+                maquina = self.azar.choice(cortadoras)
+
+            # La bitácora heredada guarda la hora sin zona: se le pone la
+            # local para que la cuadrilla del turno se busque bien.
+            momento = con_zona(apunte.timestamp) if apunte.timestamp else timezone.now()
+
+            ApunteDeTrabajo.objects.using(BASE).create(
+                linea=SeguimientoDespacho.Linea.VIGAS,
+                referencia=int(apunte.viga_internal_id),
+                codigo=getattr(pieza, "codigo_viga", "") or "",
+                etapa=etapa,
+                etapa_anterior=est.normalizar(apunte.estado_anterior or ""),
+                maquina=maquina,
+                cuadrilla=None,
+                integrantes="",
+                actor="sistema",
+                ocurrido_en=momento,
+            )
+            hechos += 1
+
+        self._pegar_cuadrillas_a_los_apuntes()
+        self.stdout.write(f"  {hechos} apuntes de trabajo con equipo y cuadrilla")
+
+    def _pegar_cuadrillas_a_los_apuntes(self):
+        """Enlaza cada apunte con la cuadrilla que había ese día y turno.
+
+        Va en un segundo paso porque las cuadrillas se siembran después: al
+        crear el apunte todavía no existían.
+        """
+        from catalogos.models import ApunteDeTrabajo, Cuadrilla
+        from core.servicios import trabajo
+
+        for apunte in ApunteDeTrabajo.objects.using(BASE).select_related("maquina"):
+            cuadrilla = trabajo.cuadrilla_vigente(
+                centro=trabajo.centro_de(apunte.etapa),
+                momento=apunte.ocurrido_en,
+                maquina=apunte.maquina,
+            )
+            if cuadrilla is None:
+                continue
+            ApunteDeTrabajo.objects.using(BASE).filter(pk=apunte.pk).update(
+                cuadrilla=cuadrilla,
+                integrantes=trabajo.integrantes_de(cuadrilla)[:255],
+            )
+
+    def _producto_terminado(self):
+        """Existencia de producto terminado, para poder verla y prometerla.
+
+        Es lo que Ventas consulta cuando preguntan por teléfono si hay
+        andamios. Sin filas, la pantalla no enseña nada.
+        """
+        from catalogos.models import (
+            HerrPiezaCatalogo,
+            LogisticaStock,
+            LogisticaStockCorta,
+        )
+
+        hechos = 0
+        for nombre, peso in PIEZAS_HERRERIA[:5]:
+            pieza, _ = HerrPiezaCatalogo.objects.using(BASE).get_or_create(
+                nombre_normalizado=nombre.upper(),
+                # El catálogo de herrería guarda el peso como flotante, no
+                # como decimal. Convertirlo aquí evita que Django lo haga en
+                # silencio con una advertencia distinta en cada versión.
+                defaults={"nombre": nombre, "peso_kg": float(peso)},
+            )
+            LogisticaStock.objects.using(BASE).update_or_create(
+                producto=pieza,
+                defaults={"stock": self.azar.randint(4, 60)},
+            )
+            hechos += 1
+
+        for nombre in ("Placa base 250 x 250", "Ángulo troquelado 2\"", "Tapa registro"):
+            LogisticaStockCorta.objects.using(BASE).update_or_create(
+                producto_normalizado=nombre.upper(),
+                defaults={"producto": nombre, "stock": self.azar.randint(10, 120)},
+            )
+            hechos += 1
+
+        self.stdout.write(f"  {hechos} productos terminados en almacén")
 
     def _paros(self):
         from catalogos.models import Maquina, MaquinaParo, MaquinaParoMotivo

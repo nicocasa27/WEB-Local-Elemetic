@@ -1,0 +1,144 @@
+{% extends "produccion/base.html" %}
+
+{% block title %}Armar cuadrilla{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  <h1 class="h4 mb-1">{% if cuadrilla %}Cambiar cuadrilla{% else %}Armar cuadrilla{% endif %}</h1>
+  <p class="text-muted small mb-4">
+    Marca a quien vino. Lo que se registre hoy en esa área quedará anotado con
+    esta cuadrilla, sin que nadie tenga que volver a escribirla.
+  </p>
+
+  <form method="post" class="row g-4">
+    {% csrf_token %}
+
+    <div class="col-12 col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="mb-3">
+            <label for="campo-fecha" class="form-label">Día</label>
+            <input id="campo-fecha" class="form-control" type="date" name="fecha"
+                   value="{% if cuadrilla %}{{ cuadrilla.fecha|date:'Y-m-d' }}{% else %}{{ hoy }}{% endif %}"
+                   min="{{ hoy }}" required>
+            <div class="form-text">Hoy o más adelante. El pasado no se cambia.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="campo-centro" class="form-label">Centro de trabajo</label>
+            <select id="campo-centro" class="form-select" name="centro" required>
+              {% for clave, etiqueta in centros %}
+                <option value="{{ clave }}" {% if cuadrilla.centro == clave %}selected{% endif %}>{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="campo-turno" class="form-label">Turno</label>
+            <select id="campo-turno" class="form-select" name="turno" required>
+              {% for clave, etiqueta in turnos %}
+                <option value="{{ clave }}" {% if cuadrilla.turno == clave %}selected{% endif %}>{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label for="campo-maquina" class="form-label">Equipo (opcional)</label>
+            <select id="campo-maquina" class="form-select" name="maquina">
+              <option value="">Toda el área</option>
+              {% for m in maquinas %}
+                <option value="{{ m.id }}" {% if cuadrilla.maquina_id == m.id %}selected{% endif %}>{{ m.nombre }} · {{ m.tipo }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">En corte es lo normal; en soldadura y pintura casi nunca.</div>
+          </div>
+
+          <div class="mb-3">
+            <label for="campo-plantilla" class="form-label">Se partió de (opcional)</label>
+            <select id="campo-plantilla" class="form-select" name="plantilla">
+              <option value="">Ninguna</option>
+              {% for p in plantillas %}
+                <option value="{{ p.id }}" {% if cuadrilla.plantilla_id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-0">
+            <label for="campo-comentario" class="form-label">Nota (opcional)</label>
+            <input id="campo-comentario" class="form-control" type="text" name="comentario"
+                   maxlength="255" value="{{ cuadrilla.comentario|default:'' }}"
+                   placeholder="Ej.: falta Beto, incapacidad">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <h2 class="h6 mb-3">Quién vino</h2>
+          <div class="table-responsive">
+            <table class="table align-middle mes-tabla mb-0">
+              <thead>
+                <tr>
+                  <th scope="col" style="width:3rem;"></th>
+                  <th scope="col">Persona</th>
+                  <th scope="col">Hizo de</th>
+                  <th scope="col" style="width:9rem;">Jornada</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fila in gente %}
+                  <tr>
+                    <td>
+                      <input class="form-check-input" type="checkbox" name="integrante"
+                             id="campo-integrante-{{ fila.persona.id }}" value="{{ fila.persona.id }}"
+                             {% if fila.elegido %}checked{% endif %}>
+                    </td>
+                    <td>
+                      <label class="mb-0" for="campo-integrante-{{ fila.persona.id }}">
+                        {{ fila.persona.nombre }}
+                        <span class="text-muted small d-block">{{ fila.persona.rol }} · {{ fila.persona.equipo.nombre }}</span>
+                      </label>
+                    </td>
+                    <td>
+                      <label class="visually-hidden" for="campo-papel-{{ fila.persona.id }}">Papel de {{ fila.persona.nombre }}</label>
+                      <select id="campo-papel-{{ fila.persona.id }}" class="form-select form-select-sm" name="papel_{{ fila.persona.id }}">
+                        <option value="">Su rol</option>
+                        {% for clave, etiqueta in papeles %}
+                          <option value="{{ clave }}" {% if fila.papel == clave %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                    <td>
+                      <label class="visually-hidden" for="campo-fraccion-{{ fila.persona.id }}">Jornada de {{ fila.persona.nombre }}</label>
+                      <input id="campo-fraccion-{{ fila.persona.id }}" class="form-control form-control-sm"
+                             type="text" inputmode="decimal" name="fraccion_{{ fila.persona.id }}"
+                             value="{{ fila.fraccion|default_if_none:'' }}"
+                             placeholder="1" maxlength="4">
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-muted">No hay colaboradores activos.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="form-text mb-0 mt-2">
+            La jornada en blanco es el turno entero. Media jornada se escribe 0.5.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+      <button type="submit" class="btn btn-argon text-white">
+        <i class="bi bi-check2 me-1"></i> Guardar cuadrilla
+      </button>
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:cuadrillas' %}">Cancelar</a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

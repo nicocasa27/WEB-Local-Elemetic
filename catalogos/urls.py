@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import despacho, usuarios, views
+from . import cuadrillas, despacho, terminado, trazabilidad, usuarios, views
 
 app_name = "catalogos"
 
@@ -84,6 +84,20 @@ urlpatterns = [
     # entonces la bandeja sale vacía y parece que no hay nada que despachar.
     path("despacho/", despacho.bandeja, name="despacho"),
     path("despacho/marcar/", despacho.marcar, name="despacho_marcar"),
+
+    # Cuadrillas. Se arman una vez por la mañana y a partir de ahí cada avance
+    # del día se anota solo con ellas.
+    path("cuadrillas/", cuadrillas.lista, name="cuadrillas"),
+    path("cuadrillas/armar/", cuadrillas.armar, name="cuadrilla_armar"),
+    path("cuadrillas/<int:pk>/", cuadrillas.armar, name="cuadrilla_editar"),
+    path("cuadrillas/<int:pk>/quitar/", cuadrillas.deshacer, name="cuadrilla_deshacer"),
+
+    # Trazabilidad: qué se hizo, con qué equipo y con quién.
+    path("trazabilidad/", trazabilidad.tablero, name="trazabilidad"),
+
+    # Producto terminado: qué se puede entregar hoy mismo. Se deduce de los
+    # almacenes de cada línea; no hay un tercer número que desincronizar.
+    path("producto-terminado/", terminado.catalogo, name="producto_terminado"),
 
     # Usuarios. Hasta ahora sólo se podían crear desde el admin de Django.
     path("usuarios/", usuarios.lista, name="usuarios"),
