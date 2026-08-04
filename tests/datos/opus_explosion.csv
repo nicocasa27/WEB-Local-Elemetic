@@ -1,0 +1,24 @@
+,,,,,,,,,Anexo:,,,
+,,,,,,,,,,,,
+,,,Descripción del proyecto: Fabricación de bastidores para el cliente de prueba,,,,,,Núm de concurso:,,,
+,,,,,,,,,Fecha de propuesta:,,08/jul./2026,
+,,,,,,,,,Inicio de obra:,,21/jul./2026,
+,,,,,,,,,,,23/jul./2026,
+,,,,,,,,,Fin de obra:,,,
+,,,Ubicación:,", Yucatán, ",,,,,,,,
+,,,,,,,,,Duración en días:,,3,
+,,,Cliente:,Cliente De Prueba SA de CV,,,,,,,1/1,
+,,,,,,,,,Página:,,,
+Explosión de recursos de presupuesto,,,,,,,,,,,,
+ ,,,,,,,,,,,,
+Clave,,Descripción,,,Unidad,Cantidad,,Costo,,Importe,,Porcentaje
+Tipo: Materiales,,,,,,,,,,,,
+LAMINA-A,,LAMINA LISA DE PRUEBA,,,pza,10.000000,,"$1,000.00",,"$10,000.00",,50.00%
+CADENA-B,,"CADENA DE ESLABONES DE 1/2"" DE 1 MT",,,pza,20.000000,,$200.00,,"$4,000.00",,20.00%
+"ANULAR-C""",,"CORTADOR ANULAR DE 1""",,,pza,0.500000,,"$1,000.00",,$500.00,,2.50%
+SOLERA-D,,SOLERA DE PRUEBA CON ESPACIO AL FINAL ,,,kg,25.000000,,$100.00,,"$2,500.00",,12.50%
+AGUA-E,,AGUA DE POZO,,,lt,30.000000,,$1.00,,$30.00,,0.15%
+INDIRECTO-F,,Porcentaje de consumibles,,,(%)m,0.060000,,"$25,000.00",,"$1,500.00",,7.50%
+INDIRECTO-F,,Porcentaje de consumibles,,,(%)m,0.030000,,"$49,000.00",,"$1,470.00",,7.35%
+Total de Materiales,,,,,,,,,,"$20,000.00",,100.00%
+,,,,,,,,,,,,
