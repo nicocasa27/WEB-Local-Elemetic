@@ -97,6 +97,29 @@ class TestElMenuLlevaALoQueMasSeUsa:
         pagina = navegador.get(reverse("produccion:viga_list")).content.decode()
         assert reverse("produccion:movil") in pagina
 
+    def test_el_menu_del_celular_llega_a_lo_mismo_que_el_de_escritorio(self):
+        """El menú está escrito dos veces: barra para PC, panel lateral para
+        celular. Nada obliga a que coincidan, y no coincidían: Almacén,
+        Usuarios y «Listo para salir» sólo existían en el de escritorio.
+
+        El que más duele es Almacén. El almacenista trabaja con el celular
+        junto al anaquel, así que confirmar una entrega —la validación de
+        doble factor— exigía ir a una computadora.
+        """
+        base = (
+            Path(settings.BASE_DIR)
+            / "produccion" / "templates" / "produccion" / "base.html"
+        ).read_text(encoding="utf-8")
+        corte = base.index('id="navCanvas"')
+        escritorio, celular = base[:corte], base[corte:]
+
+        enlaces = re.compile(r"{%\s*url\s+'([^']+)'\s*%}")
+        # `logout` y `login` son formularios, no destinos de navegación.
+        aparte = {"logout", "login", "produccion:home"}
+        faltan = (set(enlaces.findall(escritorio)) - set(enlaces.findall(celular))) - aparte
+
+        assert not faltan, f"Sólo se llega desde la computadora: {sorted(faltan)}"
+
 
 class TestLasEtiquetasApuntanASuCampo:
     def test_casi_ninguna_queda_suelta(self):

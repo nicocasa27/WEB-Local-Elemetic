@@ -291,6 +291,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_HEADING("\nProducción"))
         self._vigas()
         self._herreria()
+        self._reservas(materiales)
         self._cuadrillas(equipos, personal)
         self._paros()
 
@@ -692,6 +693,71 @@ class Command(BaseCommand):
             )
             creadas += 1
         self.stdout.write(f"  {creadas} órdenes de herrería con avance coherente")
+
+    def _reservas(self, materiales):
+        """Material apartado para las órdenes que todavía se producen.
+
+        Sin esto la bandeja «Por surtir» sale vacía y la pantalla más nueva
+        del sistema —la validación de doble factor del almacén— no se puede
+        ver funcionando. Peor: una bandeja vacía se lee como «no hay nada que
+        surtir», que es lo contrario de «esto todavía no se ha sembrado».
+
+        Se aparta contra la lista de materiales de la pieza, que es el camino
+        real de la Rama A: la orden explota su receta y compromete el stock,
+        sin tocar lo físico.
+        """
+        from django.contrib.auth import get_user_model
+
+        from catalogos.models import HerrOrdenProduccion
+        from core.excepciones import StockInsuficiente
+        from core.servicios import inventario as servicio
+        from inventario.models import ListaMateriales
+
+        planificador = get_user_model().objects.filter(is_staff=True).first()
+
+        recetas = {
+            lista.pieza.nombre_normalizado: list(lista.renglones.all())
+            for lista in ListaMateriales.objects.using(BASE)
+            .filter(vigente=True)
+            .select_related("pieza")
+            .prefetch_related("renglones__material")
+        }
+
+        en_proceso = HerrOrdenProduccion.objects.using(BASE).exclude(
+            estado_etapa__in=(est.TERMINADO, est.ENVIADO)
+        )
+
+        apartados = 0
+        for orden in en_proceso:
+            for renglon in recetas.get(orden.nombre_normalizado, []):
+                falta = renglon.cantidad_por_pieza * (
+                    orden.total_piezas - orden.cantidad_terminada
+                )
+                # Se aparta lo que hay, no lo que se pediría. Es lo que hace
+                # un planificador de verdad: compromete lo disponible y lo
+                # que sobra queda como faltante de compra.
+                falta = min(falta, servicio.disponible(renglon.material))
+                if falta <= 0:
+                    continue
+                try:
+                    hechos = servicio.reservar(
+                        material=renglon.material,
+                        cantidad=falta,
+                        actor=planificador,
+                        comentario=f"Apartado para {orden.codigo}",
+                        # Volver a sembrar sobre lo sembrado no debe apartar
+                        # el doble: la clave hace que el segundo intento sea
+                        # el mismo apunte, no uno nuevo.
+                        clave_idempotencia=f"demo-reserva-{orden.codigo}-{renglon.material.codigo}",
+                    )
+                except StockInsuficiente:
+                    # El taller real también se queda corto. Que la bandeja
+                    # enseñe algunas órdenes sin material completo es parte
+                    # de lo que hay que poder ver.
+                    continue
+                apartados += len(hechos)
+
+        self.stdout.write(f"  {apartados} apartados de material para surtir")
 
     def _cuadrillas(self, equipos, personal):
         """Quince días de cuadrillas, con la gente que «se presentó»."""

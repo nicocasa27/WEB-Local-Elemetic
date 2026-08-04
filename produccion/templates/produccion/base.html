@@ -283,12 +283,30 @@
                     {% if can_pedidos %}
                       <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:pedidos_ordenes' %}"><i class="bi bi-receipt me-2"></i> Órdenes de Producción</a>
                       <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:pedidos_logistica' %}"><i class="bi bi-truck me-2"></i> Logística</a>
+                      <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:despacho' %}"><i class="bi bi-box-seam me-2"></i> Listo para salir</a>
                     {% else %}
                       <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:logistica_corta' %}"><i class="bi bi-truck me-2"></i> Logística</a>
                     {% endif %}
                   </div>
                 </div>
               {% endif %}
+              {% comment %}
+                El almacenista trabaja con el celular en la mano, junto al
+                anaquel. Si «Por surtir» sólo existe en el menú de escritorio,
+                la entrega tiene que confirmarse desde la oficina, que es
+                justo lo que la validación de doble factor quiere evitar.
+              {% endcomment %}
+              <button class="btn btn-light w-100 text-start d-flex align-items-center justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#menuAlmacenMobile" aria-expanded="false" aria-controls="menuAlmacenMobile">
+                <span><i class="bi bi-boxes me-2"></i> Almacén</span>
+                <i class="bi bi-chevron-down"></i>
+              </button>
+              <div class="collapse" id="menuAlmacenMobile">
+                <div class="sidebar-submenu d-grid gap-2 ps-3">
+                  <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'inventario:existencias' %}"><i class="bi bi-clipboard-data me-2"></i> Existencias</a>
+                  <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'inventario:por_surtir' %}"><i class="bi bi-box-arrow-right me-2"></i> Por surtir</a>
+                  <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'inventario:opus_importar' %}"><i class="bi bi-filetype-csv me-2"></i> Importar de OPUS</a>
+                </div>
+              </div>
               <a class="btn btn-light w-100 text-start" href="{% url 'produccion:dashboard' %}">
                 <i class="bi bi-bar-chart-line me-2"></i> Reportes
               </a>
@@ -302,6 +320,7 @@
                     <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:proyectos' %}"><i class="bi bi-folder2-open me-2"></i> Proyectos</a>
                     <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:equipos' %}"><i class="bi bi-people me-2"></i> Equipos</a>
                     <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:maquinas' %}"><i class="bi bi-cpu me-2"></i> Maquinaria</a>
+                    <a class="btn btn-outline-secondary w-100 text-start" href="{% url 'catalogos:usuarios' %}"><i class="bi bi-person-badge me-2"></i> Usuarios</a>
                   </div>
                 </div>
               {% endif %}

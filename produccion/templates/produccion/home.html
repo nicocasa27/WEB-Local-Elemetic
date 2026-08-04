@@ -111,6 +111,15 @@
               </div>
             </a>
           </div>
+          <div class="col-6 col-md-4">
+            <a class="tile-link" href="{% url 'catalogos:despacho' %}">
+              <div class="tile-icon"><i class="bi bi-box-seam"></i></div>
+              <div class="tile-text">
+                <div class="tile-title">Listo para salir</div>
+                <div class="tile-sub">Despacho</div>
+              </div>
+            </a>
+          </div>
         {% elif can_logistica_corta %}
           <div class="col-6 col-md-4">
             <a class="tile-link" href="{% url 'catalogos:logistica_corta' %}">
@@ -122,6 +131,38 @@
             </a>
           </div>
         {% endif %}
+        {% comment %}
+          El almacén y «Mi trabajo» son las dos pantallas más nuevas y no
+          estaban en la portada. Quien entra a la portada ve el sistema
+          completo: lo que no está aquí, para el taller no existe.
+        {% endcomment %}
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'inventario:por_surtir' %}">
+            <div class="tile-icon"><i class="bi bi-box-arrow-right"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Por surtir</div>
+              <div class="tile-sub">Almacén</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'inventario:existencias' %}">
+            <div class="tile-icon"><i class="bi bi-clipboard-data"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Existencias</div>
+              <div class="tile-sub">Almacén</div>
+            </div>
+          </a>
+        </div>
+        <div class="col-6 col-md-4">
+          <a class="tile-link" href="{% url 'produccion:movil' %}">
+            <div class="tile-icon"><i class="bi bi-phone"></i></div>
+            <div class="tile-text">
+              <div class="tile-title">Mi trabajo</div>
+              <div class="tile-sub">Piso</div>
+            </div>
+          </a>
+        </div>
         <div class="col-6 col-md-4">
           <a class="tile-link" href="{% url 'produccion:solo_lectura_produccion' %}">
             <div class="tile-icon"><i class="bi bi-eye"></i></div>

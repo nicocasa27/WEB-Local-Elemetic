@@ -24,7 +24,7 @@ from io import StringIO
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import CommandError, call_command
-from django.db import connections
+from django.db import connections, models
 from django.utils import timezone
 
 from catalogos.management.commands.crear_admin import USUARIO as USUARIO_ADMIN
@@ -188,6 +188,31 @@ class TestElTallerSimuladoEsCreible:
     @pytest.fixture
     def taller(self, _sembrado):
         return True
+
+    def test_hay_material_apartado_esperando_al_almacenista(self, taller):
+        """«Por surtir» sin material apartado sale vacía, y una bandeja vacía
+        se lee como «no hay nada que surtir» en vez de «esto no se sembró».
+
+        Es la pantalla que sostiene la validación de doble factor, así que si
+        no se puede ver funcionando, no se puede comprobar que funciona.
+        """
+        from inventario.models import Existencia
+
+        apartadas = Existencia.objects.using(BASE).filter(comprometido__gt=0)
+
+        assert apartadas.count() >= 3
+        # Sobre más de un material: con uno solo no se ve que la bandeja
+        # agrupa, que es lo que hace útil la pantalla.
+        assert len({e.material_id for e in apartadas}) > 1
+
+    def test_lo_apartado_nunca_pasa_de_lo_que_hay(self, taller):
+        """La invariante que protege la restricción de la base. Si el sembrado
+        la violara, el error saldría al primer guardado y no aquí."""
+        from inventario.models import Existencia
+
+        assert not Existencia.objects.using(BASE).filter(
+            comprometido__gt=models.F("cantidad")
+        ).exists()
 
     def test_hay_taller(self, taller):
         from catalogos.models import Cuadrilla, Maquina
