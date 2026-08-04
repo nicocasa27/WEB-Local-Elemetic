@@ -68,15 +68,15 @@
       </form>
     {% elif v.show_badge %}
       <button type="button" class="btn btn-secondary mes-avanzar" disabled>
-        <i class="bi bi-arrow-right-circle me-1"></i> {{ v.show_badge }}
+        <i class="bi bi-arrow-right-circle me-1"></i><span class="mes-avanzar-largo">{{ v.show_badge }}</span>
       </button>
     {% elif v.estado == "Enviado" %}
       <button type="button" class="btn btn-info mes-avanzar" disabled>
-        <i class="bi bi-truck me-1"></i> Enviado
+        <i class="bi bi-truck me-1"></i><span class="mes-avanzar-largo">Enviado</span>
       </button>
     {% else %}
       <button type="button" class="btn btn-success mes-avanzar" disabled>
-        <i class="bi bi-check2-circle me-1"></i> Terminado
+        <i class="bi bi-check2-circle me-1"></i><span class="mes-avanzar-largo">Terminado</span>
       </button>
     {% endif %}
 

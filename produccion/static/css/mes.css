@@ -323,6 +323,19 @@ body { background: var(--argon-bg); }
 
 .mes-encabezado { display: none; }
 
+/* Herrería y Corta.mx llevan una columna más: el avance por contadores. */
+.mes-col-avance { grid-area: avance; }
+.mes-barras { display: grid; gap: .2rem; margin-top: .25rem; }
+.mes-barras .progress { height: 5px; }
+
+.mes-fila.con-avance {
+  grid-template-areas:
+    "titulo   estado"
+    "datos    estado"
+    "avance   avance"
+    "acciones acciones";
+}
+
 /* Pantalla ancha: la misma fila se lee como un renglón de tabla. */
 @media (min-width: 992px) {
   .mes-fila,
@@ -370,6 +383,23 @@ body { background: var(--argon-bg); }
   .mes-col-estado      { grid-area: estado; text-align: left; }
   .mes-col-acciones    { grid-area: acciones; }
   .mes-encabezado-peso { text-align: right; }
+
+  .mes-fila.con-avance,
+  .mes-encabezado.con-avance {
+    grid-template-areas: "id titulo proyecto descripcion fecha estado avance peso acciones";
+    grid-template-columns:
+      3.5rem          /* id          */
+      8rem            /* código      */
+      8rem            /* proyecto    */
+      minmax(0, 1fr)  /* descripción */
+      7.5rem          /* fecha       */
+      9rem            /* estado      */
+      9rem            /* avance      */
+      5rem            /* kg          */
+      21rem;          /* acciones    */
+  }
+  .mes-col-avance { text-align: right; }
+  .mes-barras { margin-left: auto; width: 8rem; }
   .mes-fila:hover { background: rgba(0, 0, 0, .02); }
   .mes-truncar { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
@@ -401,10 +431,12 @@ body { background: var(--argon-bg); }
   }
   .mes-acciones-secundarias { margin-top: 0; flex-wrap: nowrap; }
   .mes-acciones-secundarias > * { flex: 0 0 auto; }
-  /* En la tabla el botón sólo lleva el nombre de la etapa: con el icono
-   * delante, un nombre largo se recorta y deja el icono a medias. */
-  .mes-avanzar .mes-avanzar-largo,
-  .mes-avanzar .bi { display: none; }
+  /* En la tabla el botón de avanzar sólo lleva el nombre de la etapa: con el
+   * icono delante, un nombre largo se recorta y deja el icono a medias. */
+  .mes-avanzar .mes-avanzar-largo { display: none; }
+  .js-next-btn.mes-avanzar .bi { display: none; }
+  /* Y el botón de estado final no es una acción: basta el icono. */
+  .mes-avanzar[disabled] { width: auto; max-width: none; padding: .35rem .6rem; }
 }
 @media (max-width: 991.98px) {
   .mes-avanzar .mes-avanzar-corto { display: none; }

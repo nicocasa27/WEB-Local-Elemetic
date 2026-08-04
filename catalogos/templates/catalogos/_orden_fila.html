@@ -1,0 +1,197 @@
+{% load produccion_extras %}
+{% load l10n %}
+{% comment %}
+  Una orden de Herrería o de Corta.mx en la lista.
+
+  Antes estaba escrito dos veces por lista y tres listas por pantalla: seis
+  copias del mismo renglón en un solo archivo, más otras seis en Corta.mx. Las
+  copias se separaron, y las diferencias no eran cosméticas:
+
+  - El botón «Avance» aparecía en el celular para cualquiera y en la PC sólo
+    para administradores.
+  - El «Avance» de la PC no llevaba los datos para revertir un cierre
+    (`data-pendiente-hasta`, `data-revert-action`), así que desde la PC no se
+    podía deshacer un cierre y desde el celular sí.
+  - En el celular había un `>` suelto de más que se imprimía en la pantalla.
+
+  Esta versión toma lo más completo de las dos.
+
+  Recibe:  v       la orden
+           mode    "admin" para las acciones de administración
+           linea   "herreria" o "corta", para armar las direcciones
+{% endcomment %}
+<div class="mes-fila con-avance js-viga-item"
+     data-viga="{{ v.internal_id }}"
+     data-codigo="{{ v.codigo_viga|escape }}"
+     data-proyecto="{{ v.proyecto_nombre|default:''|escape }}"
+     data-descripcion="{{ v.descripcion|escape }}">
+
+  <div class="mes-col-id">{{ v.internal_id }}</div>
+
+  <div class="mes-col-titulo">
+    <div class="fw-semibold mes-truncar">{{ v.codigo_viga }}</div>
+    <div class="text-muted small">{{ v.total_piezas }} pzas</div>
+  </div>
+
+  <div class="mes-col-datos">
+    <span class="mes-col-proyecto fw-semibold mes-truncar">{{ v.proyecto_nombre }}</span>
+    <span class="mes-col-descripcion text-muted small mes-truncar">{{ v.descripcion }}</span>
+    <span class="mes-col-fecha small">
+      <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
+      <span class="text-muted js-prioridad">P{{ v.prioridad }}</span>
+    </span>
+    <span class="mes-col-peso small">{{ v.peso_kg|floatformat:"-3" }} kg</span>
+  </div>
+
+  <div class="mes-col-estado">
+    <span class="badge js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
+    <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
+  </div>
+
+  <div class="mes-col-avance">
+    {% if v.es_op %}
+      <div class="text-muted small">
+        S:<span class="js-op-soldadas">{{ v.op_soldadas }}</span> ·
+        P:<span class="js-op-pintadas">{{ v.op_pintadas }}</span> ·
+        T:<span class="js-op-terminadas">{{ v.op_terminadas }}</span>
+        / <span class="js-op-objetivo">{{ v.total_piezas }}</span>
+      </div>
+      <div class="mes-barras">
+        <div class="progress">
+          <div class="progress-bar bg-primary js-op-bar-sold" role="progressbar"
+               data-pct="{{ v.op_soldadas_pct|unlocalize }}" style="width: 0%;"
+               aria-label="Soldadas" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="progress">
+          <div class="progress-bar bg-info js-op-bar-pint" role="progressbar"
+               data-pct="{{ v.op_pintadas_pct|unlocalize }}" style="width: 0%;"
+               aria-label="Pintadas" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="progress">
+          <div class="progress-bar bg-success js-op-bar-term" role="progressbar"
+               data-pct="{{ v.op_terminadas_pct|unlocalize }}" style="width: 0%;"
+               aria-label="Terminadas" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+    {% else %}
+      <span class="text-muted">—</span>
+    {% endif %}
+  </div>
+
+  <div class="mes-col-acciones">
+    {% if v.next_estado %}
+      <form method="post"
+            action="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_change_status_json' v.internal_id %}{% else %}{% url 'catalogos:herreria_change_status_json' v.internal_id %}{% endif %}"
+            class="js-require-fecha js-status-ajax"
+            data-viga="{{ v.internal_id }}">
+        {% csrf_token %}
+        <input type="hidden" name="estado_nuevo" value="{{ v.next_estado }}">
+        <input type="hidden" name="fecha_operacion" value="">
+        <input type="hidden" name="comentario" value="">
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn text-white js-next-btn mes-avanzar {{ v.estado|estado_clase }}">
+          <i class="bi bi-arrow-right-circle me-1"></i>
+          <span class="mes-avanzar-largo">Pasar a {{ v.next_estado }}</span>
+          <span class="mes-avanzar-corto">{{ v.next_estado }}</span>
+        </button>
+      </form>
+    {% elif v.estado == "Enviado" %}
+      <button type="button" class="btn btn-info mes-avanzar" disabled>
+        <i class="bi bi-truck me-1"></i><span class="mes-avanzar-largo">Enviado</span>
+      </button>
+    {% else %}
+      <button type="button" class="btn btn-success mes-avanzar" disabled>
+        <i class="bi bi-check2-circle me-1"></i><span class="mes-avanzar-largo">Terminado</span>
+      </button>
+    {% endif %}
+
+    <div class="mes-acciones-secundarias js-action-wrap">
+      {% if mode == "admin" and v.estado == "Terminado" and not v.pedido_item_id %}
+        <form method="post"
+              action="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_enviar' v.internal_id %}{% else %}{% url 'catalogos:herreria_enviar' v.internal_id %}{% endif %}"
+              class="js-preserve-scroll">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn btn-outline-info w-100" title="Enviar">
+            <i class="bi bi-truck"></i><span class="d-lg-none ms-1">Enviar</span>
+          </button>
+        </form>
+      {% endif %}
+
+      <div class="mes-botonera js-action-buttons" role="group" aria-label="Acciones de la orden">
+        <button type="button" class="btn btn-outline-secondary js-open-status-modal"
+                title="Cambiar estado"
+                data-viga="{{ v.internal_id }}"
+                data-codigo="{{ v.codigo_viga|escape }}"
+                data-estado="{{ v.estado|escape }}"
+                data-es-op="{{ v.es_op|yesno:'1,0' }}">
+          <i class="bi bi-sliders"></i><span class="d-lg-none ms-1">Cambiar</span>
+        </button>
+
+        <button type="button" class="btn btn-outline-success js-open-asignaciones"
+                title="Asignaciones"
+                data-viga="{{ v.internal_id }}"
+                data-codigo="{{ v.codigo_viga|escape }}"
+                data-corte="{{ v.asig_corte|escape }}"
+                data-soldadura="{{ v.asig_soldadura|escape }}"
+                data-pintura="{{ v.asig_pintura|escape }}"
+                data-corte-maquinas="{{ v.asig_corte_maquinas|escape }}"
+                data-corte-operadores="{{ v.asig_corte_operadores|escape }}">
+          <i class="bi bi-people"></i><span class="d-lg-none ms-1">Asignaciones</span>
+        </button>
+
+        {% if v.op_can_avance %}
+          {% comment %}
+            Con todos los datos, incluidos los del cierre. En la versión de
+            escritorio faltaban, así que desde la PC no se podía revertir un
+            cierre y desde el celular sí.
+          {% endcomment %}
+          <button type="button" class="btn btn-outline-success js-open-avance-modal"
+                  title="Avance"
+                  data-action="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_update_avance_json' v.internal_id %}{% else %}{% url 'catalogos:herreria_update_avance_json' v.internal_id %}{% endif %}"
+                  data-viga="{{ v.internal_id }}"
+                  data-codigo="{{ v.codigo_viga|escape }}"
+                  data-soldadas="{{ v.op_soldadas }}"
+                  data-pintadas="{{ v.op_pintadas }}"
+                  data-terminadas="{{ v.op_terminadas }}"
+                  data-objetivo="{{ v.total_piezas }}"
+                  data-pedido-item="{{ v.pedido_item_id }}"
+                  data-estado="{{ v.estado|escape }}"
+                  data-pendiente-hasta="{{ v.cierre_pendiente_hasta_str|escape }}"
+                  data-revert-action="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_revertir_cierre' v.internal_id %}{% else %}{% url 'catalogos:herreria_revertir_cierre' v.internal_id %}{% endif %}">
+            <i class="bi bi-bar-chart-steps"></i><span class="d-lg-none ms-1">Avance</span>
+          </button>
+        {% endif %}
+
+        {% if mode == "admin" %}
+          <button type="button" class="btn btn-outline-warning js-open-meta-modal"
+                  title="Fecha compromiso y prioridad"
+                  data-viga="{{ v.internal_id }}"
+                  data-codigo="{{ v.codigo_viga|escape }}"
+                  data-fecha="{{ v.fecha_compromiso|date:'Y-m-d' }}"
+                  data-prioridad="{{ v.prioridad }}">
+            <i class="bi bi-calendar-check"></i><span class="d-lg-none ms-1">Meta</span>
+          </button>
+          <a class="btn btn-outline-primary" title="Editar"
+             href="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_update' v.internal_id %}{% else %}{% url 'catalogos:herreria_update' v.internal_id %}{% endif %}?next={{ request.get_full_path|urlencode }}">
+            <i class="bi bi-pencil"></i><span class="d-lg-none ms-1">Editar</span>
+          </a>
+        {% endif %}
+
+        {% if v.plano_url %}
+          <button type="button" class="btn btn-outline-dark js-open-plano"
+                  title="Plano" data-url="{{ v.plano_url|escape }}">
+            <i class="bi bi-file-earmark-pdf"></i><span class="d-lg-none ms-1">Plano</span>
+          </button>
+        {% endif %}
+
+        {% if mode == "admin" %}
+          <a class="btn btn-outline-danger" title="Eliminar"
+             href="{% if linea == 'corta' %}{% url 'catalogos:corte_laser_delete' v.internal_id %}{% else %}{% url 'catalogos:herreria_delete' v.internal_id %}{% endif %}?next={{ request.get_full_path|urlencode }}">
+            <i class="bi bi-trash"></i><span class="d-lg-none ms-1">Eliminar</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

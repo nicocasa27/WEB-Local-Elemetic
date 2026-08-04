@@ -166,3 +166,49 @@ class TestElPaginador:
         assert "q=HSS" in enlace
         assert "pagina=3" in enlace
         assert "pagina=1" not in enlace
+
+
+class TestHerreriaYCortaTambienDibujanUnaVez:
+    """Las otras dos listas tenían el mismo defecto, multiplicado.
+
+    Herrería repartía el resultado en tres listas y las dibujaba las dos
+    veces: seis copias del mismo renglón en un solo archivo. Y las copias no
+    se habían separado sólo en lo cosmético.
+    """
+
+    HERRERIA = Path(settings.BASE_DIR) / "catalogos" / "templates" / "catalogos" / "herreria_list.html"
+    CORTA = Path(settings.BASE_DIR) / "catalogos" / "templates" / "catalogos" / "corte_laser_list.html"
+    ORDEN = Path(settings.BASE_DIR) / "catalogos" / "templates" / "catalogos" / "_orden_fila.html"
+
+    def test_herreria_recorre_cada_lista_una_vez(self):
+        texto = self.HERRERIA.read_text(encoding="utf-8")
+        principal = texto[: texto.find("Piezas enviadas")]
+        for variable in ["vigas_op_ventas", "vigas_op", "vigas_individual"]:
+            assert principal.count("{%% for v in %s %%}" % variable) == 1, variable
+
+    def test_corta_recorre_una_vez(self):
+        texto = self.CORTA.read_text(encoding="utf-8")
+        principal = texto[: texto.find("Piezas enviadas")]
+        assert principal.count("{% for v in vigas %}") == 1
+
+    def test_el_boton_de_avance_ya_no_depende_del_ancho(self):
+        """Aparecía en el celular para cualquiera y en la PC sólo para
+        administradores. Era la misma acción con dos permisos distintos."""
+        texto = self.ORDEN.read_text(encoding="utf-8")
+        inicio = texto.find("js-open-avance-modal")
+        assert inicio > 0
+        # La condición que lo envuelve es sólo op_can_avance.
+        anterior = texto[:inicio]
+        assert anterior.rstrip().endswith('class="btn btn-outline-success')
+        assert "{% if v.op_can_avance %}" in texto
+
+    def test_se_puede_revertir_un_cierre_desde_las_dos(self):
+        """El «Avance» de la PC no llevaba los datos del cierre, así que
+        desde la PC no se podía deshacer y desde el celular sí."""
+        texto = self.ORDEN.read_text(encoding="utf-8")
+        assert "data-revert-action" in texto
+        assert "data-pendiente-hasta" in texto
+
+    def test_ya_no_mienten_sobre_cuantas_hay(self):
+        for archivo in (self.HERRERIA, self.CORTA):
+            assert "Mostrando hasta 2000 registros" not in archivo.read_text(encoding="utf-8")

@@ -2484,6 +2484,9 @@ def herreria_control(request):
     }
     qs = qs.order_by(*order_map.get(order, order_map["ultimo_mov_desc"]))
 
+    # El cartel decía «Mostrando hasta 2000 registros», que escondía un
+    # recorte silencioso. Ahora se dice cuántas hay de verdad.
+    total_registros = qs.count()
     vigas_all = list(qs[:2000])
     orden_ids_all = [int(v.id) for v in vigas_all if v and getattr(v, "id", None)]
     orden_to_pedido_id: dict[int, int] = {}
@@ -2803,6 +2806,7 @@ def herreria_control(request):
         "catalogos/herreria_list.html",
         {
             "vigas": vigas,
+            "total_registros": total_registros,
             "vigas_op": vigas_op,
             "vigas_op_ventas": vigas_op_ventas,
             "vigas_individual": vigas_individual,
@@ -4724,6 +4728,9 @@ def corte_laser_control(request):
     }
     qs = qs.order_by(*order_map.get(order, order_map["ultimo_mov_desc"]))
 
+    # El cartel decía «Mostrando hasta 2000 registros», que escondía un
+    # recorte silencioso. Ahora se dice cuántas hay de verdad.
+    total_registros = qs.count()
     vigas_all = list(qs[:2000])
     ordenes_enviadas_ids: set[int] = set()
     for v in vigas_all:
@@ -4938,6 +4945,7 @@ def corte_laser_control(request):
         "catalogos/corte_laser_list.html",
         {
             "vigas": vigas,
+            "total_registros": total_registros,
             "mode": "admin",
             "reset_url": reverse("catalogos:corte_laser_control"),
             "estados_filtro": ["Todos", *estados, CIERRE_PENDIENTE_LABEL],
