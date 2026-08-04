@@ -573,11 +573,34 @@ def _parse_ids_csv(value: str):
 
 
 def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, actor: str = ""):
+    """Guarda a quién se asigna una etapa. Devuelve `(salió bien, error)`.
+
+    La comprobación del equipo se hace **después** de saber si hay alguien a
+    quien asignar, y ése era un fallo que paraba el taller:
+
+    El equipo se busca por el área, y no hay ninguno con área «Armado» —los
+    cuatro del taller son Corte, Soldadura, Soldadura y Pintura—. Como la
+    comprobación estaba arriba del todo, cualquier intento de pasar una pieza
+    a Armado moría con un 400 «No hay equipo configurado para la etapa
+    Armado», **aunque no se estuviera asignando a nadie**. Las once piezas que
+    esperan armado no se podían mover, ni desde la lista ni desde el celular,
+    y el mensaje no daba ninguna pista de que se arreglaba dando de alta un
+    equipo en Configuración.
+
+    Sin nadie a quien asignar no hace falta ningún equipo: no hay nada que
+    validar contra él.
+    """
     etapa = (etapa or "").strip()
     actor = (actor or "").strip()
-    equipo = _equipo_for_etapa(etapa)
-    if not equipo:
-        return False, f"No hay equipo configurado para la etapa {etapa}."
+
+    def con_equipo():
+        equipo = _equipo_for_etapa(etapa)
+        if not equipo:
+            return None, (
+                f"No hay ningún equipo del área de {etapa}. Se da de alta en "
+                "Configuración de planta → Equipos."
+            )
+        return equipo, ""
 
     if etapa == "Armado":
         soldador_id = int(post_data.get("soldador_id") or 0)
@@ -591,6 +614,9 @@ def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, a
             auxiliares_ids = _parse_ids_csv(post_data.get("auxiliar_ids") or "")
         if not soldador_id and not auxiliares_ids:
             return True, ""
+        equipo, error = con_equipo()
+        if error:
+            return False, error
         if not soldador_id:
             return False, "Debes asignar 1 soldador para Armado."
         if len(auxiliares_ids) < 1 or len(auxiliares_ids) > 2:
@@ -628,6 +654,9 @@ def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, a
         pintor_id = int(post_data.get("pintor_id") or 0)
         if not pintor_id:
             return True, ""
+        equipo, error = con_equipo()
+        if error:
+            return False, error
         pintor = Colaborador.objects.using("mes").filter(id=pintor_id, activo=True, equipo=equipo, rol="Pintor").first()
         if not pintor:
             return False, "Pintor inválido para Pintura."

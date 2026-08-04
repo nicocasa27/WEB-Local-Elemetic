@@ -122,3 +122,134 @@ class TestElDialogoSeLlena:
 
     def test_sin_equipos_no_revienta(self):
         assert _build_participantes_payload() == {}
+
+
+class TestArmadoSePodiaQuedarBloqueado:
+    """El fallo que paraba el taller.
+
+    El equipo de una etapa se busca por el área, y **no hay ningún equipo con
+    área «Armado»**: los cuatro del taller son Corte, Soldadura, Soldadura y
+    Pintura. Como la comprobación estaba antes de mirar si había alguien a
+    quien asignar, cualquier intento de pasar una pieza a Armado moría con un
+    400, aunque no se estuviera asignando a nadie.
+
+    Once piezas esperando armado que no se podían mover ni desde la lista ni
+    desde el celular, y un mensaje que no decía cómo arreglarlo.
+    """
+
+    def _avanzar(self, cliente, la_pieza, destino):
+        from django.urls import reverse
+        from django.utils import timezone
+
+        return cliente.post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": destino,
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+    def _pieza(self, estado):
+        from django.utils import timezone
+
+        from produccion.models import Viga
+
+        return Viga.objects.create(
+            codigo_viga=f"P-{estado}",
+            pieza_no=1,
+            total_piezas=1,
+            proyecto="OBRA",
+            descripcion="pieza",
+            fecha_compromiso=timezone.localdate(),
+            estado=estado,
+            prioridad=3,
+            peso_kg=100,
+            fecha_creacion=timezone.now(),
+            ultimo_cambio=timezone.now(),
+        )
+
+    def _cliente(self, django_user_model):
+        from django.contrib.auth.models import Group
+        from django.test import Client
+
+        persona = django_user_model.objects.create_user("juan", password="x")
+        persona.groups.add(Group.objects.get_or_create(name="soldadura")[0])
+        cliente = Client(SERVER_NAME="127.0.0.1")
+        cliente.force_login(persona)
+        return cliente
+
+    def test_sin_equipo_de_armado_la_pieza_avanza_igual(self, django_user_model):
+        """Sin nadie a quien asignar no hace falta ningún equipo: no hay nada
+        que validar contra él."""
+        equipo("Cuadrilla Soldadura A", "Soldadura")
+        cliente = self._cliente(django_user_model)
+        la_pieza = self._pieza("Espera de armado")
+
+        respuesta = self._avanzar(cliente, la_pieza, "Armado")
+
+        assert respuesta.status_code == 200, respuesta.content
+        la_pieza.refresh_from_db()
+        assert la_pieza.estado == "Armado"
+
+    def test_lo_mismo_con_pintura(self, django_user_model):
+        cliente = self._cliente(django_user_model)
+        la_pieza = self._pieza("Espera de pintura")
+
+        respuesta = self._avanzar(cliente, la_pieza, "Pintura")
+
+        assert respuesta.status_code == 200, respuesta.content
+
+    def test_si_se_asigna_a_alguien_y_no_hay_equipo_sí_se_avisa(self, django_user_model):
+        """Cuando el equipo hace falta de verdad, el mensaje dice dónde se
+        arregla. El de antes no lo decía."""
+        cliente = self._cliente(django_user_model)
+        la_pieza = self._pieza("Espera de armado")
+
+        from django.urls import reverse
+        from django.utils import timezone
+
+        respuesta = cliente.post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": "Armado",
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+                "soldador_id": "1",
+                "auxiliar_ids": "2",
+            },
+        )
+
+        assert respuesta.status_code == 400
+        assert "Configuración de planta" in respuesta.json()["error"]
+
+    def test_con_equipo_y_gente_se_guarda_la_asignacion(self, django_user_model):
+        from catalogos.models import VigaAsignacion
+
+        soldadura = equipo("Cuadrilla Soldadura A", "Soldadura", sub_area="Armado")
+        soldador = persona("Beto", soldadura, rol="Soldador")
+        auxiliar = persona("Ana", soldadura, rol="Auxiliar")
+        cliente = self._cliente(django_user_model)
+        la_pieza = self._pieza("Espera de armado")
+
+        from django.urls import reverse
+        from django.utils import timezone
+
+        respuesta = cliente.post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": "Armado",
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+                "soldador_id": str(soldador.id),
+                "auxiliar_ids": str(auxiliar.id),
+            },
+        )
+
+        assert respuesta.status_code == 200, respuesta.content
+        asignados = set(
+            VigaAsignacion.objects.filter(
+                viga_internal_id=la_pieza.internal_id, etapa="Armado", vigente=True
+            ).values_list("colaborador__nombre", flat=True)
+        )
+        assert asignados == {"Beto", "Ana"}

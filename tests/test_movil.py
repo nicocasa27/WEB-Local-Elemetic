@@ -391,3 +391,72 @@ class TestElTallerPuedeEnlazarLasCuentasSolo:
         piso = next(s for s in secciones if s["titulo"] == "El celular del piso")
 
         assert piso["renglones"][0]["estado"] == "falta"
+
+
+class TestCadaBotonQueSeOfreceLoAceptaElServidor:
+    """La pantalla decide qué botón enseñar con sus propias reglas y el
+    servidor decide si lo acepta con las suyas. Son dos copias.
+
+    Mientras sean dos, sólo una prueba que **pulse cada botón contra el
+    servidor** impide que se separen. Un botón que responde «Sin permiso» en
+    el piso, con guantes y a pleno sol, es la razón por la que la gente vuelve
+    al papel.
+    """
+
+    @pytest.mark.parametrize(
+        "grupo,etapa",
+        [
+            ("corte", "Espera de corte"),
+            ("corte", "Corte"),
+            ("soldadura", "Espera de armado"),
+            ("soldadura", "Armado"),
+            ("soldadura", "Espera de soldadura"),
+            ("soldadura", "Soldadura"),
+            ("soldadura", "Espera de pintura"),
+            ("soldadura", "Pintura"),
+        ],
+    )
+    def test_se_pulsa_y_avanza(self, django_user_model, grupo, etapa):
+        from produccion.models import Viga
+
+        cliente = navegador(django_user_model, "juan", grupo=grupo)
+        colaborador(usuario="juan")
+        la_pieza = pieza(estado=etapa, codigo=f"P-{etapa}")
+
+        trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
+        assert len(trabajos) == 1, f"la pantalla no ofrece nada en {etapa}"
+        trabajo = trabajos[0]
+        assert trabajo["siguiente"], f"sin botón en {etapa}"
+
+        respuesta = cliente.post(
+            trabajo["url_avance"],
+            {
+                "estado_nuevo": trabajo["siguiente"],
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        assert respuesta.status_code == 200, respuesta.content
+        assert respuesta.json()["ok"] is True, respuesta.json()
+        la_pieza.refresh_from_db()
+        assert la_pieza.estado == trabajo["siguiente"]
+
+    def test_un_administrador_tambien(self, django_user_model):
+        from produccion.models import Viga
+
+        cliente = navegador(django_user_model, "jefa", grupo="admin_general")
+        pieza(estado="Espera de corte")
+
+        trabajo = cliente.get(reverse("produccion:movil")).context["trabajos"][0]
+        respuesta = cliente.post(
+            trabajo["url_avance"],
+            {
+                "estado_nuevo": trabajo["siguiente"],
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        assert respuesta.status_code == 200, respuesta.content
+        assert Viga.objects.get().estado == "Corte"

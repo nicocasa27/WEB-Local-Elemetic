@@ -35,7 +35,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -265,6 +265,7 @@ class Command(BaseCommand):
 
     @transaction.atomic(using=BASE)
     def handle(self, *args, **opciones):
+        self._exigir_base_vacia()
         self.azar = random.Random(opciones["semilla"])
         self.hoy = timezone.localdate()
         self.tamano = TAMANOS[opciones["tamano"]]
@@ -298,6 +299,39 @@ class Command(BaseCommand):
         self._paros()
 
         self.stdout.write(self.style.SUCCESS("\nTaller simulado listo.\n"))
+
+    def _exigir_base_vacia(self):
+        """Se niega a sembrar encima de datos que ya existen.
+
+        El sembrador está pensado para una base recién limpiada: los códigos
+        se calculan, así que la segunda vez salen los mismos y chocan contra
+        las restricciones de unicidad. Antes eso terminaba en un
+        `IntegrityError` con veinte líneas de traza, a la mitad del trabajo,
+        y quien lo veía no tenía forma de saber que la solución era correr
+        `limpiar_datos` primero.
+
+        Lo que se comprueba son las órdenes, no cualquier fila: los catálogos
+        —proyectos, máquinas, materiales— sí se siembran de forma idempotente
+        y tenerlos ya puestos no estorba.
+        """
+        from catalogos.models import HerrOrdenProduccion
+        from produccion.models import Viga
+
+        ordenes = HerrOrdenProduccion.objects.using(BASE).count()
+        piezas = Viga.objects.using(BASE).count()
+        if not (ordenes or piezas):
+            return
+
+        raise CommandError(
+            f"Ya hay datos de producción: {piezas} pieza(s) y {ordenes} orden(es) "
+            "de herrería.\n\n"
+            "Este comando siembra un taller entero y calcula los códigos, así "
+            "que sembrar encima choca contra las restricciones de unicidad y "
+            "se queda a medias.\n\n"
+            "Para volver a empezar:\n"
+            "    manage.py limpiar_datos --si-estoy-seguro mes_vigas\n"
+            "    manage.py sembrar_demo"
+        )
         self._resumen()
 
     # ------------------------------------------------------------- taller
@@ -466,18 +500,26 @@ class Command(BaseCommand):
             objetivo = Decimal(minimo) * Decimal(self.azar.choice(["1.4", "2.2", "3.0", "0.8"]))
             for numero in range(self.azar.randint(1, 3)):
                 dias = self.azar.randint(10, 180)
-                lote = LoteMaterial.objects.using(BASE).create(
+                # `get_or_create`, no `create`. Con `create`, volver a correr
+                # el sembrador reventaba con IntegrityError contra la
+                # restricción `lote_unico_por_material`: el código del lote se
+                # calcula del material y del número, así que la segunda vez
+                # sale el mismo. Un sembrador que sólo funciona sobre una base
+                # vacía obliga a borrarlo todo para tocar cualquier detalle.
+                lote, nuevo = LoteMaterial.objects.using(BASE).get_or_create(
                     material=material,
                     codigo=f"{clave}-L{numero + 1}",
-                    colada=f"C{self.azar.randint(100000, 999999)}",
-                    costo_unitario=Decimal(costo) * Decimal(
-                        self.azar.choice(["0.94", "1.0", "1.07"])
-                    ),
-                    proveedor=self.azar.choice(proveedores),
-                    recibido_en=self.hoy - timedelta(days=dias),
+                    defaults={
+                        "colada": f"C{self.azar.randint(100000, 999999)}",
+                        "costo_unitario": Decimal(costo) * Decimal(
+                            self.azar.choice(["0.94", "1.0", "1.07"])
+                        ),
+                        "proveedor": self.azar.choice(proveedores),
+                        "recibido_en": self.hoy - timedelta(days=dias),
+                    },
                 )
                 cantidad = (objetivo / 2).quantize(Decimal("0.01"))
-                if cantidad > 0:
+                if nuevo and cantidad > 0:
                     servicio.registrar_entrada(
                         lote=lote, cantidad=cantidad, actor=None, almacen=almacen
                     )
@@ -895,12 +937,17 @@ class Command(BaseCommand):
         Es lo que Ventas consulta cuando preguntan por teléfono si hay
         andamios. Sin filas, la pantalla no enseña nada.
         """
-        from catalogos.models import (
-            HerrPiezaCatalogo,
-            LogisticaStock,
-            LogisticaStockCorta,
-        )
+        from catalogos.models import HerrPiezaCatalogo
 
+        from core.servicios import almacen as servicio_almacen
+
+        # Se siembra **por el servicio**, no escribiendo la existencia a mano.
+        #
+        # Escribirla a mano dejaba ocho productos con existencia y cero
+        # movimientos, y `auditar_stock` los reportaba como descuadre. Un
+        # informe de auditoría que siempre sale con ocho errores falsos es un
+        # informe que nadie lee, y el día que haya un descuadre de verdad
+        # pasará entre los otros ocho sin que nadie lo mire.
         hechos = 0
         for nombre, peso in PIEZAS_HERRERIA[:5]:
             pieza, _ = HerrPiezaCatalogo.objects.using(BASE).get_or_create(
@@ -910,17 +957,15 @@ class Command(BaseCommand):
                 # silencio con una advertencia distinta en cada versión.
                 defaults={"nombre": nombre, "peso_kg": float(peso)},
             )
-            LogisticaStock.objects.using(BASE).update_or_create(
-                producto=pieza,
-                defaults={"stock": self.azar.randint(4, 60)},
-            )
+            faltan = self.azar.randint(4, 60) - servicio_almacen.disponible(pieza)
+            if faltan > 0:
+                servicio_almacen.registrar_entrada(pieza, faltan, "sembrar_demo")
             hechos += 1
 
         for nombre in ("Placa base 250 x 250", "Ángulo troquelado 2\"", "Tapa registro"):
-            LogisticaStockCorta.objects.using(BASE).update_or_create(
-                producto_normalizado=nombre.upper(),
-                defaults={"producto": nombre, "stock": self.azar.randint(10, 120)},
-            )
+            faltan = self.azar.randint(10, 120) - servicio_almacen.disponible_corta(nombre)
+            if faltan > 0:
+                servicio_almacen.registrar_entrada_corta(nombre, faltan, "sembrar_demo")
             hechos += 1
 
         self.stdout.write(f"  {hechos} productos terminados en almacén")

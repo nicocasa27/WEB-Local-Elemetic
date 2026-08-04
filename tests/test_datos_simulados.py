@@ -432,3 +432,78 @@ class TestEsReproducible:
         )
 
         assert primera == segunda
+
+
+class TestElAlmacenSimuladoCuadra:
+    """`auditar_stock` es el informe contra el que se mide la reforma del
+    almacén. Sobre el taller simulado salía con ocho descuadres.
+
+    Los ocho eran del propio sembrador, que escribía la existencia de producto
+    terminado a mano en vez de pasar por el servicio, y así quedaba existencia
+    sin ningún movimiento detrás. Un informe de auditoría que siempre trae
+    ocho errores falsos es un informe que nadie lee, y el día que aparezca un
+    descuadre de verdad pasará entre los otros ocho sin que nadie lo mire.
+    """
+
+    def test_cada_existencia_tiene_sus_movimientos(self):
+        from django.db.models import Sum
+
+        from catalogos.models import LogisticaMovimiento, LogisticaStock
+
+        call_command("sembrar_demo", verbosity=0, stdout=StringIO())
+        try:
+            descuadres = []
+            for fila in LogisticaStock.objects.using(BASE).select_related("producto"):
+                movido = (
+                    LogisticaMovimiento.objects.using(BASE)
+                    .filter(producto=fila.producto)
+                    .aggregate(total=Sum("cantidad"))["total"]
+                    or 0
+                )
+                if int(fila.stock or 0) != int(movido):
+                    descuadres.append((str(fila.producto), fila.stock, movido))
+
+            assert descuadres == []
+        finally:
+            limpiar(tambien_usuarios=True)
+
+    def test_el_informe_de_auditoria_sale_limpio(self):
+        call_command("sembrar_demo", verbosity=0, stdout=StringIO())
+        try:
+            salida = StringIO()
+            call_command("auditar_stock", stdout=salida)
+
+            assert "Sin descuadres" in salida.getvalue()
+        finally:
+            limpiar(tambien_usuarios=True)
+
+
+class TestSembrarEncimaSeNiega:
+    """Antes reventaba con un IntegrityError a media faena.
+
+    Los códigos se calculan, así que la segunda vez salen los mismos y chocan
+    contra las restricciones de unicidad. Quien veía la traza no tenía forma
+    de saber que la solución era correr `limpiar_datos` primero, y se quedaba
+    con media base sembrada.
+    """
+
+    def test_lo_dice_en_vez_de_reventar(self):
+        from django.core.management.base import CommandError
+
+        call_command("sembrar_demo", verbosity=0, stdout=StringIO())
+        try:
+            with pytest.raises(CommandError) as fallo:
+                call_command("sembrar_demo", verbosity=0, stdout=StringIO())
+
+            assert "limpiar_datos" in str(fallo.value)
+        finally:
+            limpiar(tambien_usuarios=True)
+
+    def test_sobre_una_base_vacia_no_estorba(self):
+        call_command("sembrar_demo", verbosity=0, stdout=StringIO())
+        try:
+            from produccion.models import Viga
+
+            assert Viga.objects.using(BASE).count() > 0
+        finally:
+            limpiar(tambien_usuarios=True)
