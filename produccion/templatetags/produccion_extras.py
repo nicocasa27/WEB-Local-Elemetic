@@ -1,6 +1,37 @@
+from decimal import Decimal, InvalidOperation
+
 from django import template
+from django.utils.formats import number_format
 
 register = template.Library()
+
+@register.filter
+def cantidad(valor):
+    """Una cantidad de almacén, legible, sin perder precisión.
+
+    Los campos guardan seis decimales y **no se recortan**: si alguien
+    capturó 0.000125, ese número es suyo y se enseña entero. Lo que se quita
+    son los ceros de relleno, que no dicen nada: 120.000000 sale «120» y
+    1.600000 sale «1.6», pero 0.0004 sigue saliendo «0.0004».
+
+    Y se agrupan los miles, que es lo que faltaba para poder leer una cifra
+    larga de un vistazo: 100000213.2312 sale «100,000,213.2312».
+
+    `floatformat` no sirve: obliga a fijar un número de decimales, así que o
+    recorta lo que importa o rellena con ceros lo que no.
+    """
+    if valor in (None, ""):
+        return ""
+    try:
+        numero = Decimal(str(valor))
+    except (InvalidOperation, ValueError, TypeError):
+        return valor
+    recortado = numero.normalize()
+    # normalize() deja 120 como «1.2E+2»; devolverlo a notación plana.
+    if recortado.as_tuple().exponent > 0:
+        recortado = recortado.quantize(Decimal(1))
+    return number_format(recortado, use_l10n=True, force_grouping=True)
+
 
 def _to_float(value):
     try:

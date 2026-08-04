@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 
 {% block title %}Carga inicial de inventario{% endblock %}
 
@@ -89,7 +90,7 @@ PL-3/8,88,INICIAL-2026,C-99880,210.00,Principal,,2026-08-01</code></pre>
             <tr {% if not r.listo %}class="table-warning"{% endif %}>
               <td class="text-muted mes-dato">{{ r.numero }}</td>
               <td class="mes-dato">{{ r.codigo|default:"—" }}</td>
-              <td class="text-end mes-dato">{{ r.cantidad|default_if_none:"—" }}</td>
+              <td class="text-end mes-dato">{{ r.cantidad|cantidad|default:"—" }}</td>
               <td>{{ r.lote }}</td>
               <td class="text-muted">{{ r.colada|default:"—" }}</td>
               <td class="text-end mes-dato">{{ r.costo }}</td>

@@ -1,4 +1,6 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
+{% load l10n %}
 
 {% block title %}Por comprar{% endblock %}
 
@@ -54,19 +56,19 @@
           <dl class="mes-compra-cifras">
             <div>
               <dt>Faltan</dt>
-              <dd class="mes-compra-falta">{{ fila.faltan|floatformat:"-2" }} {{ fila.material.unidad }}</dd>
+              <dd class="mes-compra-falta">{{ fila.faltan|cantidad }} {{ fila.material.unidad }}</dd>
             </div>
             <div>
               <dt>Hay</dt>
-              <dd>{{ fila.fisico|floatformat:"-2" }}</dd>
+              <dd>{{ fila.fisico|cantidad }}</dd>
             </div>
             <div>
               <dt>Libre</dt>
-              <dd {% if fila.disponible <= 0 %}class="mes-compra-cero"{% endif %}>{{ fila.disponible|floatformat:"-2" }}</dd>
+              <dd {% if fila.disponible <= 0 %}class="mes-compra-cero"{% endif %}>{{ fila.disponible|cantidad }}</dd>
             </div>
             <div>
               <dt>Mínimo</dt>
-              <dd>{{ fila.material.stock_minimo|floatformat:"-2" }}</dd>
+              <dd>{{ fila.material.stock_minimo|cantidad }}</dd>
             </div>
           </dl>
 
@@ -107,8 +109,8 @@
                 <label for="campo-cantidad-{{ fila.material.id }}">Se pide</label>
                 <input id="campo-cantidad-{{ fila.material.id }}" class="form-control form-control-sm"
                        type="text" inputmode="decimal" name="cantidad_pedida"
-                       placeholder="{{ fila.faltan|floatformat:'-2' }}"
-                       value="{% if fila.seguimiento.cantidad_pedida %}{{ fila.seguimiento.cantidad_pedida|floatformat:'-2' }}{% endif %}">
+                       placeholder="{{ fila.faltan|unlocalize }}"
+                       value="{% if fila.seguimiento.cantidad_pedida %}{{ fila.seguimiento.cantidad_pedida|unlocalize }}{% endif %}">
               </div>
 
               <div class="mes-campo">

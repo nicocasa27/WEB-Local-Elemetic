@@ -129,7 +129,10 @@ SECURE_REFERRER_POLICY = "same-origin"
 
 # ------------------------------------------------------------ regionalización
 
-LANGUAGE_CODE = "es"
+# «es» a secas es el español de España, que escribe 1 234,56: coma decimal y
+# espacio fino para los miles. Aquí se escribe 1,234.56. La diferencia no es
+# cosmética: un peso de «1,600» kg se leía como mil seiscientos.
+LANGUAGE_CODE = "es-mx"
 TIME_ZONE = "America/Merida"
 USE_I18N = True
 USE_TZ = True

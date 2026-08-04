@@ -1,4 +1,5 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 {% block title %}Taller Elemetic - Importar de OPUS{% endblock %}
 {% block content %}
   <div class="mb-3">
@@ -168,7 +169,7 @@
                   {% endif %}
                 </td>
                 <td class="small">{{ fila.unidad }}</td>
-                <td class="text-end mes-dato">{{ fila.cantidad }}</td>
+                <td class="text-end mes-dato">{{ fila.cantidad|cantidad }}</td>
                 <td class="text-end mes-dato">{{ fila.costo }}</td>
                 <td>
                   {% if fila.nueva %}

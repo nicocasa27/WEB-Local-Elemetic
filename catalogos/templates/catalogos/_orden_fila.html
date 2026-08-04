@@ -48,7 +48,7 @@
       <span class="text-muted js-prioridad" title="Prioridad {{ v.prioridad }}">P{{ v.prioridad }}</span>
       <span class="mes-relativo">{{ v.fecha_compromiso|desde_hoy }}</span>
     </span>
-    <span class="mes-col-peso small">{{ v.peso_kg|floatformat:"-3" }} kg</span>
+    <span class="mes-col-peso small">{{ v.peso_kg|cantidad }} kg</span>
   </div>
 
   <div class="mes-col-estado">
