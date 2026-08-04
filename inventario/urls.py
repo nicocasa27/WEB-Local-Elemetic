@@ -7,7 +7,7 @@ grupo de almacén.
 
 from django.urls import path
 
-from . import almacen
+from . import almacen, opus_import
 
 app_name = "inventario"
 
@@ -16,4 +16,5 @@ urlpatterns = [
     path("por-surtir/", almacen.por_surtir, name="por_surtir"),
     path("entregar/", almacen.entregar, name="entregar"),
     path("liberar/", almacen.liberar, name="liberar"),
+    path("importar-opus/", opus_import.importar, name="opus_importar"),
 ]

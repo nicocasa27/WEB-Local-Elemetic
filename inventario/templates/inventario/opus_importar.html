@@ -1,0 +1,207 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Importar de OPUS{% endblock %}
+{% block content %}
+  <div class="mb-3">
+    <div class="h3 mb-0">Importar explosión de OPUS</div>
+    <div class="text-muted small">
+      Cruza las claves del presupuesto con el catálogo de materiales.
+      Nada se da de alta hasta que lo confirmes.
+    </div>
+  </div>
+
+  {% if paso == "subir" %}
+    <div class="card">
+      <form method="post" enctype="multipart/form-data" class="card-body vstack gap-3">
+        {% csrf_token %}
+        <div>
+          <label class="form-label" for="campo-archivo">Archivo exportado de OPUS</label>
+          <input id="campo-archivo" class="form-control" type="file" name="archivo"
+                 accept=".csv,text/csv" required>
+          <div class="form-text">
+            La explosión de recursos en CSV, tal cual sale de OPUS. No hace falta
+            tocarla.
+          </div>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-argon text-white">
+            <i class="bi bi-upload me-1"></i> Leer el archivo
+          </button>
+        </div>
+      </form>
+    </div>
+
+  {% else %}
+
+    {% comment %}
+      El cuadre es la prueba de que el archivo se separó bien: si la suma de los
+      renglones no coincide con el total que declara OPUS, casi siempre es que
+      alguna fila se partió mal. Y una fila mal partida en una explosión de
+      insumos es material comprado de más o de menos.
+    {% endcomment %}
+    {% if lectura.cuadra is True %}
+      <div class="alert alert-success d-flex gap-2 align-items-start">
+        <i class="bi bi-check2-circle fs-5"></i>
+        <div>
+          <strong>El archivo cuadra.</strong>
+          Los {{ lectura.partidas|length }} renglones suman
+          <span class="mes-dato">{{ lectura.importe_leido|floatformat:2 }}</span>,
+          que es lo que declara el propio archivo.
+        </div>
+      </div>
+    {% elif lectura.cuadra is False %}
+      <div class="alert alert-danger d-flex gap-2 align-items-start">
+        <i class="bi bi-exclamation-octagon fs-5"></i>
+        <div>
+          <strong>El archivo no cuadra con su propio total.</strong>
+          Casi siempre significa que algún renglón se partió mal. No se puede
+          importar hasta revisarlo.
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-warning">
+        El archivo no trae total, así que no hay contra qué cuadrarlo.
+      </div>
+    {% endif %}
+
+    <div class="row g-3">
+      <div class="col-lg-4">
+        <div class="card h-100">
+          <div class="card-header fw-semibold">Proyecto</div>
+          <div class="card-body small">
+            <dl class="mb-0">
+              {% if lectura.cabecera.proyecto %}
+                <dt>Descripción</dt><dd>{{ lectura.cabecera.proyecto }}</dd>
+              {% endif %}
+              {% if lectura.cabecera.cliente %}
+                <dt>Cliente</dt><dd>{{ lectura.cabecera.cliente }}</dd>
+              {% endif %}
+              {% if lectura.cabecera.ubicacion %}
+                <dt>Ubicación</dt><dd>{{ lectura.cabecera.ubicacion }}</dd>
+              {% endif %}
+              {% if lectura.cabecera.inicio_obra %}
+                <dt>Obra</dt>
+                <dd class="mes-dato">
+                  {{ lectura.cabecera.inicio_obra|date:"Y-m-d" }}
+                  {% if lectura.cabecera.fin_obra %}
+                    → {{ lectura.cabecera.fin_obra|date:"Y-m-d" }}
+                  {% endif %}
+                </dd>
+              {% endif %}
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card h-100">
+          <div class="card-header fw-semibold">Qué va a pasar</div>
+          <div class="card-body">
+            <div class="d-flex flex-wrap gap-4">
+              <div>
+                <div class="kpi">{{ nuevas|length }}</div>
+                <div class="kpi-label">Se dan de alta</div>
+              </div>
+              <div>
+                <div class="kpi">{{ conocidas|length }}</div>
+                <div class="kpi-label">Ya en el catálogo</div>
+              </div>
+              <div>
+                <div class="kpi">{{ lectura.avisos|length }}</div>
+                <div class="kpi-label">Para revisar</div>
+              </div>
+            </div>
+            <div class="form-text mt-2">
+              Los materiales que ya existen <strong>no se tocan</strong>: pueden
+              tener mínimo, proveedor y existencia capturados a mano, y pisarlos
+              con lo que trae un presupuesto sería perder ese trabajo.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if lectura.avisos %}
+      <div class="card mt-3">
+        <div class="card-header fw-semibold">
+          Para revisar antes de importar
+        </div>
+        <div class="card-body">
+          <ul class="mb-0 small">
+            {% for aviso in lectura.avisos %}
+              <li>
+                <span class="badge badge-soft">{{ aviso.clase }}</span>
+                {{ aviso.detalle }}
+                {% if aviso.renglon %}
+                  <span class="text-muted mes-dato">(r{{ aviso.renglon }})</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card mt-3">
+      <div class="card-header fw-semibold">Insumos</div>
+      <div class="mes-scroll-x">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th>Descripción</th>
+              <th>Unidad</th>
+              <th class="text-end">Cantidad</th>
+              <th class="text-end">Costo</th>
+              <th>Qué pasa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in agrupadas %}
+              <tr>
+                <td class="mes-dato fw-semibold">{{ fila.clave }}</td>
+                <td class="small">
+                  {{ fila.descripcion }}
+                  {% if fila.renglones > 1 %}
+                    <div class="text-muted">
+                      {{ fila.renglones }} renglones acumulados
+                    </div>
+                  {% endif %}
+                </td>
+                <td class="small">{{ fila.unidad }}</td>
+                <td class="text-end mes-dato">{{ fila.cantidad }}</td>
+                <td class="text-end mes-dato">{{ fila.costo }}</td>
+                <td>
+                  {% if fila.nueva %}
+                    {% if fila.inventariable %}
+                      <span class="badge est-terminado">Se da de alta</span>
+                    {% else %}
+                      <span class="badge est-espera-corte" title="Indirecto por porcentaje: no ocupa sitio en un estante">
+                        Alta, no inventariable
+                      </span>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted small">Ya existe, no se toca</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <form method="post" class="mt-3 d-flex gap-2">
+      {% csrf_token %}
+      <input type="hidden" name="crudo" value="{{ crudo }}">
+      <input type="hidden" name="confirmar" value="sí">
+      <button type="submit" class="btn btn-argon text-white"
+              {% if lectura.cuadra is False %}disabled{% endif %}>
+        <i class="bi bi-check2 me-1"></i>
+        Dar de alta {{ nuevas|length }} material{{ nuevas|length|pluralize:"es" }}
+      </button>
+      <a class="btn btn-outline-secondary" href="{% url 'inventario:opus_importar' %}">
+        Empezar de nuevo
+      </a>
+    </form>
+  {% endif %}
+{% endblock %}
