@@ -31,7 +31,7 @@ try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
     PdfReader = None
-from core import paginacion
+from core import metricas, paginacion
 from core.estados import clase as clase_de_estado
 
 from catalogos.models import Proyecto
@@ -46,8 +46,6 @@ from catalogos.models import (
     VigaAsignacion,
 )
 from catalogos.models import RobotProduccion
-from catalogos.models import HerrProduccion
-from catalogos.models import LaserProduccion
 from catalogos.models import HerrOrdenAsignacion
 from catalogos.models import HerrAsignacion
 from catalogos.models import HerrOrdenItem
@@ -2970,7 +2968,13 @@ def dashboard(request):
     ton_data = [round(r["ton"], 3) for r in resumen]
     colors = [r["color"] for r in resumen]
 
-    retrabajo_vigas_qs = base_qs.filter(logs__comentario__icontains="retrabajo").distinct()
+    # Antes: `comentario__icontains="retrabajo"`, que daba por retrabajo
+    # cualquier comentario donde apareciera la palabra, incluido «no hubo
+    # retrabajo». Es la misma definición que usa el bloque semanal, que
+    # hasta ahora era distinta en la misma pantalla.
+    retrabajo_vigas_qs = base_qs.filter(
+        metricas.filtro_de_retrabajo("logs__comentario")
+    ).distinct()
     retrabajo_piezas = retrabajo_vigas_qs.count()
     retrabajo_kg = float(retrabajo_vigas_qs.aggregate(total=Sum("peso_kg"))["total"] or 0.0)
     retrabajo_ton = retrabajo_kg / 1000.0
@@ -3231,18 +3235,15 @@ def dashboard(request):
     )
     robot_day_map = {row["fecha"]: row for row in robot_day_rows}
 
-    herr_peso_expr = Coalesce(F("orden_item__pieza__peso_kg"), F("orden_item__pieza_custom_peso_kg"), 0.0)
-    herr_expr_kg_week = ExpressionWrapper(F("cantidad") * herr_peso_expr, output_field=FloatField())
-    herr_week_qs = HerrProduccion.objects.filter(fecha__gte=week_start, fecha__lt=week_end)
-    herr_total_kg_week = float(herr_week_qs.aggregate(total=Sum(herr_expr_kg_week))["total"] or 0.0)
+    # Antes esto salía de `HerrProduccion`, multiplicando la cantidad por el
+    # peso de la pieza del renglón de la orden. En la base sólo hay una fila
+    # de esa tabla y tiene el renglón vacío, así que el peso resolvía a cero:
+    # **las toneladas de Herrería llevaban saliendo cero desde siempre.** El
+    # avance real se lleva por contadores y deja rastro en HerrAvanceCambio.
+    herr_day_map = metricas.produccion_de_herreria(week_start, week_end)
+    herr_total_kg_week = sum(f["kg"] for f in herr_day_map.values())
     herr_total_ton_week = herr_total_kg_week / 1000.0
-    herr_total_piezas_week = int(herr_week_qs.aggregate(total=Sum("cantidad"))["total"] or 0)
-    herr_day_rows = (
-        herr_week_qs.values("fecha")
-        .annotate(piezas=Sum("cantidad"), kg=Sum(herr_expr_kg_week))
-        .order_by("fecha")
-    )
-    herr_day_map = {row["fecha"]: row for row in herr_day_rows}
+    herr_total_piezas_week = sum(f["piezas"] for f in herr_day_map.values())
 
     corte_term_qs = LaserEstadoCambio.objects.filter(
         estado_nuevo="Terminado",
@@ -3295,7 +3296,7 @@ def dashboard(request):
             fecha_operacion__gte=week_start,
             fecha_operacion__lt=week_end,
         )
-        .filter(Q(comentario__icontains="[MOTIVO=RETRABAJO]") | Q(comentario__icontains="MOTIVO=RETRABAJO"))
+        .filter(metricas.filtro_de_retrabajo())
         .values("viga_internal_id")
         .distinct()
         .count()
@@ -3305,7 +3306,7 @@ def dashboard(request):
             fecha_operacion__gte=week_start,
             fecha_operacion__lt=week_end,
         )
-        .filter(Q(comentario__icontains="[MOTIVO=RETRABAJO]") | Q(comentario__icontains="MOTIVO=RETRABAJO"))
+        .filter(metricas.filtro_de_retrabajo())
         .values("viga_internal_id")
         .distinct()
         .count()
@@ -3317,7 +3318,7 @@ def dashboard(request):
                 fecha_operacion__gte=week_start,
                 fecha_operacion__lt=week_end,
             )
-            .filter(Q(comentario__icontains="[MOTIVO=RETRABAJO]") | Q(comentario__icontains="MOTIVO=RETRABAJO"))
+            .filter(metricas.filtro_de_retrabajo())
             .order_by("viga_internal_id", "-timestamp", "-id")
             .distinct("viga_internal_id")
             .values("viga_internal_id", "fecha_operacion", "estado_anterior", "estado_nuevo", "timestamp")
@@ -3831,7 +3832,7 @@ def dashboard(request):
                     fecha_operacion__gte=week_start,
                     fecha_operacion__lt=week_end,
                 )
-                .filter(Q(comentario__icontains="[MOTIVO=RETRABAJO]") | Q(comentario__icontains="MOTIVO=RETRABAJO"))
+                .filter(metricas.filtro_de_retrabajo())
                 .values("viga_internal__proyecto")
                 .annotate(piezas=Count("viga_internal_id", distinct=True))
             )
