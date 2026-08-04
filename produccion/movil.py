@@ -108,34 +108,42 @@ def colaborador_de(usuario):
     return activos.filter(por_nombre).first()
 
 
-#: Qué etapas puede mover cada grupo. Es la misma regla que aplica el
-#: servidor en `viga_change_status_json`; aquí se consulta para no enseñar un
-#: botón que va a ser rechazado. Un botón que falla sin explicar por qué, en
-#: el piso, hace que la gente deje de usar la pantalla.
-ETAPAS_POR_GRUPO = {
-    "corte": {estados.ESPERA_CORTE, estados.CORTE},
-    "soldadura": {
-        estados.ESPERA_ARMADO,
-        estados.ARMADO,
-        estados.ESPERA_SOLDADURA,
-        estados.SOLDADURA,
-        estados.ESPERA_PINTURA,
-        estados.PINTURA,
-    },
-}
-
-
 def etapas_que_puede_mover(usuario):
+    """Las etapas que esta cuenta puede mover, y por tanto su cola.
+
+    **No se decide aquí.** La regla la pone el servidor, en
+    `produccion.views.ETAPAS_POR_GRUPO`, y aquí se consulta. Cuando estaban
+    escritas dos veces, la pantalla ofrecía botones que el servidor rechazaba
+    con un «Sin permiso» que en el piso no dice nada.
+
+    Lo propio de esta pantalla es quedarse sólo con las etapas desde las que
+    esta persona puede **completar** el paso, no las que simplemente puede
+    tocar. Son cosas distintas y confundirlas ofrece botones que fallan:
+
+    El servidor exige que la etapa de origen y la de destino estén las dos
+    permitidas. Las etapas de espera están a caballo entre dos áreas a
+    propósito —«Espera de armado» la pueden tocar corte y soldadura, porque es
+    el punto de entrega— pero sólo soldadura puede pasarla a «Armado». Sin
+    este filtro, a un cortador le salía un botón «Empezar armado» que el
+    servidor contestaba con «Sin permiso».
+    """
+    from produccion.views import _etapas_permitidas
+
     if getattr(usuario, "is_superuser", False):
         return set(ETAPAS_DE_TRABAJO)
     grupos = set(usuario.groups.values_list("name", flat=True))
     if grupos & {"admin_general", "ingenieria_civil"}:
         return set(ETAPAS_DE_TRABAJO)
-    permitidas = set()
-    for grupo, etapas in ETAPAS_POR_GRUPO.items():
-        if grupo in grupos:
-            permitidas |= etapas
-    return permitidas
+
+    permitidas = {estados.normalizar(etapa) for etapa in _etapas_permitidas(usuario)}
+    utiles = set()
+    for etapa in permitidas & ETAPAS_DE_TRABAJO:
+        posicion = estados.posicion(etapa)
+        if posicion is None or posicion + 1 >= len(estados.SECUENCIA):
+            continue
+        if estados.SECUENCIA[posicion + 1] in permitidas:
+            utiles.add(etapa)
+    return utiles
 
 
 #: Cuántas piezas se enseñan como mucho. Es una pantalla de teléfono: pasar

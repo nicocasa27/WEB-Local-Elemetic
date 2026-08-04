@@ -41,7 +41,13 @@ ROLES = [
     {
         "clave": "soldadura",
         "nombre": "Soldadura",
-        "descripcion": "Armado, soldadura, pintura y terminado de estructuras.",
+        "descripcion": "Armado y soldadura de estructuras.",
+        "administra": False,
+    },
+    {
+        "clave": "pintura",
+        "nombre": "Pintura",
+        "descripcion": "Pintura y terminado de estructuras.",
         "administra": False,
     },
     {
@@ -106,7 +112,29 @@ ALMACEN = "almacen"
 #: Los del piso. Son los que necesitan cuenta para usar «Mi trabajo» desde el
 #: celular, y hasta ahora ninguno la tenía: los once usuarios del sistema son
 #: todos de oficina.
-DE_PISO = {"corte", "soldadura", "robotica", "herreria", "corte_laser"}
+DE_PISO = {"corte", "soldadura", "pintura", "robotica", "herreria", "corte_laser"}
+
+#: El grupo de pintura se añadió después: hasta entonces «soldadura» cubría
+#: también pintura y terminado, porque nadie había preguntado si en el taller
+#: eran la misma gente. No lo son.
+#:
+#: Mientras no haya **ninguna** cuenta en el grupo de pintura, «soldadura»
+#: sigue cubriendo pintura. Sin esa red, el día del despliegue las piezas en
+#: pintura dejarían de poder avanzar hasta que alguien se acordara de mover a
+#: los pintores de grupo, y nadie relacionaría una cosa con la otra. En cuanto
+#: exista un solo pintor con cuenta, el reparto se separa solo.
+PINTURA = "pintura"
+
+
+def hay_cuentas_de_pintura():
+    """Si alguien está ya en el grupo de pintura.
+
+    Se consulta en cada petición que decide permisos de etapa. Es un `EXISTS`
+    sobre una tabla de once filas; medirlo antes de cachearlo.
+    """
+    from django.contrib.auth.models import Group
+
+    return Group.objects.filter(name=PINTURA, user__isnull=False).exists()
 
 
 def por_clave(clave):

@@ -31,7 +31,7 @@ try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
     PdfReader = None
-from core import metricas, paginacion
+from core import metricas, paginacion, roles
 from core.estados import clase as clase_de_estado
 from core.servicios import inventario as servicio_inventario
 from core.servicios import trabajo as servicio_trabajo
@@ -478,6 +478,53 @@ def _user_role(user) -> str:
         return "herreria"
     return ""
 
+
+
+#: Qué etapas puede mover cada grupo del piso.
+#:
+#: Estaba escrita dos veces, palabra por palabra, en las dos vistas que
+#: cambian el estado de una pieza. Dos copias de una regla de permisos es una
+#: que se va a quedar vieja sin que nadie lo note.
+#:
+#: Corte y soldadura se solapan en «Espera de armado», y soldadura y pintura
+#: en «Espera de pintura», a propósito: la etapa de espera es el punto de
+#: entrega entre dos áreas y las dos tienen que poder tocarla. Sin el solape,
+#: la pieza se queda en tierra de nadie.
+ETAPAS_POR_GRUPO = {
+    "corte": {"Espera de corte", "Corte", "Espera de armado"},
+    "soldadura": {
+        "Espera de armado",
+        "Armado",
+        "Espera de soldadura",
+        "Soldadura",
+        "Espera de pintura",
+    },
+    "pintura": {"Espera de pintura", "Pintura", "Terminado"},
+}
+
+#: Lo que «soldadura» cubría antes de que existiera el grupo de pintura.
+ETAPAS_DE_PINTURA = {"Espera de pintura", "Pintura", "Terminado"}
+
+
+def _etapas_permitidas(user):
+    """Las etapas que esta cuenta puede mover. Vacío es «ninguna».
+
+    La red de seguridad: mientras no exista **ninguna** cuenta de pintura,
+    «soldadura» sigue cubriendo pintura y terminado, como hacía antes. Sin
+    ella, el día del despliegue las piezas en pintura dejarían de poder
+    avanzar hasta que alguien se acordara de mover a los pintores de grupo, y
+    nadie relacionaría una cosa con la otra: el síntoma sería «el sistema ya
+    no me deja» tres días después del cambio.
+
+    En cuanto haya un solo pintor con cuenta, el reparto se separa solo.
+    """
+    permitidas = set()
+    for grupo, etapas in ETAPAS_POR_GRUPO.items():
+        if _user_in_group(user, grupo):
+            permitidas |= etapas
+    if _user_in_group(user, "soldadura") and not roles.hay_cuentas_de_pintura():
+        permitidas |= ETAPAS_DE_PINTURA
+    return permitidas
 
 
 def _equipo_for_etapa(etapa: str):
@@ -2601,11 +2648,7 @@ def viga_change_status(request, pk: int):
     viga = get_object_or_404(Viga, pk=pk)
     role = _user_role(request.user)
     if role != "admin":
-        allowed = set()
-        if _user_in_group(request.user, "corte"):
-            allowed |= {"Espera de corte", "Corte", "Espera de armado"}
-        if _user_in_group(request.user, "soldadura"):
-            allowed |= {"Espera de armado", "Armado", "Espera de soldadura", "Soldadura", "Espera de pintura", "Pintura", "Terminado"}
+        allowed = _etapas_permitidas(request.user)
         if not allowed or _norm_estado(viga.estado) not in allowed:
             return redirect("produccion:home")
     viga.estado = _norm_estado(getattr(viga, "estado", "") or "")
@@ -2748,11 +2791,7 @@ def viga_change_status_json(request, pk: int):
     viga = get_object_or_404(Viga, pk=pk)
     role = _user_role(request.user)
     if role != "admin":
-        allowed = set()
-        if _user_in_group(request.user, "corte"):
-            allowed |= {"Espera de corte", "Corte", "Espera de armado"}
-        if _user_in_group(request.user, "soldadura"):
-            allowed |= {"Espera de armado", "Armado", "Espera de soldadura", "Soldadura", "Espera de pintura", "Pintura", "Terminado"}
+        allowed = _etapas_permitidas(request.user)
     else:
         allowed = set(ESTADOS)
     form = StatusChangeForm(request.POST)

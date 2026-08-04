@@ -15,6 +15,7 @@ enseñar «lo mío», sólo «todo».
 """
 
 import pytest
+from django.contrib.auth.models import Group
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -403,30 +404,48 @@ class TestCadaBotonQueSeOfreceLoAceptaElServidor:
     al papel.
     """
 
-    @pytest.mark.parametrize(
-        "grupo,etapa",
-        [
-            ("corte", "Espera de corte"),
-            ("corte", "Corte"),
-            ("soldadura", "Espera de armado"),
-            ("soldadura", "Armado"),
-            ("soldadura", "Espera de soldadura"),
-            ("soldadura", "Soldadura"),
-            ("soldadura", "Espera de pintura"),
-            ("soldadura", "Pintura"),
-        ],
-    )
-    def test_se_pulsa_y_avanza(self, django_user_model, grupo, etapa):
-        from produccion.models import Viga
+    #: Todas las combinaciones, no una selección.
+    #:
+    #: La primera versión de esta prueba listaba a mano las parejas que se me
+    #: ocurrieron, y se le escapó (corte, «Espera de armado»): al cortador le
+    #: salía un botón «Empezar armado» que el servidor rechazaba con «Sin
+    #: permiso». Una lista escrita a mano sólo comprueba lo que uno ya
+    #: sospecha. El producto de las dos listas comprueba lo que no.
+    TODAS = [
+        (grupo, etapa)
+        for grupo in ("corte", "soldadura", "pintura")
+        for etapa in (
+            "Espera de corte",
+            "Corte",
+            "Espera de armado",
+            "Armado",
+            "Espera de soldadura",
+            "Soldadura",
+            "Espera de pintura",
+            "Pintura",
+        )
+    ]
 
+    @pytest.mark.parametrize("grupo,etapa", TODAS)
+    def test_lo_que_se_ofrece_lo_acepta_el_servidor(self, django_user_model, grupo, etapa):
+        """O la pantalla no ofrece nada, o lo que ofrece funciona.
+
+        Lo que no puede pasar es lo de en medio: ofrecer un botón y que
+        responda «Sin permiso».
+        """
         cliente = navegador(django_user_model, "juan", grupo=grupo)
+        # Un pintor con cuenta, para que la red de seguridad no esté activa y
+        # el reparto sea el separado de verdad.
+        otro = django_user_model.objects.create_user("pintor", password="x")
+        otro.groups.add(Group.objects.get_or_create(name="pintura")[0])
         colaborador(usuario="juan")
         la_pieza = pieza(estado=etapa, codigo=f"P-{etapa}")
 
         trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
-        assert len(trabajos) == 1, f"la pantalla no ofrece nada en {etapa}"
+        if not trabajos:
+            return
         trabajo = trabajos[0]
-        assert trabajo["siguiente"], f"sin botón en {etapa}"
+        assert trabajo["siguiente"], f"tarjeta sin botón en {etapa}"
 
         respuesta = cliente.post(
             trabajo["url_avance"],
@@ -437,10 +456,38 @@ class TestCadaBotonQueSeOfreceLoAceptaElServidor:
             },
         )
 
-        assert respuesta.status_code == 200, respuesta.content
-        assert respuesta.json()["ok"] is True, respuesta.json()
+        assert respuesta.status_code == 200, (
+            f"{grupo} en «{etapa}»: la pantalla ofrece pasar a "
+            f"«{trabajo['siguiente']}» y el servidor contesta {respuesta.content}"
+        )
         la_pieza.refresh_from_db()
         assert la_pieza.estado == trabajo["siguiente"]
+
+    @pytest.mark.parametrize(
+        "grupo,etapas_esperadas",
+        [
+            ("corte", {"Espera de corte", "Corte"}),
+            ("soldadura", {"Espera de armado", "Armado", "Espera de soldadura", "Soldadura"}),
+            ("pintura", {"Espera de pintura", "Pintura"}),
+        ],
+    )
+    def test_y_ofrece_todo_lo_que_es_suyo(self, django_user_model, grupo, etapas_esperadas):
+        """El otro lado de la prueba anterior.
+
+        Sin esto, la forma más fácil de tenerla en verde sería no ofrecer
+        nunca ningún botón.
+        """
+        cliente = navegador(django_user_model, "juan", grupo=grupo)
+        otro = django_user_model.objects.create_user("pintor", password="x")
+        otro.groups.add(Group.objects.get_or_create(name="pintura")[0])
+        colaborador(usuario="juan")
+        for etapa in etapas_esperadas:
+            pieza(estado=etapa, codigo=f"P-{etapa}")
+
+        trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
+
+        assert {t["etapa"] for t in trabajos} == etapas_esperadas
+        assert all(t["siguiente"] for t in trabajos)
 
     def test_un_administrador_tambien(self, django_user_model):
         from produccion.models import Viga

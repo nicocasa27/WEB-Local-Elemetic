@@ -403,7 +403,15 @@ class Command(BaseCommand):
                     usuario.save()
                 from django.contrib.auth.models import Group
 
-                grupo = "corte" if rol == "Operador" else "soldadura"
+                # Pintura es su propio grupo: en el taller no son la misma
+                # gente que suelda. Mientras «soldadura» los cubría a los dos,
+                # un soldador podía dar por terminada una pieza sin pintarla.
+                if rol == "Operador":
+                    grupo = "corte"
+                elif rol == "Pintor":
+                    grupo = "pintura"
+                else:
+                    grupo = "soldadura"
                 usuario.groups.set(Group.objects.filter(name=grupo))
                 colaborador.usuario = cuenta
                 colaborador.save(using=BASE, update_fields=["usuario"])
