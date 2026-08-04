@@ -67,6 +67,18 @@ TIPOS_QUE_SUMAN = {
     MovimientoMaterial.Tipo.TRASLADO_ENTRADA,
 }
 
+#: Movimientos que **no tocan el estante**: mueven la promesa, no la cosa.
+#:
+#: Hay que dejarlos fuera de cualquier suma del físico. Reconstruir las
+#: existencias sumando todos los movimientos —que es como se comprueba que la
+#: caché no miente— daría de más por cada reserva y de menos por cada
+#: liberación, y el descuadre parecería un fallo del almacén cuando sería del
+#: recálculo.
+TIPOS_DE_PROMESA = {
+    MovimientoMaterial.Tipo.RESERVA,
+    MovimientoMaterial.Tipo.LIBERACION,
+}
+
 
 class LoteAgotado(ErrorDeDominio):
     """Se pidió consumir de un lote concreto que ya no tiene suficiente."""
@@ -417,6 +429,333 @@ def _repartir_por_antiguedad(material, almacen, cantidad):
     return reparto
 
 
+# ================================================ reserva y entrega
+#
+# Dos hechos distintos que antes eran uno solo:
+#
+#   reservar   la orden aparta el material. Sigue en el estante.
+#   entregar   el almacenista lo saca y lo da. Ahí baja el físico.
+#
+# Separarlos es lo que pedía el taller y resuelve un problema real. Si el
+# descuento ocurre al generar la orden, el sistema dice que no hay material
+# que sí está ahí, y el almacenista —que cuenta el estante— deja de creerle.
+# Si ocurre sólo al entregar, dos órdenes se prometen la misma lámina y nadie
+# se entera hasta el día de la entrega, cuando ya no da tiempo de comprar.
+#
+# Con los dos apuntes: el físico es lo que hay para contar, lo comprometido es
+# lo que ya tiene dueño, y lo disponible —la resta— es lo único que se le
+# puede prometer a una orden nueva.
+
+
+def disponible(material, almacen=None, lote=None):
+    """Lo que se le puede prometer a una orden nueva.
+
+    Es lo que hay menos lo que ya está apalabrado. **No** es lo que hay: esa
+    diferencia es justo el motivo de este módulo.
+    """
+    consulta = Existencia.objects.using(BASE).filter(material=material)
+    if almacen is not None:
+        consulta = consulta.filter(almacen=almacen)
+    if lote is not None:
+        consulta = consulta.filter(lote=lote)
+    totales = consulta.aggregate(hay=Sum("cantidad"), preso=Sum("comprometido"))
+    return (totales["hay"] or CERO) - (totales["preso"] or CERO)
+
+
+def comprometido(material, almacen=None):
+    consulta = Existencia.objects.using(BASE).filter(material=material)
+    if almacen is not None:
+        consulta = consulta.filter(almacen=almacen)
+    return consulta.aggregate(total=Sum("comprometido"))["total"] or CERO
+
+
+def _filas_con_disponible(material, almacen):
+    """Las existencias que todavía tienen algo sin apalabrar, de la más
+    antigua a la más nueva."""
+    return [
+        fila
+        for fila in Existencia.objects.using(BASE)
+        .filter(material=material, almacen=almacen)
+        .select_related("lote")
+        .order_by("lote__recibido_en", "lote__id")
+        if fila.disponible > CERO
+    ]
+
+
+def _repartir_disponible(material, almacen, cantidad):
+    """De qué lotes sale la reserva.
+
+    Se reparte por antigüedad, igual que el consumo, y por el mismo motivo:
+    lo que se aparta hoy es lo que se entregará mañana, así que la colada
+    queda decidida desde la reserva y la trazabilidad no depende de quién
+    tome la lámina del estante.
+    """
+    reparto = []
+    pendiente = cantidad
+    for fila in _filas_con_disponible(material, almacen):
+        if pendiente <= CERO:
+            break
+        porcion = min(fila.disponible, pendiente)
+        reparto.append((fila.lote, porcion))
+        pendiente -= porcion
+
+    if pendiente > CERO:
+        libre = disponible(material, almacen=almacen)
+        raise StockInsuficiente(
+            f"No hay suficiente {material.nombre} sin comprometer: "
+            f"libre {libre} de {existencia(material, almacen=almacen)} "
+            f"y se pidieron {cantidad}.",
+            material=material.codigo,
+            disponible=str(libre),
+            solicitado=str(cantidad),
+        )
+    return reparto
+
+
+def _comprometer(material, lote, almacen, delta):
+    """Suma el incremento a lo comprometido, bloqueando la fila."""
+    fila, _ = Existencia.objects.using(BASE).get_or_create(
+        material=material, lote=lote, almacen=almacen,
+        defaults={"cantidad": CERO, "comprometido": CERO},
+    )
+    fila = Existencia.objects.using(BASE).select_for_update().get(pk=fila.pk)
+    resultado = (fila.comprometido + delta).quantize(PRECISION)
+    if resultado < CERO:
+        raise CantidadInvalida(
+            f"Se quiso liberar {abs(delta)} de {material.nombre} pero sólo "
+            f"hay {fila.comprometido} comprometido."
+        )
+    if resultado > fila.cantidad:
+        raise StockInsuficiente(
+            f"No se puede comprometer {resultado} de {material.nombre}: "
+            f"en el estante sólo hay {fila.cantidad}.",
+            material=material.codigo,
+            disponible=str(fila.cantidad - fila.comprometido),
+            solicitado=str(abs(delta)),
+        )
+    fila.comprometido = resultado
+    fila.save(using=BASE, update_fields=["comprometido", "actualizado_en"])
+    return fila
+
+
+@transaction.atomic(using=BASE)
+def reservar(
+    *,
+    material,
+    cantidad,
+    actor,
+    orden=None,
+    almacen=None,
+    comentario="",
+    ocurrido_en=None,
+    clave_idempotencia=None,
+):
+    """Aparta material para una orden. No lo saca del estante.
+
+    Lo físico no se toca: lo que baja es lo disponible. Devuelve la lista de
+    movimientos, uno por lote apartado.
+
+    Si el material no es inventariable —un flete, un porcentaje de
+    consumibles— no hay nada que apartar y se devuelve una lista vacía. No es
+    un error: es que ese renglón del presupuesto no vive en ningún estante.
+    """
+    if not material.inventariable:
+        logger.info("no se reserva %s: no es inventariable", material.codigo)
+        return []
+
+    repetido = _repetido(clave_idempotencia)
+    if repetido is not None:
+        return [repetido]
+
+    cantidad = a_cantidad(cantidad)
+    if cantidad <= CERO:
+        raise CantidadInvalida("Una reserva tiene que ser de más de cero.")
+
+    almacen = almacen or almacen_principal()
+    ocurrido_en = ocurrido_en or timezone.now()
+    reparto = _repartir_disponible(material, almacen, cantidad)
+
+    movimientos = []
+    for lote, porcion in reparto:
+        _comprometer(material, lote, almacen, porcion)
+        movimientos.append(
+            _movimiento(
+                tipo=MovimientoMaterial.Tipo.RESERVA,
+                material=material,
+                lote=lote,
+                almacen=almacen,
+                # En positivo: es lo que se apartó. No mueve existencia.
+                cantidad=porcion,
+                costo_unitario=lote.costo_unitario if lote else CERO,
+                orden=orden,
+                comentario=comentario[:255],
+                actor_username=nombre_de(actor),
+                ocurrido_en=ocurrido_en,
+                clave_idempotencia=clave_idempotencia if not movimientos else None,
+            )
+        )
+
+    logger.info(
+        "reserva %s de %s para %s por %s",
+        cantidad, material.codigo, orden.folio if orden else "sin orden", nombre_de(actor),
+    )
+    return movimientos
+
+
+@transaction.atomic(using=BASE)
+def liberar(
+    *,
+    material,
+    cantidad,
+    actor,
+    orden=None,
+    almacen=None,
+    lote=None,
+    comentario="",
+    ocurrido_en=None,
+    clave_idempotencia=None,
+):
+    """Suelta una reserva sin entregar nada. La orden se canceló o se recortó.
+
+    Devuelve el material a disponible. Es lo contrario de `reservar`, no de
+    `consumir`: aquí no se mueve nada del estante.
+    """
+    repetido = _repetido(clave_idempotencia)
+    if repetido is not None:
+        return [repetido]
+
+    cantidad = a_cantidad(cantidad)
+    if cantidad <= CERO:
+        raise CantidadInvalida("Una liberación tiene que ser de más de cero.")
+
+    almacen = almacen or almacen_principal()
+    ocurrido_en = ocurrido_en or timezone.now()
+
+    if lote is not None:
+        reparto = [(lote, cantidad)]
+    else:
+        # Se suelta al revés de como se apartó: primero lo más nuevo, para
+        # que lo viejo siga comprometido y salga antes.
+        reparto = []
+        pendiente = cantidad
+        filas = (
+            Existencia.objects.using(BASE)
+            .filter(material=material, almacen=almacen, comprometido__gt=CERO)
+            .select_related("lote")
+            .order_by("-lote__recibido_en", "-lote__id")
+        )
+        for fila in filas:
+            if pendiente <= CERO:
+                break
+            porcion = min(fila.comprometido, pendiente)
+            reparto.append((fila.lote, porcion))
+            pendiente -= porcion
+        if pendiente > CERO:
+            raise CantidadInvalida(
+                f"Se quiso liberar {cantidad} de {material.nombre} pero sólo "
+                f"hay {comprometido(material, almacen)} comprometido."
+            )
+
+    movimientos = []
+    for lote_origen, porcion in reparto:
+        _comprometer(material, lote_origen, almacen, -porcion)
+        movimientos.append(
+            _movimiento(
+                tipo=MovimientoMaterial.Tipo.LIBERACION,
+                material=material,
+                lote=lote_origen,
+                almacen=almacen,
+                cantidad=-porcion,
+                costo_unitario=lote_origen.costo_unitario if lote_origen else CERO,
+                orden=orden,
+                comentario=comentario[:255],
+                actor_username=nombre_de(actor),
+                ocurrido_en=ocurrido_en,
+                clave_idempotencia=clave_idempotencia if not movimientos else None,
+            )
+        )
+    return movimientos
+
+
+@transaction.atomic(using=BASE)
+def entregar(
+    *,
+    material,
+    cantidad,
+    actor,
+    orden=None,
+    almacen=None,
+    comentario="",
+    ocurrido_en=None,
+    clave_idempotencia=None,
+):
+    """El almacenista saca el material y lo da. **Aquí baja el inventario.**
+
+    Es el segundo factor que pedía el taller: la orden aparta, pero el
+    descuento real no ocurre hasta que una persona con el material en la mano
+    confirma que lo entregó. Quien produce no puede hacer esto.
+
+    Suelta la reserva y descuenta el físico en el mismo apunte, así que el
+    comprometido no se queda colgado si alguien se olvida de liberarlo.
+
+    Devuelve `(movimientos, faltantes)`, donde `faltantes` son los materiales
+    que quedaron en o por debajo de su mínimo después de entregar: es lo que
+    hay que comprar, y se calcula aquí porque es el único momento en que el
+    físico baja.
+    """
+    repetido = _repetido(clave_idempotencia)
+    if repetido is not None:
+        return [repetido], []
+
+    cantidad = a_cantidad(cantidad)
+    if cantidad <= CERO:
+        raise CantidadInvalida("Una entrega tiene que ser de más de cero.")
+
+    almacen = almacen or almacen_principal()
+
+    # Primero se suelta lo apartado, si lo había. Se entrega lo que esté
+    # comprometido y, si se pide más, el resto sale de lo libre: entregar de
+    # más es una decisión del almacenista y el sistema lo deja, pero queda
+    # escrito quién y cuánto.
+    apartado = comprometido(material, almacen)
+    if apartado > CERO:
+        liberar(
+            material=material,
+            cantidad=min(apartado, cantidad),
+            actor=actor,
+            orden=orden,
+            almacen=almacen,
+            comentario="Entrega de material",
+            ocurrido_en=ocurrido_en,
+        )
+
+    movimientos = consumir(
+        material=material,
+        cantidad=cantidad,
+        actor=actor,
+        orden=orden,
+        almacen=almacen,
+        comentario=comentario or "Entregado por almacén",
+        ocurrido_en=ocurrido_en,
+        clave_idempotencia=clave_idempotencia,
+    )
+
+    faltantes = []
+    if material.stock_minimo > CERO:
+        queda = existencia(material, almacen=almacen)
+        # El taller lo pidió con «≤»: quedarse justo en el mínimo ya es
+        # motivo de compra, porque el mínimo es lo que cubre el tiempo que
+        # tarda en llegar el pedido.
+        if queda <= material.stock_minimo:
+            faltantes.append((material, queda, material.stock_minimo - queda))
+            logger.warning(
+                "reorden: %s quedó en %s con mínimo %s",
+                material.codigo, queda, material.stock_minimo,
+            )
+
+    return movimientos, faltantes
+
+
 @transaction.atomic(using=BASE)
 def devolver(*, movimiento, actor, cantidad=None, motivo=None, comentario=""):
     """Deshace un consumo devolviendo el material a su lote.
@@ -631,22 +970,33 @@ def recalcular_existencias(material=None):
     if material is not None:
         consulta = consulta.filter(material=material)
 
-    suma = {}
+    # Se reconstruyen los dos números por separado, de dos conjuntos de
+    # movimientos que no se mezclan: el estante de los que mueven material y
+    # la promesa de los que sólo la apalabran.
+    fisico, promesa = {}, {}
     for movimiento in consulta.iterator(chunk_size=1000):
         clave = (movimiento.material_id, movimiento.lote_id, movimiento.almacen_id)
-        suma[clave] = suma.get(clave, CERO) + movimiento.cantidad
+        destino = promesa if movimiento.tipo in TIPOS_DE_PROMESA else fisico
+        destino[clave] = destino.get(clave, CERO) + movimiento.cantidad
 
     corregidas = 0
-    for (material_id, lote_id, almacen_id), cantidad in suma.items():
+    for clave in set(fisico) | set(promesa):
+        material_id, lote_id, almacen_id = clave
         fila, _ = Existencia.objects.using(BASE).get_or_create(
             material_id=material_id,
             lote_id=lote_id,
             almacen_id=almacen_id,
-            defaults={"cantidad": CERO},
+            defaults={"cantidad": CERO, "comprometido": CERO},
         )
-        if fila.cantidad != cantidad:
+        cantidad = fisico.get(clave, CERO)
+        apartado = promesa.get(clave, CERO)
+        if fila.cantidad != cantidad or fila.comprometido != apartado:
             fila.cantidad = cantidad
-            fila.save(using=BASE, update_fields=["cantidad", "actualizado_en"])
+            fila.comprometido = apartado
+            fila.save(
+                using=BASE,
+                update_fields=["cantidad", "comprometido", "actualizado_en"],
+            )
             corregidas += 1
     return corregidas
 
@@ -660,6 +1010,9 @@ def descuadres():
     """
     suma = {}
     for movimiento in MovimientoMaterial.objects.using(BASE).iterator(chunk_size=1000):
+        if movimiento.tipo in TIPOS_DE_PROMESA:
+            # No tocan el estante: contarlos aquí inventaría un descuadre.
+            continue
         clave = (movimiento.material_id, movimiento.lote_id, movimiento.almacen_id)
         suma[clave] = suma.get(clave, CERO) + movimiento.cantidad
 

@@ -133,6 +133,17 @@ class Material(models.Model):
         max_digits=6, decimal_places=3, default=DENSIDAD_POR_DEFECTO
     )
 
+    #: Si es algo que ocupa sitio en un almacén.
+    #:
+    #: OPUS mete en la explosión renglones que no son material: los costos
+    #: indirectos que calcula como porcentaje del total —consumibles, fletes—
+    #: vienen en unidad «(%)m», y también aparecen la luz y el agua de pozo.
+    #: Entran en el costo del proyecto, pero no se guardan, no se reservan y
+    #: no generan una compra. Sin esta marca, el importador daría de alta un
+    #: material llamado «Flete de compra de productos» del que el almacenista
+    #: tendría que decir cuántos hay.
+    inventariable = models.BooleanField(default=True, db_index=True)
+
     #: Por debajo de esto hay que comprar. Cero significa que no se vigila.
     stock_minimo = models.DecimalField(
         max_digits=16, decimal_places=6, default=Decimal("0"),
@@ -252,6 +263,14 @@ class MovimientoMaterial(models.Model):
 
     class Tipo(models.TextChoices):
         ENTRADA = "entrada", "Entrada"
+        #: Reservar y liberar **no mueven material**: mueven la promesa.
+        #:
+        #: Van como movimiento y no como un simple contador para que la
+        #: reserva se pueda auditar y reconstruir igual que el resto del
+        #: almacén: quién apalabró qué, para qué orden y cuándo. Si el número
+        #: comprometido y estos apuntes dejan de coincidir, gana el apunte.
+        RESERVA = "reserva", "Reserva para una orden"
+        LIBERACION = "liberacion", "Liberación de una reserva"
         CONSUMO = "consumo", "Consumo en producción"
         DEVOLUCION = "devolucion", "Devolución a almacén"
         MERMA = "merma", "Merma o desperdicio"
@@ -346,8 +365,26 @@ class Existencia(models.Model):
     almacen = models.ForeignKey(
         Almacen, on_delete=models.PROTECT, related_name="existencias"
     )
+    #: Lo que hay físicamente en el estante. No baja al reservar: baja cuando
+    #: el almacenista entrega.
     cantidad = models.DecimalField(max_digits=16, decimal_places=6, default=Decimal("0"))
+
+    #: Lo que ya tiene dueño. Sigue en el estante, pero está apalabrado para
+    #: una orden y no se le puede prometer a otra.
+    #:
+    #: Va aparte de `cantidad` a propósito. Restarlo del físico al reservar
+    #: sería mentir: el material sigue ahí, y el almacenista que cuenta el
+    #: estante encontraría más de lo que dice el sistema. Lo que baja al
+    #: reservar es lo **disponible**, que es `cantidad - comprometido`.
+    comprometido = models.DecimalField(
+        max_digits=16, decimal_places=6, default=Decimal("0")
+    )
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    @property
+    def disponible(self):
+        """Lo que se le puede prometer a una orden nueva."""
+        return self.cantidad - self.comprometido
 
     class Meta:
         ordering = ["material", "lote"]
@@ -368,6 +405,21 @@ class Existencia(models.Model):
             models.CheckConstraint(
                 condition=Q(cantidad__gte=Decimal("0")),
                 name="existencia_no_negativa",
+            ),
+            #: Ni se compromete en negativo…
+            models.CheckConstraint(
+                condition=Q(comprometido__gte=Decimal("0")),
+                name="comprometido_no_negativo",
+            ),
+            #: …ni se promete más de lo que hay en el estante.
+            #:
+            #: Es la regla que hace que la reserva sirva de algo. Sin ella se
+            #: puede apalabrar la misma lámina a dos órdenes, y el problema
+            #: sale a la luz el día de la entrega, cuando ya no hay margen
+            #: para comprar.
+            models.CheckConstraint(
+                condition=Q(comprometido__lte=models.F("cantidad")),
+                name="comprometido_no_supera_lo_fisico",
             ),
         ]
         verbose_name = "existencia"
