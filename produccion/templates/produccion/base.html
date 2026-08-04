@@ -99,6 +99,16 @@
                   </li>
                 {% endif %}
 
+                <li class="nav-item dropdown">
+                  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-boxes me-1"></i> Almacén
+                  </a>
+                  <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'inventario:existencias' %}"><i class="bi bi-clipboard-data me-2"></i> Existencias</a></li>
+                    <li><a class="dropdown-item" href="{% url 'inventario:por_surtir' %}"><i class="bi bi-box-arrow-right me-2"></i> Por surtir</a></li>
+                  </ul>
+                </li>
+
                 <li class="nav-item">
                   <a class="nav-link" href="{% url 'produccion:movil' %}"><i class="bi bi-phone me-1"></i> Mi trabajo</a>
                 </li>

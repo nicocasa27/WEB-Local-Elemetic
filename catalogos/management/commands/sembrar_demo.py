@@ -209,6 +209,20 @@ def con_zona(momento):
     return timezone.make_aware(momento)
 
 
+def usuario_desde(texto):
+    """Un nombre de cuenta tecleable: sin tildes, sin eñes y sin espacios.
+
+    En Python la «í» es alfanumérica, así que el filtro obvio la deja pasar y
+    sale «jloría». En el piso esa cuenta se teclea con guantes en el teclado de
+    un celular, y una tilde es tres pulsaciones más y un error probable.
+    """
+    import unicodedata
+
+    plano = unicodedata.normalize("NFD", texto.lower())
+    plano = "".join(c for c in plano if unicodedata.category(c) != "Mn")
+    return "".join(c for c in plano if c.isascii() and c.isalnum())
+
+
 class Command(BaseCommand):
     help = "Llena el sistema con un taller simulado, completo y coherente."
 
@@ -305,8 +319,7 @@ class Command(BaseCommand):
         for nombre, rol, indice in PERSONAL:
             equipo = equipos[indice]
             partes = nombre.lower().split()
-            cuenta = f"{partes[0][0]}{partes[-1]}".replace("ñ", "n")
-            cuenta = "".join(c for c in cuenta if c.isalnum())
+            cuenta = usuario_desde(f"{partes[0][0]}{partes[-1]}")
 
             colaborador, _ = Colaborador.objects.using(BASE).get_or_create(
                 nombre=nombre,
@@ -729,10 +742,24 @@ class Command(BaseCommand):
 
         Usuario = get_user_model()
         sin_cuenta = Colaborador.objects.using(BASE).filter(activo=True, usuario="").count()
+
+        # La cuenta del piso se busca en la base en vez de escribirla aquí: el
+        # nombre lo genera `_personal` a partir del nombre completo, y anunciar
+        # uno a mano acaba anunciando una cuenta que no existe.
+        soldador = (
+            Colaborador.objects.using(BASE)
+            .filter(rol="Soldador", activo=True).exclude(usuario="").first()
+        )
+
         self.stdout.write("  Entra con:")
         self.stdout.write("    admin / Elemetic2026!      (administrador fijo)")
         self.stdout.write(f"    lmendez / {CONTRASENA_DEL_PISO}      (administración)")
         self.stdout.write(f"    mherrera / {CONTRASENA_DEL_PISO}     (almacén)")
-        self.stdout.write(f"    jperez / {CONTRASENA_DEL_PISO}       (soldador, «Mi trabajo»)")
+        if soldador:
+            self.stdout.write(
+                f"    {soldador.usuario} / {CONTRASENA_DEL_PISO}"
+                f"{' ' * max(1, 9 - len(soldador.usuario))}"
+                f"({soldador.nombre}, «Mi trabajo»)"
+            )
         self.stdout.write(f"\n  {Usuario.objects.count()} cuentas · "
                           f"{sin_cuenta} personas del taller sin cuenta\n")

@@ -1,0 +1,77 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Existencias{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="h3 mb-0">Existencias</div>
+      <div class="text-muted small">
+        Lo que hay en el estante, lo que ya tiene dueño, y lo que se puede prometer.
+      </div>
+    </div>
+    {% if puede_entregar %}
+      <a class="btn btn-argon text-white" href="{% url 'inventario:por_surtir' %}">
+        <i class="bi bi-box-arrow-right me-1"></i> Por surtir
+      </a>
+    {% endif %}
+  </div>
+
+  {% comment %}
+    Las tres columnas son el motivo de todo el módulo. Con un solo número, o el
+    sistema dice que no hay material que sí está en el estante —y el almacenista
+    deja de creerle—, o dos órdenes se prometen la misma lámina y nadie se
+    entera hasta el día de la entrega.
+  {% endcomment %}
+  <div class="card">
+    <div class="mes-barra-contexto">
+      <span class="mes-conteo">
+        {{ filas|length }}<span class="mes-conteo-unidad">material{{ filas|length|pluralize:"es" }}</span>
+      </span>
+    </div>
+    <div class="mes-scroll-x">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Clave</th>
+            <th>Material</th>
+            <th>Unidad</th>
+            <th class="text-end">En el estante</th>
+            <th class="text-end">Apartado</th>
+            <th class="text-end">Disponible</th>
+            <th class="text-end">Mínimo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in filas %}
+            <tr>
+              <td class="mes-dato fw-semibold">{{ fila.material.codigo }}</td>
+              <td>
+                {{ fila.material.nombre }}
+                {% if fila.bajo_minimo %}
+                  <span class="badge est-cierre-pendiente ms-1">Comprar</span>
+                {% endif %}
+              </td>
+              <td class="small text-muted">{{ fila.material.get_unidad_display }}</td>
+              <td class="text-end mes-dato">{{ fila.fisico }}</td>
+              <td class="text-end mes-dato {% if fila.apartado %}fw-semibold{% else %}text-muted{% endif %}">
+                {{ fila.apartado }}
+              </td>
+              <td class="text-end mes-dato fw-semibold">{{ fila.disponible }}</td>
+              <td class="text-end mes-dato text-muted">
+                {% if fila.material.stock_minimo %}{{ fila.material.stock_minimo }}{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="p-4 text-center">
+                <div class="fw-semibold">Sin materiales dados de alta</div>
+                <div class="text-muted small mt-1">
+                  El catálogo se llena importando una explosión de OPUS o a mano.
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
