@@ -16,19 +16,34 @@
   </div>
 
   {% if not colaborador %}
+    {% comment %}
+      Ya no impide ver el trabajo —el área sale del grupo de la cuenta— pero
+      sí impide firmarlo, y eso hay que decirlo.
+    {% endcomment %}
     <div class="alert alert-warning">
       <strong>Tu cuenta todavía no está enlazada con tu ficha del taller.</strong>
-      Por eso esta pantalla no sabe qué te toca. Se arregla una vez: en
-      Configuración de planta → Colaboradores, poner
-      <code>{{ user.get_username }}</code> en el campo «usuario» de tu ficha.
+      Puedes trabajar, pero los avances que registres no van a quedar a tu
+      nombre. Se arregla una vez: en Configuración → Usuarios, elegir tu
+      ficha en «Ficha de la persona».
+    </div>
+  {% endif %}
+
+  {% if not puede_mover_algo %}
+    <div class="mov-vacio">
+      <i class="bi bi-person-lock"></i>
+      <div class="mt-2">Tu cuenta no tiene un área de producción.</div>
+      <div class="text-muted small mt-1">
+        Esta pantalla enseña lo pendiente de tu área. Quien administre
+        usuarios te tiene que poner en corte o en soldadura.
+      </div>
     </div>
   {% elif not trabajos %}
     <div class="mov-vacio">
       <i class="bi bi-check2-circle"></i>
-      <div class="mt-2">No tienes piezas asignadas en curso.</div>
+      <div class="mt-2">No hay nada pendiente en tu área.</div>
       <div class="text-muted small mt-1">
-        Aparecen aquí en cuanto te asignen una y esté en corte, armado,
-        soldadura o pintura.
+        Aquí aparece todo lo que esté en corte, armado, soldadura o pintura,
+        lo tengas asignado o no.
       </div>
     </div>
   {% endif %}
@@ -37,6 +52,7 @@
     <article class="mov-tarjeta" data-pieza="{{ t.id }}">
       <div class="mov-titulo">
         <span class="mov-codigo">{{ t.codigo }}</span>
+        {% if t.mia %}<span class="mov-mia" title="Asignada a ti">Tuya</span>{% endif %}
         <span class="badge {{ t.clase_etapa }}">{{ t.etapa }}</span>
       </div>
       <div class="mov-detalle">{{ t.detalle }}</div>
@@ -79,6 +95,16 @@
       </button>
     </article>
   {% endfor %}
+
+  {% if de_mas %}
+    {% comment %}
+      Un recorte que no se dice se lee como «ya no hay más trabajo». Se dice.
+    {% endcomment %}
+    <div class="mov-de-mas">
+      Hay {{ de_mas }} pieza{{ de_mas|pluralize }} más pendiente{{ de_mas|pluralize }}
+      en tu área. Se enseñan las más urgentes primero.
+    </div>
+  {% endif %}
 
 </div>
 

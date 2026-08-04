@@ -137,18 +137,68 @@ class TestLaPantalla:
         assert respuesta.context["colaborador"] is None
         assert "todavía no está enlazada" in respuesta.content.decode()
 
-    def test_solo_ensena_lo_asignado_a_esa_persona(self, django_user_model):
+    def test_ensena_lo_pendiente_del_area_este_asignado_o_no(self, django_user_model):
+        """Hay un marco que pintar: quien sea del área lo ve y lo toma.
+
+        Antes se enseñaba sólo lo asignado nominalmente, así que una pieza
+        no se trabajaba hasta que un supervisor entraba a la PC a repartirla.
+        El trabajo se paraba esperando a que alguien lo repartiera.
+        """
         cliente = navegador(django_user_model, "juan")
-        yo = colaborador(usuario="juan")
-        otro = colaborador(nombre="Otra persona", usuario="ana")
-        mia = pieza(codigo="MIA-1")
-        suya = pieza(codigo="SUYA-1")
-        asignar(yo, mia)
-        asignar(otro, suya)
+        colaborador(usuario="juan")
+        pieza(codigo="SIN-DUENO")
 
         trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
 
-        assert [t["codigo"] for t in trabajos] == ["MIA-1"]
+        assert [t["codigo"] for t in trabajos] == ["SIN-DUENO"]
+
+    def test_lo_asignado_a_mi_va_primero_y_se_distingue(self, django_user_model):
+        """La asignación no desaparece: deja de ser un requisito y pasa a ser
+        una pista de por dónde empezar."""
+        cliente = navegador(django_user_model, "juan")
+        yo = colaborador(usuario="juan")
+        pieza(codigo="AJENA-1")
+        mia = pieza(codigo="MIA-1")
+        asignar(yo, mia)
+
+        respuesta = cliente.get(reverse("produccion:movil"))
+        trabajos = respuesta.context["trabajos"]
+
+        assert [t["codigo"] for t in trabajos] == ["MIA-1", "AJENA-1"]
+        assert trabajos[0]["mia"] is True
+        assert trabajos[1]["mia"] is False
+        assert "Tuya" in respuesta.content.decode()
+
+    def test_lo_de_otra_area_no_aparece(self, django_user_model):
+        """Un cortador no tiene por qué ver la cola de pintura."""
+        cliente = navegador(django_user_model, "juan", grupo="corte")
+        colaborador(usuario="juan")
+        pieza(estado="Corte", codigo="DE-CORTE")
+        pieza(estado="Pintura", codigo="DE-PINTURA")
+
+        trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
+
+        assert [t["codigo"] for t in trabajos] == ["DE-CORTE"]
+
+    def test_sin_ficha_tambien_ve_la_cola(self, django_user_model):
+        """El área sale del grupo de la cuenta, no de la ficha. Lo que falta
+        sin ficha es la firma del apunte, y de eso avisa la pantalla."""
+        cliente = navegador(django_user_model, "sinficha")
+        pieza(codigo="PENDIENTE-1")
+
+        respuesta = cliente.get(reverse("produccion:movil"))
+
+        assert respuesta.context["colaborador"] is None
+        assert [t["codigo"] for t in respuesta.context["trabajos"]] == ["PENDIENTE-1"]
+
+    def test_una_cuenta_sin_area_lo_dice(self, django_user_model):
+        cliente = navegador(django_user_model, "juan", grupo=None)
+        pieza(codigo="PENDIENTE-1")
+
+        respuesta = cliente.get(reverse("produccion:movil"))
+
+        assert respuesta.context["trabajos"] == []
+        assert "no tiene un área de producción" in respuesta.content.decode()
 
     def test_no_ensena_las_etapas_de_espera(self, django_user_model):
         """Una orden en espera no es trabajo de nadie todavía.
@@ -172,14 +222,19 @@ class TestLaPantalla:
 
         assert cliente.get(reverse("produccion:movil")).context["trabajos"] == []
 
-    def test_una_asignacion_retirada_no_cuenta(self, django_user_model):
+    def test_una_asignacion_retirada_deja_de_marcarse_como_mia(self, django_user_model):
+        """Retirar la asignación ya no esconde la pieza —sigue pendiente en el
+        área— pero sí le quita el distintivo."""
         cliente = navegador(django_user_model, "juan")
         yo = colaborador(usuario="juan")
         asignacion = asignar(yo, pieza())
         asignacion.vigente = False
         asignacion.save()
 
-        assert cliente.get(reverse("produccion:movil")).context["trabajos"] == []
+        trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
+
+        assert len(trabajos) == 1
+        assert trabajos[0]["mia"] is False
 
     def test_dice_a_que_etapa_pasa(self, django_user_model):
         """El botón lleva el nombre de lo que la persona acaba de hacer."""
@@ -264,23 +319,29 @@ class TestUnSoloToque:
 
 
 class TestSinElGrupoDelAreaSeExplica:
-    def test_no_se_ensena_un_boton_que_va_a_ser_rechazado(self, django_user_model):
-        """Un botón que falla sin decir por qué hace que dejen de usarla."""
-        cliente = navegador(django_user_model, "juan", grupo=None)
-        asignar(colaborador(usuario="juan"), pieza(estado="Soldadura"))
+    """Un botón que falla sin decir por qué hace que dejen de usar la pantalla.
 
-        respuesta = cliente.get(reverse("produccion:movil"))
+    Antes se enseñaba la pieza con un aviso al lado del botón. Ahora la cola
+    se filtra por las etapas que la persona puede mover, así que todo lo que
+    se ve se puede tocar y el aviso se da una sola vez, arriba.
+    """
 
-        assert respuesta.context["trabajos"][0]["puede_mover"] is False
-        assert "no está en el grupo del área" in respuesta.content.decode()
-
-    def test_el_de_corte_no_puede_mover_soldadura(self, django_user_model):
+    def test_el_de_corte_no_ve_soldadura(self, django_user_model):
         cliente = navegador(django_user_model, "juan", grupo="corte")
-        asignar(colaborador(usuario="juan"), pieza(estado="Soldadura"))
+        colaborador(usuario="juan")
+        pieza(estado="Soldadura")
 
-        trabajo = cliente.get(reverse("produccion:movil")).context["trabajos"][0]
+        assert cliente.get(reverse("produccion:movil")).context["trabajos"] == []
 
-        assert trabajo["puede_mover"] is False
+    def test_todo_lo_que_se_ensena_se_puede_mover(self, django_user_model):
+        cliente = navegador(django_user_model, "juan", grupo="corte")
+        colaborador(usuario="juan")
+        pieza(estado="Corte")
+        pieza(estado="Soldadura")
+
+        trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
+
+        assert trabajos and all(t["puede_mover"] for t in trabajos)
 
     def test_el_de_corte_si_puede_mover_corte(self, django_user_model):
         cliente = navegador(django_user_model, "juan", grupo="corte")

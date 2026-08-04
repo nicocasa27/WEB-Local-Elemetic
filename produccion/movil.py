@@ -7,16 +7,36 @@ teléfono, con guantes, a pleno sol. En la práctica no se hacía en el momento:
 se apuntaba en un papel y alguien lo capturaba por la tarde, que es
 exactamente por lo que el sistema iba siempre por detrás de la realidad.
 
-Esta pantalla enseña **sólo lo que esa persona tiene asignado y sigue
-abierto**, y el avance se registra con un toque.
+Esta pantalla enseña **lo que está pendiente en el área de esa persona**, y
+el avance se registra con un toque.
+
+Sobre por qué el área y no la asignación personal
+-------------------------------------------------
+
+La primera versión enseñaba sólo las piezas que alguien le había asignado a
+esa persona una por una, desde el diálogo «Asignaciones por etapa». En un
+taller eso no se sostiene: significa que un marco no se pinta hasta que un
+supervisor entra a la PC y escribe quién lo va a pintar. El trabajo se para
+esperando a que alguien lo reparta.
+
+Así que se invierte. Hay un marco que pintar: **cualquiera del área de
+pintura lo ve pendiente y lo toma**. Quien lo toma queda firmado
+automáticamente —por eso cada quien necesita su propia cuenta— en el apunte
+de trabajo, junto con la cuadrilla del día. El registro de quién hizo qué
+sale de quién lo hizo, no de quién dijo por adelantado que lo iba a hacer.
+
+La asignación nominal sigue existiendo para el caso en que de verdad haga
+falta («esta pieza la hace Omar porque conoce el plano»), pero deja de ser
+un requisito para que el trabajo aparezca.
 
 Dos cosas que hacen falta para que funcione y que antes no existían:
 
 - **Saber quién es quien entra.** No había ninguna relación entre la cuenta
-  con la que se inicia sesión y la ficha del colaborador al que se asigna el
-  trabajo. Se resuelve con `Colaborador.usuario`, que se captura desde el
-  administrador. Mientras no esté capturado se intenta adivinar por el
-  nombre, y si no se acierta la pantalla lo dice en lugar de salir vacía.
+  con la que se inicia sesión y la ficha del colaborador. Se resuelve con
+  `Colaborador.usuario`, que se captura desde la pantalla de usuarios.
+  Mientras no esté capturado se intenta adivinar por el nombre. Ya no es
+  imprescindible para ver el trabajo —el área basta—, pero sí para que el
+  apunte diga quién fue.
 
 - **La fecha de operación.** Desaparece del formulario: se usa la de hoy. Era
   un campo obligatorio que el operador no tiene por qué pensar, y era la
@@ -87,32 +107,44 @@ def etapas_que_puede_mover(usuario):
     return permitidas
 
 
-def _piezas_asignadas(colaborador, movibles):
-    """Piezas de Estructuras metálicas asignadas y todavía en producción."""
-    from catalogos.models import VigaAsignacion
+#: Cuántas piezas se enseñan como mucho. Es una pantalla de teléfono: pasar
+#: de esto no es información, es desplazamiento. Lo que se corta se dice.
+TOPE = 40
+
+
+def _cola_de_mi_area(movibles, asignadas):
+    """Lo pendiente en las etapas que esta persona puede mover.
+
+    El filtro se hace en la base con todas las variantes de escritura de cada
+    etapa —«Espera de armado» y «Espera Armado» conviven en los datos—, no
+    trayendo la tabla entera para descartarla en Python.
+
+    Lo asignado a esa persona sube arriba del todo. Sigue siendo su trabajo
+    de forma explícita; lo que cambia es que ya no es lo *único* que ve.
+    """
     from produccion.models import Viga
 
-    identificadores = list(
-        VigaAsignacion.objects.using(BASE)
-        .filter(colaborador=colaborador, vigente=True)
-        .values_list("viga_internal_id", flat=True)
-        .distinct()
-    )
-    if not identificadores:
-        return []
+    if not movibles:
+        return [], 0
 
-    piezas = list(
+    escrituras = []
+    for etapa in movibles:
+        escrituras.extend(estados.variantes(etapa))
+
+    consulta = (
         Viga.objects.using(BASE)
-        .filter(internal_id__in=identificadores)
+        .filter(estado__in=escrituras)
         .order_by("prioridad", "fecha_compromiso", "codigo_viga")
     )
+    total = consulta.count()
+    piezas = list(consulta[: TOPE * 2])
 
     trabajos = []
     for pieza in piezas:
         etapa = estados.normalizar(pieza.estado)
         if etapa not in ETAPAS_DE_TRABAJO:
-            # Terminada, enviada o esperando a otra área: no es trabajo de
-            # esta persona ahora mismo, y enseñarla sólo añade ruido.
+            # `variantes` puede traer una escritura que normaliza a una etapa
+            # de espera. No es trabajo de nadie: es la orden esperando.
             continue
         posicion = estados.posicion(etapa)
         siguiente = (
@@ -133,9 +165,27 @@ def _piezas_asignadas(colaborador, movibles):
                 "peso_kg": pieza.peso_kg,
                 "prioridad": pieza.prioridad,
                 "fecha_compromiso": pieza.fecha_compromiso,
+                "mia": pieza.internal_id in asignadas,
             }
         )
-    return trabajos
+
+    # Lo asignado a esta persona, primero. `sort` de Python es estable, así
+    # que dentro de cada bloque se respeta el orden por prioridad y fecha.
+    trabajos.sort(key=lambda t: not t["mia"])
+    return trabajos[:TOPE], max(0, total - len(trabajos[:TOPE]))
+
+
+def _asignadas_a(colaborador):
+    """Identificadores de las piezas asignadas nominalmente a esta persona."""
+    if colaborador is None:
+        return set()
+    from catalogos.models import VigaAsignacion
+
+    return set(
+        VigaAsignacion.objects.using(BASE)
+        .filter(colaborador=colaborador, vigente=True)
+        .values_list("viga_internal_id", flat=True)
+    )
 
 
 @login_required
@@ -144,7 +194,10 @@ def mi_trabajo(request):
 
     colaborador = colaborador_de(request.user)
     movibles = etapas_que_puede_mover(request.user)
-    trabajos = _piezas_asignadas(colaborador, movibles) if colaborador else []
+    # Sin ficha también se ve la cola: el área la da el grupo de la cuenta,
+    # no la ficha. Lo que falta sin ficha es la firma del apunte, y de eso
+    # avisa la propia pantalla.
+    trabajos, de_mas = _cola_de_mi_area(movibles, _asignadas_a(colaborador))
 
     return render(
         request,
@@ -152,6 +205,7 @@ def mi_trabajo(request):
         {
             "colaborador": colaborador,
             "trabajos": trabajos,
+            "de_mas": de_mas,
             "puede_mover_algo": bool(movibles),
             "motivos_de_paro": list(
                 MaquinaParoMotivo.objects.using(BASE).filter(activo=True).order_by("nombre")

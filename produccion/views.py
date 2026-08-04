@@ -481,11 +481,31 @@ def _user_role(user) -> str:
 
 
 def _equipo_for_etapa(etapa: str):
+    """El equipo que cubre una etapa.
+
+    Se busca en dos pasadas. Primero por `estados`, que es la lista explícita
+    de etapas del equipo y manda cuando está capturada. Si nadie la capturó
+    —que es el caso de los cuatro equipos que hay hoy: los cuatro tienen
+    `estados` vacío— se cae al `area`, que dice exactamente lo mismo y sí
+    está puesta.
+
+    Sin esa segunda pasada la función devolvía `None` siempre, así que el
+    diálogo «Asignaciones por etapa» abría con las tres listas en blanco y
+    no se podía asignar a nadie: el aviso decía «marca las casillas» y no
+    había ninguna casilla.
+    """
     etapa = (etapa or "").strip()
     if not etapa:
         return None
-    for equipo in EquipoTrabajo.objects.filter(activo=True).order_by("area", "sub_area", "nombre"):
+    equipos = list(
+        EquipoTrabajo.objects.filter(activo=True).order_by("area", "sub_area", "nombre")
+    )
+    for equipo in equipos:
         if etapa in equipo.estados:
+            return equipo
+    clave = etapa.casefold()
+    for equipo in equipos:
+        if clave in {(equipo.area or "").casefold(), (equipo.sub_area or "").casefold()}:
             return equipo
     return None
 
