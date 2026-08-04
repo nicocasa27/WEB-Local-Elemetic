@@ -1,0 +1,129 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - {% if es_nuevo %}Nueva cuenta{% else %}{{ usuario.username }}{% endif %}{% endblock %}
+{% block content %}
+  <div class="mb-3">
+    <div class="h3 mb-0">
+      {% if es_nuevo %}Nueva cuenta{% else %}{{ usuario.username }}{% endif %}
+    </div>
+    <div class="text-muted small">
+      {% if es_nuevo %}
+        Una cuenta para entrar al sistema. Si es alguien del piso, enlázala con su ficha.
+      {% else %}
+        Cambia lo que puede hacer, o su contraseña.
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <form method="post" class="card">
+        {% csrf_token %}
+        <div class="card-header fw-semibold">Datos de la cuenta</div>
+        <div class="card-body vstack gap-3">
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger mb-0">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          {% for campo in form %}
+            {% if campo.name != "grupos" and campo.name != "is_active" %}
+              <div>
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+                {% if campo.help_text %}
+                  <div class="form-text">{{ campo.help_text }}</div>
+                {% endif %}
+                {% if campo.errors %}
+                  <div class="text-danger small">{{ campo.errors|striptags }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+
+          <div class="form-check">
+            {{ form.is_active }}
+            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+              {{ form.is_active.label }}
+            </label>
+            <div class="form-text">
+              Al quitarlo, la persona deja de poder entrar pero su historial se conserva.
+            </div>
+          </div>
+
+          {% if es_nuevo %}
+            <hr class="my-1">
+            {% for campo in clave %}
+              <div>
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+                {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+                {% if campo.errors %}
+                  <div class="text-danger small">{{ campo.errors|striptags }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+            {% if clave.non_field_errors %}
+              <div class="text-danger small">{{ clave.non_field_errors|striptags }}</div>
+            {% endif %}
+          {% endif %}
+        </div>
+        <div class="card-footer d-flex gap-2">
+          <button type="submit" class="btn btn-argon text-white">
+            <i class="bi bi-check2 me-1"></i> Guardar
+          </button>
+          <a class="btn btn-outline-secondary" href="{% url 'catalogos:usuarios' %}">Cancelar</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-lg-5">
+      <form method="post" class="card">
+        {% csrf_token %}
+        <div class="card-header fw-semibold">Qué puede hacer</div>
+        <div class="card-body">
+          {% comment %}
+            Los permisos van con su explicación al lado. Antes esto se hacía en
+            el admin de Django, eligiendo entre once grupos con nombre técnico
+            —«corte_laser_supervision»— sin ninguna pista de qué abría cada uno.
+          {% endcomment %}
+          {% for opcion in form.grupos %}
+            <div class="form-check mb-2">
+              {{ opcion.tag }}
+              <label class="form-check-label" for="{{ opcion.id_for_label }}">
+                <span class="fw-semibold">{{ opcion.choice_label }}</span>
+                {% for rol in roles %}
+                  {% if rol.clave == opcion.data.value %}
+                    <div class="text-muted small">{{ rol.descripcion }}</div>
+                  {% endif %}
+                {% endfor %}
+              </label>
+            </div>
+          {% endfor %}
+          <div class="form-text mt-2">
+            Se guardan con el botón de la izquierda, junto con el resto.
+          </div>
+        </div>
+      </form>
+
+      {% if not es_nuevo %}
+        <form method="post" action="{% url 'catalogos:usuario_contrasena' usuario.pk %}" class="card mt-3">
+          {% csrf_token %}
+          <div class="card-header fw-semibold">Cambiar la contraseña</div>
+          <div class="card-body vstack gap-3">
+            {% for campo in clave %}
+              <div>
+                <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                {{ campo }}
+                {% if campo.help_text %}<div class="form-text">{{ campo.help_text }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="card-footer">
+            <button type="submit" class="btn btn-outline-primary">
+              <i class="bi bi-key me-1"></i> Cambiar
+            </button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

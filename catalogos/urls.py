@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import usuarios, views
 
 app_name = "catalogos"
 
@@ -78,4 +78,11 @@ urlpatterns = [
     path("paros/motivos/", views.paros_motivos, name="paros_motivos"),
     path("paros/fallas/", views.paros_fallas, name="paros_fallas"),
     path("equipos/<int:pk>/editar/", views.equipo_editar, name="equipo_editar"),
+
+    # Usuarios. Hasta ahora sólo se podían crear desde el admin de Django.
+    path("usuarios/", usuarios.lista, name="usuarios"),
+    path("usuarios/nuevo/", usuarios.crear, name="usuario_crear"),
+    path("usuarios/<int:pk>/editar/", usuarios.editar, name="usuario_editar"),
+    path("usuarios/<int:pk>/contrasena/", usuarios.cambiar_contrasena, name="usuario_contrasena"),
+    path("usuarios/<int:pk>/apagar/", usuarios.apagar, name="usuario_apagar"),
 ]

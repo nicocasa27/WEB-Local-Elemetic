@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.db import models
 from django.db.models import Q
@@ -143,13 +144,46 @@ class Colaborador(models.Model):
 
 
 class Maquina(models.Model):
+    """Un equipo del piso. Es el «centro de trabajo» del que habla el taller.
+
+    Faltaba Pintura. Corte y Soldadura estaban porque son las dos áreas que
+    tienen máquina con nombre propio, pero pintura también es una estación por
+    la que pasa la orden y en la que se registra quién trabajó: sin estar aquí,
+    el avance de pintura no se podía atribuir a ningún sitio.
+    """
+
     TIPO_CHOICES = [
         ("Corte", "Corte"),
         ("Soldadura", "Soldadura"),
+        ("Pintura", "Pintura"),
     ]
 
     nombre = models.CharField(max_length=120)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+
+    #: Qué sabe hacer este equipo y hasta dónde llega.
+    #:
+    #: Los seis equipos de corte no son intercambiables: el plasma no corta lo
+    #: que corta la láser, y la cinta tiene un grueso máximo. Sin este dato,
+    #: elegir equipo al lanzar una orden es una lista de seis nombres sin
+    #: criterio, y quien la llena tiene que acordarse de memoria de cuál
+    #: aguanta la placa de 3/8.
+    funcion = models.CharField(
+        max_length=180, blank=True, default="",
+        help_text="Qué corta o suelda este equipo. Ej.: «Placa hasta 25 mm»",
+    )
+
+    #: Cuánto rinde por hora, en la unidad que tenga sentido para el equipo.
+    #: Cero es «no medido»: sirve para no inventar una capacidad que nadie
+    #: cronometró.
+    capacidad_hora = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("0"),
+        help_text="Piezas, metros o kilos por hora. Cero si no se ha medido.",
+    )
+    capacidad_unidad = models.CharField(
+        max_length=20, blank=True, default="",
+        help_text="La unidad de la capacidad: pza/h, m/h, kg/h…",
+    )
     es_robot = models.BooleanField(default=False)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -164,6 +198,124 @@ class Maquina(models.Model):
 
     def __str__(self) -> str:
         return self.nombre
+
+
+class Cuadrilla(models.Model):
+    """Quién trabaja hoy, dónde y en qué turno.
+
+    `EquipoTrabajo` ya existía, pero es una plantilla fija: «Cuadrilla A de
+    soldadura, cuatro integrantes». En el piso eso no se cumple ningún día —
+    falta uno, otro se pasa a pintura por la tarde—, así que la producción se
+    acababa atribuyendo a la plantilla y no a las personas que estuvieron.
+
+    Esto es lo que de verdad pasó: se arma por turno y por centro de trabajo,
+    con la gente que se presentó. La plantilla se queda como punto de partida
+    para no capturar veinte nombres a mano cada mañana.
+
+    Es una entidad transaccional: hay una fila por día, turno y centro. No se
+    edita el pasado — una cuadrilla de la semana anterior es un hecho, y es lo
+    que sostiene el indicador de producción por persona.
+    """
+
+    class Turno(models.TextChoices):
+        MATUTINO = "matutino", "Matutino"
+        VESPERTINO = "vespertino", "Vespertino"
+        COMPLETO = "completo", "Jornada completa"
+
+    fecha = models.DateField(db_index=True)
+    turno = models.CharField(
+        max_length=12, choices=Turno.choices, default=Turno.COMPLETO, db_index=True
+    )
+
+    #: El área: Corte, Soldadura o Pintura. Se guarda el texto y no una llave
+    #: a `Maquina` porque una cuadrilla es de un área, no de un equipo: dentro
+    #: de corte pueden rotar entre los seis.
+    centro = models.CharField(max_length=20, choices=Maquina.TIPO_CHOICES, db_index=True)
+
+    #: El equipo concreto, cuando la cuadrilla está pegada a uno. En corte es
+    #: lo normal; en soldadura y pintura casi nunca.
+    maquina = models.ForeignKey(
+        Maquina, on_delete=models.PROTECT, null=True, blank=True,
+        related_name="cuadrillas",
+    )
+
+    #: De qué plantilla se partió, si se partió de alguna. Sólo informativo.
+    plantilla = models.ForeignKey(
+        EquipoTrabajo, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="cuadrillas",
+    )
+
+    comentario = models.CharField(max_length=255, blank=True, default="")
+    armada_por = models.CharField(max_length=150, blank=True, default="")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-fecha", "centro", "turno"]
+        constraints = [
+            #: Una sola cuadrilla por día, turno, centro y equipo. Dos
+            #: cuadrillas del mismo turno en el mismo sitio son un error de
+            #: captura, y si se admiten la producción se cuenta dos veces.
+            models.UniqueConstraint(
+                fields=["fecha", "turno", "centro", "maquina"],
+                name="cuadrilla_unica_con_maquina",
+            ),
+            models.UniqueConstraint(
+                fields=["fecha", "turno", "centro"],
+                condition=Q(maquina__isnull=True),
+                name="cuadrilla_unica_sin_maquina",
+            ),
+        ]
+        verbose_name = "cuadrilla"
+        verbose_name_plural = "cuadrillas"
+
+    def __str__(self):
+        donde = self.maquina.nombre if self.maquina else self.centro
+        return f"{self.fecha} · {self.get_turno_display()} · {donde}"
+
+
+class CuadrillaIntegrante(models.Model):
+    """Una persona en una cuadrilla, con el papel que hizo ese día.
+
+    El papel se guarda aparte del rol del colaborador a propósito: un auxiliar
+    puede estar soldando un martes porque falta un soldador, y para el costo de
+    mano de obra importa lo que hizo, no lo que dice su ficha.
+    """
+
+    cuadrilla = models.ForeignKey(
+        Cuadrilla, on_delete=models.CASCADE, related_name="integrantes"
+    )
+    colaborador = models.ForeignKey(
+        Colaborador, on_delete=models.PROTECT, related_name="participaciones"
+    )
+    papel = models.CharField(
+        max_length=20, choices=Colaborador.ROL_CHOICES, blank=True, default=""
+    )
+
+    #: Qué parte de la jornada estuvo. Uno es el turno entero. Sirve para
+    #: repartir las horas cuando alguien entra a media mañana.
+    fraccion = models.DecimalField(
+        max_digits=4, decimal_places=2, default=Decimal("1.00")
+    )
+
+    class Meta:
+        ordering = ["colaborador__nombre"]
+        constraints = [
+            #: Nadie dos veces en la misma cuadrilla: sus horas se contarían
+            #: dobles.
+            models.UniqueConstraint(
+                fields=["cuadrilla", "colaborador"], name="integrante_unico"
+            ),
+            models.CheckConstraint(
+                condition=Q(fraccion__gt=Decimal("0")) & Q(fraccion__lte=Decimal("1")),
+                name="fraccion_de_jornada_valida",
+            ),
+        ]
+        verbose_name = "integrante de cuadrilla"
+        verbose_name_plural = "integrantes de cuadrilla"
+
+    def __str__(self):
+        return f"{self.colaborador.nombre} · {self.cuadrilla}"
 
 
 class MaquinaParoMotivo(models.Model):
