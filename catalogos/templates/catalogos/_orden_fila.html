@@ -26,16 +26,23 @@
      data-proyecto="{{ v.proyecto_nombre|default:''|escape }}"
      data-descripcion="{{ v.descripcion|escape }}">
 
-  <div class="mes-col-id">{{ v.internal_id }}</div>
-
+  {% comment %}
+    Código, cantidad y descripción juntos. Ver el porqué en
+    produccion/_pieza_fila.html: con ocho columnas la descripción se quedaba
+    con un carácter de ancho.
+  {% endcomment %}
   <div class="mes-col-titulo">
-    <div class="fw-semibold mes-truncar">{{ v.codigo_viga }}</div>
-    <div class="text-muted small">{{ v.total_piezas }} pzas</div>
+    <div class="mes-titulo-linea">
+      <span class="fw-semibold mes-truncar">{{ v.codigo_viga }}</span>
+      <span class="mes-id-suelto">#{{ v.internal_id }}</span>
+    </div>
+    <div class="text-muted small mes-truncar" title="{{ v.descripcion }}">
+      {{ v.total_piezas }} pzas{% if v.descripcion %} · {{ v.descripcion }}{% endif %}
+    </div>
   </div>
 
   <div class="mes-col-datos">
     <span class="mes-col-proyecto fw-semibold mes-truncar">{{ v.proyecto_nombre }}</span>
-    <span class="mes-col-descripcion text-muted small mes-truncar">{{ v.descripcion }}</span>
     <span class="mes-col-fecha small">
       <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
       <span class="text-muted js-prioridad" title="Prioridad {{ v.prioridad }}">P{{ v.prioridad }}</span>

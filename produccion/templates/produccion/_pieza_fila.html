@@ -21,21 +21,34 @@
      data-proyecto="{{ v.proyecto|escape }}"
      data-descripcion="{{ v.descripcion|escape }}">
 
-  <div class="mes-col-id">{{ v.internal_id }}</div>
+  {% comment %}
+    Código, número de pieza y descripción van juntos: las tres cosas responden
+    a «qué es esto», y separarlas en tres columnas obligaba a repartir el ancho
+    entre ocho. Con la barra lateral quitando 250 px, a la descripción le
+    quedaba un carácter: el encabezado se leía en vertical, letra por letra, y
+    el texto no se veía.
 
+    El identificador interno se queda como sufijo pequeño. En el piso la pieza
+    se llama por su código; el número sólo hace falta para dar parte de un
+    problema.
+  {% endcomment %}
   <div class="mes-col-titulo">
-    <div class="fw-semibold mes-truncar">{{ v.codigo_viga }}</div>
-    <div class="text-muted small">{{ v.pieza_no }}/{{ v.total_piezas }}</div>
+    <div class="mes-titulo-linea">
+      <span class="fw-semibold mes-truncar">{{ v.codigo_viga }}</span>
+      <span class="mes-id-suelto">#{{ v.internal_id }}</span>
+    </div>
+    <div class="text-muted small mes-truncar" title="{{ v.descripcion }}">
+      {{ v.pieza_no }}/{{ v.total_piezas }}{% if v.descripcion %} · {{ v.descripcion }}{% endif %}
+    </div>
   </div>
 
   {% comment %}
-    En el celular estos cuatro campos comparten una sola línea corrida; en
+    En el celular estos tres campos comparten una sola línea corrida; en
     pantalla ancha, `display: contents` los suelta y cada uno cae en su
     columna.
   {% endcomment %}
   <div class="mes-col-datos">
     <span class="mes-col-proyecto fw-semibold mes-truncar">{{ v.proyecto }}</span>
-    <span class="mes-col-descripcion text-muted small mes-truncar">{{ v.descripcion }}</span>
     <span class="mes-col-fecha small">
       <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
       <span class="text-muted js-prioridad" title="Prioridad {{ v.prioridad }}">P{{ v.prioridad }}</span>

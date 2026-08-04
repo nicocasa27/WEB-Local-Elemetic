@@ -69,11 +69,11 @@ class TestMigasDePan:
         assert [m["texto"] for m in migas] == ["Herrería"]
         assert migas[0]["url"] == reverse("catalogos:herreria_control")
 
-    def test_la_portada_de_un_area_no_se_enlaza_a_si_misma(self):
-        """Un enlace a la pantalla en la que ya estás no lleva a ningún sitio."""
+    def test_la_portada_de_un_area_no_se_repite_a_si_misma(self):
+        """«Corte» encima de «Área Corte» es la misma palabra dos veces, dos
+        renglones más arriba y sin llevar a ningún sitio."""
         peticion = self.Peticion("herreria_control", reverse("catalogos:herreria_control"))
-        migas = navegacion(peticion)["migas"]
-        assert migas[0]["url"] == ""
+        assert navegacion(peticion)["migas"] == []
 
     def test_el_menu_no_lleva_migas(self):
         assert navegacion(self.Peticion("home"))["migas"] == []
@@ -88,9 +88,11 @@ class TestMigasDePan:
         assert navegacion(self.Peticion("una_ruta_rara"))["migas"] == []
 
     def test_llegan_a_la_pagina(self, navegador):
-        pagina = navegador.get(reverse("catalogos:paros")).content.decode()
+        """En una pantalla de dentro, no en la portada de su área: ahí las
+        migas no se ponen porque repetirían el título."""
+        pagina = navegador.get(reverse("catalogos:paros_motivos")).content.decode()
         assert 'aria-label="Ruta de navegación"' in pagina
-        assert ">Paros<" in pagina
+        assert ">Paros</a>" in pagina
 
 
 class TestElMenuLlevaALoQueMasSeUsa:

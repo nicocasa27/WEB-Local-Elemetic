@@ -112,8 +112,12 @@ def navegacion(request):
                 destino = reverse(ruta)
             except NoReverseMatch:
                 destino = ""
-            # La portada de la sección no se enlaza a sí misma.
-            migas.append({"texto": titulo, "url": "" if destino == request.path else destino})
+            # En la portada de la sección, la miga no se pone: decía lo mismo
+            # que el título de la pantalla, dos renglones más arriba y sin
+            # llevar a ningún sitio. «Corte» sobre «Área Corte» es la misma
+            # palabra dos veces.
+            if destino != request.path:
+                migas.append({"texto": titulo, "url": destino})
 
     return {"seccion": seccion, "migas": migas}
 

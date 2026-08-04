@@ -23,11 +23,12 @@
         <a class="btn btn-argon text-white" href="{% url 'produccion:viga_create' %}?next={{ request.get_full_path|urlencode }}">
           <i class="bi bi-plus-lg me-1"></i> Nueva pieza
         </a>
-      {% else %}
-        <a class="btn btn-outline-secondary" href="{% url 'produccion:home' %}">
-          <i class="bi bi-house-door me-1"></i> Menú
-        </a>
       {% endif %}
+      {% comment %}
+        Aquí había un botón «Menú» para quien no es administrador, porque la
+        única forma de volver era el muro de mosaicos. La barra lateral está
+        siempre a la vista, así que era un botón para ir a donde ya se está.
+      {% endcomment %}
     </div>
   </div>
 
@@ -134,10 +135,8 @@
     <datalist id="vigaSuggestions"></datalist>
 
     <div class="mes-encabezado">
-      <div class="mes-col-id">ID</div>
-      <div class="mes-col-titulo">Código</div>
+      <div class="mes-col-titulo">Código y descripción</div>
       <div class="mes-col-proyecto">Proyecto</div>
-      <div class="mes-col-descripcion">Descripción</div>
       <div class="mes-col-fecha">Fecha</div>
       <div class="mes-col-estado">Estado</div>
       <div class="mes-col-peso mes-encabezado-peso">Kg</div>

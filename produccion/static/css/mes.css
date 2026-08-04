@@ -147,7 +147,7 @@ body {
  * kilos en toda la columna; sin ella cada dígito mide distinto y la columna
  * queda en zigzag. */
 .mes-dato,
-.mes-col-id,
+.mes-id-suelto,
 .mes-col-fecha,
 .mes-col-peso,
 .mes-col-titulo .fw-semibold,
@@ -581,10 +581,8 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 }
 .mes-fila:last-child { border-bottom: 0; }
 
-.mes-col-id        { display: none; }
 .mes-col-titulo    { grid-area: titulo; min-width: 0; }
 .mes-col-proyecto,
-.mes-col-descripcion,
 .mes-col-fecha,
 .mes-col-peso      { grid-area: datos; }
 .mes-col-estado    { grid-area: estado; text-align: right; }
@@ -619,19 +617,27 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 @media (min-width: 992px) {
   .mes-fila,
   .mes-encabezado {
-    grid-template-areas: "id titulo proyecto descripcion fecha estado peso acciones";
-    /* Anchos fijos salvo la descripción. El encabezado y las filas son
-     * rejillas distintas, así que una columna `auto` se resolvería según el
-     * contenido de cada una y las columnas no quedarían alineadas. */
+    grid-template-areas: "titulo proyecto fecha estado peso acciones";
+    /* Seis columnas donde había ocho.
+     *
+     * Con `id` y `descripcion` aparte, los anchos fijos sumaban 64.5rem: más
+     * de lo que queda al descontar la barra lateral en un portátil. La
+     * descripción, que era la única flexible, se quedaba con un carácter —el
+     * encabezado se leía en vertical, letra por letra— y su texto no se veía.
+     *
+     * Ahora el código, la cantidad y la descripción comparten una celda, que
+     * es como se identifica una pieza en el piso, y esa celda crece.
+     *
+     * El encabezado y las filas son rejillas distintas, así que las columnas
+     * llevan medida: una columna `auto` se resolvería según el contenido de
+     * cada una y no quedarían alineadas. */
     grid-template-columns:
-      3.5rem          /* id          */
-      8rem            /* código      */
-      9rem            /* proyecto    */
-      minmax(0, 1fr)  /* descripción */
-      8rem            /* fecha       */
-      10rem           /* estado      */
-      5rem            /* kg          */
-      21rem;          /* acciones    */
+      minmax(13rem, 1.6fr)  /* código y descripción */
+      minmax(6.5rem, 1fr)   /* proyecto             */
+      7rem                  /* fecha                */
+      9rem                  /* estado               */
+      4.5rem                /* kg                   */
+      17rem;                /* acciones             */
     align-items: center;
     gap: .75rem;
     padding: .6rem 1rem;
@@ -645,11 +651,9 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
     letter-spacing: .04em;
     border-bottom: 1px solid var(--mes-hairline);
   }
-  .mes-col-id          { display: block; grid-area: id; color: var(--argon-muted); }
   /* El contenedor desaparece y sus cuatro hijos caen cada uno en su columna. */
   .mes-col-datos       { display: contents; }
   .mes-col-proyecto    { grid-area: proyecto; margin: 0; }
-  .mes-col-descripcion { grid-area: descripcion; margin: 0; }
   .mes-col-fecha       { grid-area: fecha; margin: 0; }
   .mes-col-peso        { grid-area: peso; margin: 0; text-align: right; }
   .mes-botonera        { flex-wrap: nowrap; gap: 0; }
@@ -666,20 +670,20 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 
   .mes-fila.con-avance,
   .mes-encabezado.con-avance {
-    grid-template-areas: "id titulo proyecto descripcion fecha estado avance peso acciones";
+    grid-template-areas: "titulo proyecto fecha estado avance peso acciones";
     grid-template-columns:
-      3.5rem          /* id          */
-      8rem            /* código      */
-      8rem            /* proyecto    */
-      minmax(0, 1fr)  /* descripción */
-      7.5rem          /* fecha       */
-      9rem            /* estado      */
-      9rem            /* avance      */
-      5rem            /* kg          */
+      minmax(12rem, 1.5fr)  /* código y descripción */
+      minmax(6rem, 1fr)     /* proyecto             */
+      7rem                  /* fecha                */
+      8.5rem                /* estado               */
+      8rem                  /* avance               */
+      4.5rem                /* kg                   */
       /* Más ancha que en Estructuras: estas órdenes llevan hasta siete
-       * botones. Con 21rem el texto del estado final se recortaba en
-       * «Termin…» y en «Te…». */
-      24rem;          /* acciones    */
+       * botones. Los anchos de arriba están medidos para que las siete
+       * columnas quepan en un portátil de 1440 px **con la barra lateral
+       * puesta**: antes sumaban 1280 px sobre 1151 disponibles y el último
+       * botón quedaba cortado por el borde. */
+      19rem;                /* acciones             */
   }
   .mes-col-avance { text-align: right; }
   .mes-barras { margin-left: auto; width: 8rem; }
@@ -1256,3 +1260,20 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 }
 
 .mes-compra-boton { grid-column: 1 / -1; }
+
+/* El código y su identificador interno, en la misma línea. En el piso la
+ * pieza se llama por su código; el número sólo hace falta para dar parte de
+ * un problema, así que va detrás y en pequeño. */
+.mes-titulo-linea {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.mes-id-suelto {
+  font-family: var(--fuente-dato);
+  font-size: .75rem;
+  color: var(--acero-300);
+  flex: 0 0 auto;
+}
