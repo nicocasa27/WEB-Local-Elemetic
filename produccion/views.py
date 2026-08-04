@@ -2989,9 +2989,29 @@ def dashboard(request):
         .values_list("equipo_id", "cnt")
     )
     total_integrantes = sum(int(colab_counts.get(e.id, 0)) for e in equipos_activos)
-    prod_ton_por_equipo_global = (terminado_ton / total_equipos) if total_equipos else 0.0
-    prod_ton_por_integrante_global = (terminado_ton / total_integrantes) if total_integrantes else 0.0
+    # Producción por persona: **flujo**, no inventario.
+    #
+    # Antes era `toneladas en estado Terminado / integrantes`, comparado contra
+    # una meta de media tonelada por persona **a la semana**. Arriba había un
+    # inventario y abajo un flujo: el número subía solo mientras no se enviara
+    # nada y se desplomaba el día que salía un camión, o sea justo al revés de
+    # lo que significa producir.
+    #
+    # Ahora se mide lo terminado en los últimos siete días, que es la misma
+    # dimensión que la meta.
     ton_por_persona_meta = float(getattr(settings, "TON_POR_PERSONA_META", 0.5) or 0.5)
+    # `today` se define más abajo en esta misma vista; aquí se calcula aparte
+    # para no depender del orden de mil cuatrocientas líneas.
+    hoy_kpi = timezone.localdate()
+    semana_desde = hoy_kpi - timedelta(days=6)
+    semana_hasta = hoy_kpi + timedelta(days=1)
+    ton_terminadas_semana = metricas.toneladas_terminadas(semana_desde, semana_hasta)
+    prod_ton_por_equipo_global = (
+        (ton_terminadas_semana / total_equipos) if total_equipos else 0.0
+    )
+    prod_ton_por_integrante_global = metricas.toneladas_por_persona(
+        semana_desde, semana_hasta, total_integrantes
+    )
 
     equipos_detalle = [
         {"nombre": e.nombre, "integrantes": int(colab_counts.get(e.id, 0)), "estados": e.estados_texto}

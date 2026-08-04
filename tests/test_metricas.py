@@ -19,6 +19,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from core import estados as est
 from core import metricas
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
@@ -132,6 +133,89 @@ class TestLasToneladasDeHerreria:
 
     def test_sin_movimiento_da_cero_sin_reventar(self):
         assert metricas.toneladas_de_herreria(LUNES, SIGUIENTE) == 0.0
+
+
+class TestLaProduccionPorPersonaEsFlujo:
+    """El indicador estaba mal planteado, no mal calculado, que es peor: el
+    número salía siempre y nadie tenía motivo para dudar de él.
+
+    Se hacía `toneladas en estado Terminado / integrantes` y se comparaba
+    contra una meta de media tonelada por persona **a la semana**. Arriba un
+    inventario, abajo un flujo. Y como el inventario sólo crece mientras no se
+    envía, el indicador subía solo y se desplomaba el día que salía un camión:
+    exactamente al revés de lo que significa producir.
+    """
+
+    def pieza(self, codigo, peso, estado=est.TERMINADO):
+        from django.utils import timezone
+
+        from produccion.models import Viga
+
+        return Viga.objects.create(
+            codigo_viga=codigo, pieza_no=1, total_piezas=1, proyecto="P",
+            descripcion="", fecha_compromiso=timezone.localdate(), estado=estado,
+            prioridad=3, peso_kg=peso,
+            fecha_creacion=timezone.now(), ultimo_cambio=timezone.now(),
+        )
+
+    def termina(self, pieza, dia):
+        from django.utils import timezone
+
+        from produccion.models import ProductionLog
+
+        return ProductionLog.objects.create(
+            viga_internal_id=pieza.internal_id,
+            estado_anterior=est.PINTURA,
+            estado_nuevo=est.TERMINADO,
+            fecha_operacion=dia,
+            timestamp=timezone.now(),
+        )
+
+    def test_cuenta_lo_terminado_en_el_rango(self):
+        pieza = self.pieza("F-1", 500)
+        self.termina(pieza, LUNES)
+
+        assert metricas.toneladas_terminadas(LUNES, SIGUIENTE) == pytest.approx(0.5)
+
+    def test_no_cuenta_lo_de_otra_semana(self):
+        """Es lo que hacía el cálculo viejo: una pieza terminada hace tres
+        meses seguía sumando hoy, sólo por estar todavía en el almacén."""
+        pieza = self.pieza("F-2", 500)
+        self.termina(pieza, LUNES - timedelta(days=30))
+
+        assert metricas.toneladas_terminadas(LUNES, SIGUIENTE) == 0.0
+
+    def test_una_pieza_no_cuenta_dos_veces_el_mismo_dia(self):
+        """Un movimiento corregido deja dos apuntes. La pieza es una."""
+        pieza = self.pieza("F-3", 500)
+        self.termina(pieza, LUNES)
+        self.termina(pieza, LUNES)
+
+        assert metricas.toneladas_terminadas(LUNES, SIGUIENTE) == pytest.approx(0.5)
+
+    def test_sigue_contando_aunque_ya_se_haya_enviado(self):
+        """Enviar no deshace haber producido.
+
+        Con el cálculo viejo, la producción de la semana bajaba en cuanto
+        salía el camión, porque la pieza dejaba de estar en «Terminado».
+        """
+        pieza = self.pieza("F-4", 500, estado=est.ENVIADO)
+        self.termina(pieza, LUNES)
+
+        assert metricas.toneladas_terminadas(LUNES, SIGUIENTE) == pytest.approx(0.5)
+
+    def test_se_reparte_entre_las_personas(self):
+        pieza = self.pieza("F-5", 1000)
+        self.termina(pieza, LUNES)
+
+        assert metricas.toneladas_por_persona(LUNES, SIGUIENTE, 4) == pytest.approx(0.25)
+
+    def test_sin_personas_da_cero_sin_reventar(self):
+        """Pasa el primer día, antes de dar de alta a nadie."""
+        assert metricas.toneladas_por_persona(LUNES, SIGUIENTE, 0) == 0.0
+
+    def test_una_semana_sin_producir_da_cero(self):
+        assert metricas.toneladas_terminadas(LUNES, SIGUIENTE) == 0.0
 
 
 class TestElRetrabajoSeMideDeUnaSolaForma:

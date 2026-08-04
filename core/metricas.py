@@ -18,6 +18,8 @@ de la orden, no el de una pieza. La orden 20 son 70 piezas y 1.876 kg.
 
 from datetime import date
 
+from core.estados import TERMINADO
+
 BASE = "mes"
 
 
@@ -74,6 +76,67 @@ def toneladas_de_herreria(desde: date, hasta: date):
 
 def piezas_de_herreria(desde: date, hasta: date):
     return sum(f["piezas"] for f in produccion_de_herreria(desde, hasta).values())
+
+
+# ------------------------------------------ producción terminada por persona
+#
+# El indicador estaba mal planteado, no mal calculado, que es peor: el número
+# salía siempre y nadie tenía motivo para dudar de él.
+#
+# Se hacía `toneladas en estado Terminado / número de integrantes` y se
+# comparaba contra una meta de **media tonelada por persona a la semana**.
+#
+# Lo de arriba es un inventario —lo que hay parado en el almacén de terminados
+# ahora mismo— y lo de abajo es un flujo. Dividir uno entre otro no da nada.
+# Peor: como el inventario sólo crece mientras no se envía, el indicador subía
+# solo, y bajaba de golpe el día que salía un camión. Justo al revés de lo que
+# significa producir.
+#
+# Aquí se mide lo que se terminó **en un rango de fechas**, que es lo mismo que
+# mide la meta.
+
+
+def toneladas_terminadas(desde: date, hasta: date):
+    """Toneladas que pasaron a «Terminado» en `[desde, hasta)`.
+
+    Se cuenta el paso, no el estado: una pieza cuenta el día que se terminó y
+    no vuelve a contar nunca más. Y se cuenta una sola vez aunque tenga varios
+    apuntes ese día, que los tiene cuando alguien corrige un movimiento.
+    """
+    from produccion.models import ProductionLog, Viga
+
+    ids = set(
+        ProductionLog.objects.using(BASE)
+        .filter(
+            estado_nuevo=TERMINADO,
+            fecha_operacion__gte=desde,
+            fecha_operacion__lt=hasta,
+        )
+        .values_list("viga_internal_id", flat=True)
+    )
+    if not ids:
+        return 0.0
+
+    from django.db.models import Sum
+
+    kilos = (
+        Viga.objects.using(BASE)
+        .filter(internal_id__in=ids)
+        .aggregate(total=Sum("peso_kg"))["total"]
+        or 0
+    )
+    return float(kilos) / 1000.0
+
+
+def toneladas_por_persona(desde: date, hasta: date, personas: int):
+    """Lo que produjo cada persona en el rango, en toneladas.
+
+    Cero personas devuelve cero en vez de reventar: pasa el primer día, antes
+    de dar de alta a nadie.
+    """
+    if not personas:
+        return 0.0
+    return toneladas_terminadas(desde, hasta) / personas
 
 
 # ------------------------------------------------------------- retrabajo
