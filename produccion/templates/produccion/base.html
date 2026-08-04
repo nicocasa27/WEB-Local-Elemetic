@@ -92,6 +92,7 @@
                       {% if can_pedidos %}
                         <li><a class="dropdown-item" href="{% url 'catalogos:pedidos_ordenes' %}"><i class="bi bi-receipt me-2"></i> Órdenes de Producción</a></li>
                         <li><a class="dropdown-item" href="{% url 'catalogos:pedidos_logistica' %}"><i class="bi bi-truck me-2"></i> Logística</a></li>
+                        <li><a class="dropdown-item" href="{% url 'catalogos:despacho' %}"><i class="bi bi-box-seam me-2"></i> Listo para salir</a></li>
                       {% else %}
                         <li><a class="dropdown-item" href="{% url 'catalogos:logistica_corta' %}"><i class="bi bi-truck me-2"></i> Logística</a></li>
                       {% endif %}

@@ -158,8 +158,12 @@ DESCRIPCIONES_VIGA = [
     "Canal U 6", "Ángulo 3x3/8", "Placa 3/8",
 ]
 
-#: Cuántas piezas hay en cada etapa. Un taller vivo tiene la mayor parte en
-#: proceso y una cola razonable, no todo terminado ni todo esperando.
+#: Cuántos **grupos de piezas** hay en cada etapa. Cada grupo son de una a seis
+#: piezas del mismo código, así que el total sale bastante mayor.
+#:
+#: El reparto importa: un taller vivo tiene la mayor parte en proceso y una
+#: cola razonable, no todo terminado ni todo esperando. Con todo en una etapa
+#: no se puede ver cómo se mueve nada.
 REPARTO_DE_ETAPAS = [
     (est.ESPERA_CORTE, 14),
     (est.CORTE, 6),
@@ -172,6 +176,21 @@ REPARTO_DE_ETAPAS = [
     (est.TERMINADO, 12),
     (est.ENVIADO, 8),
 ]
+
+#: Cuánto se siembra.
+#:
+#: «chico» es el de por defecto y es el que sirve para **mirar el sistema y
+#: entenderlo**: cabe en una pantalla, se puede seguir una pieza entera de
+#: principio a fin, y todas las etapas tienen algo. Doscientas piezas enseñan lo
+#: mismo pero obligan a paginar y a buscar, que es justo lo que estorba cuando
+#: lo que quieres es ver cómo funciona.
+#:
+#: «completo» es para probar rendimiento y paginación de verdad.
+TAMANOS = {
+    "chico": {"grupos": 0.28, "ordenes": 6, "dias_cuadrilla": 5, "paros": 6},
+    "mediano": {"grupos": 0.6, "ordenes": 10, "dias_cuadrilla": 10, "paros": 12},
+    "completo": {"grupos": 1.0, "ordenes": 14, "dias_cuadrilla": 15, "paros": 18},
+}
 
 
 def jornada(dia, azar):
@@ -229,6 +248,16 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--semilla", type=int, default=SEMILLA)
         parser.add_argument(
+            "--tamano",
+            choices=sorted(TAMANOS),
+            default="chico",
+            help=(
+                "Cuánto sembrar. «chico» (por defecto) cabe en una pantalla y "
+                "sirve para entender el sistema; «completo» es para probar "
+                "paginación y rendimiento."
+            ),
+        )
+        parser.add_argument(
             "--sin-usuarios",
             action="store_true",
             help="No crea cuentas para el personal del piso.",
@@ -238,6 +267,7 @@ class Command(BaseCommand):
     def handle(self, *args, **opciones):
         self.azar = random.Random(opciones["semilla"])
         self.hoy = timezone.localdate()
+        self.tamano = TAMANOS[opciones["tamano"]]
 
         self.stdout.write(self.style.MIGRATE_HEADING("\nConfiguración base"))
         call_command("sembrar_nucleo", verbosity=0)
@@ -527,11 +557,14 @@ class Command(BaseCommand):
         secuencia = est.SECUENCIA
         creadas = apuntes = 0
 
+        escala = self.tamano["grupos"]
         for estado_final, cuantas in REPARTO_DE_ETAPAS:
             objetivo = secuencia.index(estado_final)
-            for _ in range(cuantas):
+            # Al menos un grupo por etapa aunque la escala sea pequeña:
+            # una etapa vacía no se puede explorar.
+            for _ in range(max(1, round(cuantas * escala))):
                 proyecto = self.azar.choice(PROYECTOS)
-                total = self.azar.choice([1, 2, 3, 3, 4, 6])
+                total = self.azar.choice([1, 1, 2, 2, 3, 4])
                 letra = self.azar.choice("ABCDEFGH")
                 descripcion = self.azar.choice(DESCRIPCIONES_VIGA)
                 peso = Decimal(self.azar.choice(
@@ -617,7 +650,7 @@ class Command(BaseCommand):
         etapas = [est.ESPERA_CORTE, est.CORTE, est.SOLDADURA, est.SOLDADURA,
                   est.PINTURA, est.TERMINADO]
         creadas = 0
-        for numero in range(1, 15):
+        for numero in range(1, self.tamano["ordenes"] + 1):
             nombre, peso_pieza = self.azar.choice(PIEZAS_HERRERIA)
             total = self.azar.choice([2, 4, 8, 12, 20, 30, 70])
             etapa = self.azar.choice(etapas)
@@ -673,7 +706,7 @@ class Command(BaseCommand):
         )
         armadas = integrantes = 0
         dia = self.hoy
-        for _ in range(15):
+        for _ in range(self.tamano["dias_cuadrilla"]):
             while dia.weekday() >= 5:
                 dia -= timedelta(days=1)
             for area, gente in por_area.items():
@@ -720,7 +753,7 @@ class Command(BaseCommand):
 
         maquinas = list(Maquina.objects.using(BASE).filter(activo=True))
         creados = 0
-        for _ in range(18):
+        for _ in range(self.tamano["paros"]):
             maquina = self.azar.choice(maquinas)
             inicio = con_zona(
                 jornada(self.hoy - timedelta(days=self.azar.randint(1, 25)), self.azar)

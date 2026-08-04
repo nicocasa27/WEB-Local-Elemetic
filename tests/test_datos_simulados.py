@@ -193,9 +193,33 @@ class TestElTallerSimuladoEsCreible:
         from catalogos.models import Cuadrilla, Maquina
         from produccion.models import Viga
 
-        assert Viga.objects.using(BASE).count() > 100
+        # El sembrado por defecto es el chico, pensado para mirar el sistema y
+        # entenderlo: suficiente para que todas las pantallas tengan contenido,
+        # poco para no obligar a paginar y buscar cuando lo que quieres es ver
+        # cómo funciona.
+        assert 20 < Viga.objects.using(BASE).count() < 120
         assert Maquina.objects.using(BASE).count() >= 10
         assert Cuadrilla.objects.using(BASE).count() > 0
+
+    def test_ninguna_etapa_queda_vacia(self, taller):
+        """Una etapa sin nada no se puede explorar, y con el sembrado chico es
+        justo lo que pasaría si los grupos se escalaran sin suelo."""
+        from collections import Counter
+
+        from produccion.models import Viga
+
+        por_etapa = Counter(
+            est.normalizar(e)
+            for e in Viga.objects.using(BASE).values_list("estado", flat=True)
+        )
+        vacias = [e for e in est.SECUENCIA if not por_etapa.get(e)]
+        assert not vacias, f"Sin piezas en: {vacias}"
+
+    def test_hay_algo_listo_para_despachar(self, taller):
+        """La bandeja de despacho vacía tampoco se puede explorar."""
+        from catalogos.despacho import listos_para_salir
+
+        assert len(listos_para_salir()) > 0
 
     def test_toda_pieza_tiene_la_bitacora_de_su_etapa(self, taller):
         """Una pieza en pintura tiene apuntes de corte, armado y soldadura.
@@ -330,6 +354,35 @@ class TestElTallerSimuladoEsCreible:
 
         assert ListaMateriales.objects.using(BASE).count() > 0
         assert RenglonListaMateriales.objects.using(BASE).count() > 0
+
+
+class TestElTamano:
+    def test_completo_siembra_bastante_mas_que_chico(self):
+        from produccion.models import Viga
+
+        call_command("sembrar_demo", tamano="chico", verbosity=0, stdout=StringIO())
+        chico = Viga.objects.using(BASE).count()
+
+        limpiar()
+        call_command("sembrar_demo", tamano="completo", verbosity=0, stdout=StringIO())
+        completo = Viga.objects.using(BASE).count()
+
+        assert completo > chico * 2
+
+    def test_hasta_el_chico_llena_todas_las_etapas(self):
+        """El suelo de un grupo por etapa es lo que lo garantiza: sin él, las
+        etapas de pocas piezas se quedarían en cero al escalar hacia abajo."""
+        from collections import Counter
+
+        from produccion.models import Viga
+
+        call_command("sembrar_demo", tamano="chico", verbosity=0, stdout=StringIO())
+
+        por_etapa = Counter(
+            est.normalizar(e)
+            for e in Viga.objects.using(BASE).values_list("estado", flat=True)
+        )
+        assert all(por_etapa.get(e) for e in est.SECUENCIA)
 
 
 class TestEsReproducible:

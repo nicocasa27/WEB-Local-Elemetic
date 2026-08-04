@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import usuarios, views
+from . import despacho, usuarios, views
 
 app_name = "catalogos"
 
@@ -78,6 +78,12 @@ urlpatterns = [
     path("paros/motivos/", views.paros_motivos, name="paros_motivos"),
     path("paros/fallas/", views.paros_fallas, name="paros_fallas"),
     path("equipos/<int:pk>/editar/", views.equipo_editar, name="equipo_editar"),
+
+    # Bandeja de despacho. Se deduce de la producción, no de una tabla de
+    # avisos: un aviso que hay que disparar se puede olvidar de dispararse, y
+    # entonces la bandeja sale vacía y parece que no hay nada que despachar.
+    path("despacho/", despacho.bandeja, name="despacho"),
+    path("despacho/marcar/", despacho.marcar, name="despacho_marcar"),
 
     # Usuarios. Hasta ahora sólo se podían crear desde el admin de Django.
     path("usuarios/", usuarios.lista, name="usuarios"),

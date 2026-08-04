@@ -318,6 +318,73 @@ class CuadrillaIntegrante(models.Model):
         return f"{self.colaborador.nombre} · {self.cuadrilla}"
 
 
+class SeguimientoDespacho(models.Model):
+    """Lo que Logística ya atendió de la bandeja de despacho.
+
+    **Aquí no se guarda el aviso, sino la respuesta al aviso.** La distinción
+    importa y es la decisión de diseño de esta pantalla.
+
+    Lo natural sería crear una fila cada vez que una orden pasa a Terminado —un
+    disparador— y que la bandeja enseñara esas filas. En este sistema eso falla:
+    el estado se cambia desde cuatro motores distintos y desde decenas de sitios
+    del código, así que **cualquier camino que se olvide de disparar deja una
+    orden terminada de la que Logística nunca se entera**. Y ese fallo es
+    invisible: la bandeja se ve vacía y parece que no hay nada que despachar.
+
+    Por eso la bandeja se **deduce** de los datos: lo que está terminado y
+    todavía no ha salido. No se puede quedar desactualizada porque no hay nada
+    que actualizar, y una orden nueva aparece sola aunque se haya terminado por
+    un camino que nadie previó.
+
+    Esta tabla sólo recuerda lo que una persona hizo con cada renglón: si ya lo
+    vio, si lo apartó para el camión, o si lo dejó anotado. Sin ella la bandeja
+    sería una lista sin memoria.
+    """
+
+    class Linea(models.TextChoices):
+        VIGAS = "vigas", "Estructuras metálicas"
+        HERRERIA = "herreria", "Herrería"
+        CORTA = "corta", "Corta.mx"
+        ROBOTICA = "robotica", "Robótica"
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        PREPARANDO = "preparando", "Preparando para salir"
+        DESPACHADO = "despachado", "Despachado"
+
+    linea = models.CharField(max_length=12, choices=Linea.choices, db_index=True)
+
+    #: El identificador del renglón en su tabla de origen. No es una llave
+    #: foránea porque apunta a cuatro tablas distintas y una de ellas —`vigas`—
+    #: es heredada y no la maneja Django.
+    referencia = models.PositiveIntegerField(db_index=True)
+
+    estado = models.CharField(
+        max_length=12, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True
+    )
+    notas = models.CharField(max_length=255, blank=True, default="")
+    actor = models.CharField(max_length=150, blank=True, default="")
+    visto_en = models.DateTimeField(null=True, blank=True)
+    despachado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-actualizado_en"]
+        constraints = [
+            #: Un renglón, un seguimiento. Dos filas para lo mismo harían que
+            #: la bandeja enseñara la orden dos veces con estados distintos.
+            models.UniqueConstraint(
+                fields=["linea", "referencia"], name="seguimiento_despacho_unico"
+            ),
+        ]
+        verbose_name = "seguimiento de despacho"
+        verbose_name_plural = "seguimientos de despacho"
+
+    def __str__(self):
+        return f"{self.get_linea_display()} #{self.referencia} · {self.get_estado_display()}"
+
+
 class MaquinaParoMotivo(models.Model):
     nombre = models.CharField(max_length=120)
     nombre_normalizado = models.CharField(max_length=120, unique=True, db_index=True)
@@ -1036,7 +1103,7 @@ class LogisticaExpediente(models.Model):
         ordering = ["-creado_en"]
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     (models.Q(pedido__isnull=False) & models.Q(orden_corta__isnull=True))
                     | (models.Q(pedido__isnull=True) & models.Q(orden_corta__isnull=False))
                 ),
@@ -1064,7 +1131,7 @@ class LogisticaExpedienteDescarga(models.Model):
         ordering = ["-descargado_en"]
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     (models.Q(pedido__isnull=False) & models.Q(orden_corta__isnull=True))
                     | (models.Q(pedido__isnull=True) & models.Q(orden_corta__isnull=False))
                 ),
@@ -1514,7 +1581,7 @@ class VigaAsignacion(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(colaborador__isnull=False, maquina__isnull=True)
                     | models.Q(colaborador__isnull=True, maquina__isnull=False)
                 ),

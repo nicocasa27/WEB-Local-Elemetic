@@ -1,0 +1,130 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Despacho{% endblock %}
+{% block content %}
+  <div class="mb-3">
+    <div class="h3 mb-0">Listo para salir</div>
+    <div class="text-muted small">
+      Todo lo que está terminado y todavía no ha salido del taller, agrupado
+      por cliente para cargar el camión.
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body d-flex flex-wrap gap-4">
+      <div>
+        <div class="kpi">{{ pendientes }}</div>
+        <div class="kpi-label">Sin atender</div>
+      </div>
+      <div>
+        <div class="kpi">{{ total }}</div>
+        <div class="kpi-label">Renglones listos</div>
+      </div>
+      <div>
+        <div class="kpi">{{ peso_total|floatformat:0 }}<span class="kpi-unit">kg</span></div>
+        <div class="kpi-label">Peso total</div>
+      </div>
+      <div>
+        <div class="kpi">{{ grupos|length }}</div>
+        <div class="kpi-label">Cliente{{ grupos|length|pluralize:"s" }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
+    Esta bandeja no se alimenta de una tabla de avisos: se calcula cada vez a
+    partir de lo que está terminado. Un aviso que hay que disparar se puede
+    olvidar de dispararse, y entonces la orden no aparece y la pantalla parece
+    decir que no hay nada que despachar. Esto no se puede quedar desactualizado
+    porque no hay nada que actualizar.
+  {% endcomment %}
+
+  {% for grupo in grupos %}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <span class="fw-semibold">{{ grupo.cliente }}</span>
+          {% if grupo.pendientes %}
+            <span class="badge est-cierre-pendiente ms-1">
+              {{ grupo.pendientes }} sin atender
+            </span>
+          {% else %}
+            <span class="badge est-terminado ms-1">Todo atendido</span>
+          {% endif %}
+        </div>
+        <div class="text-muted small mes-dato">
+          {{ grupo.piezas }} pza · {{ grupo.peso_kg|floatformat:1 }} kg
+        </div>
+      </div>
+
+      <div class="mes-scroll-x">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Línea</th>
+              <th>Código</th>
+              <th>Detalle</th>
+              <th class="text-end">Piezas</th>
+              <th class="text-end">Kg</th>
+              <th>Terminado</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in grupo.filas %}
+              <tr>
+                <td class="small text-muted">{{ fila.linea }}</td>
+                <td class="mes-dato fw-semibold">{{ fila.codigo }}</td>
+                <td class="small">
+                  {{ fila.detalle }}
+                  {% if fila.seguimiento.notas %}
+                    <div class="text-muted">{{ fila.seguimiento.notas }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end mes-dato">{{ fila.cantidad }}</td>
+                <td class="text-end mes-dato">{{ fila.peso_kg|floatformat:1 }}</td>
+                <td class="mes-dato small">{{ fila.desde|date:"Y-m-d" }}</td>
+                <td>
+                  <form method="post" action="{% url 'catalogos:despacho_marcar' %}"
+                        class="d-flex gap-2 align-items-center">
+                    {% csrf_token %}
+                    <input type="hidden" name="linea" value="{{ fila.linea }}">
+                    <input type="hidden" name="referencia" value="{{ fila.referencia }}">
+                    <label class="mes-oculto-visualmente"
+                           for="estado-{{ fila.linea }}-{{ fila.referencia }}">
+                      Estado de despacho de {{ fila.codigo }}
+                    </label>
+                    <select id="estado-{{ fila.linea }}-{{ fila.referencia }}"
+                            class="form-select form-select-sm" name="estado"
+                            style="max-width: 12rem;">
+                      {% for valor, etiqueta in estados %}
+                        <option value="{{ valor }}"
+                                {% if fila.estado == valor %}selected{% endif %}>
+                          {{ etiqueta }}
+                        </option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                            title="Guardar el estado">
+                      <i class="bi bi-check2"></i>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% empty %}
+    <div class="card">
+      <div class="p-4 text-center">
+        <div class="fw-semibold">Nada listo para salir</div>
+        <div class="text-muted small mt-1">
+          Aquí aparece solo lo que está terminado. Se calcula a partir de la
+          producción, así que no hace falta avisar a nadie: una orden aparece
+          en cuanto se termina.
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+{% endblock %}
