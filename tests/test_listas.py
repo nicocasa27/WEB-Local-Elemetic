@@ -30,6 +30,53 @@ pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 LISTA = Path(settings.BASE_DIR) / "produccion" / "templates" / "produccion" / "viga_list.html"
 FILA = Path(settings.BASE_DIR) / "produccion" / "templates" / "produccion" / "_pieza_fila.html"
 
+#: Las clases de Bootstrap que esconden un elemento a partir de cierto ancho.
+OCULTA_POR_ANCHO = re.compile(r"\bd-(?:sm-|md-|lg-|xl-|xxl-)?none\b")
+
+
+def _se_oculta_por_ancho(clases):
+    return bool(OCULTA_POR_ANCHO.search(clases or ""))
+
+
+def _ancestros_de(html, identificador):
+    """Las listas de clases de los elementos que envuelven a un `id` dado.
+
+    Se recorre el documento con el analizador de la biblioteca estándar en vez
+    de buscar cadenas alrededor: preguntar por los ancestros de verdad es la
+    única forma de saber si algo está escondido, y no depende de cuánto HTML
+    haya cerca.
+    """
+    from html.parser import HTMLParser
+
+    #: Etiquetas que no llevan cierre y por tanto nunca envuelven a nadie.
+    VACIAS = {"input", "img", "br", "hr", "meta", "link", "source", "col"}
+
+    class Buscador(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.pila = []
+            self.encontrado = None
+
+        def handle_starttag(self, etiqueta, atributos):
+            attrs = dict(atributos)
+            if attrs.get("id") == identificador and self.encontrado is None:
+                self.encontrado = [c for c in self.pila]
+            if etiqueta not in VACIAS:
+                self.pila.append(attrs.get("class") or "")
+
+        def handle_startendtag(self, etiqueta, atributos):
+            attrs = dict(atributos)
+            if attrs.get("id") == identificador and self.encontrado is None:
+                self.encontrado = [c for c in self.pila]
+
+        def handle_endtag(self, etiqueta):
+            if etiqueta not in VACIAS and self.pila:
+                self.pila.pop()
+
+    buscador = Buscador()
+    buscador.feed(html)
+    return buscador.encontrado
+
 
 @pytest.fixture
 def pieza():
@@ -93,13 +140,21 @@ class TestUnSoloRecorrido:
             assert "js-next-btn" not in trozo
 
     def test_la_fecha_de_operacion_existe_siempre(self, navegador, pieza):
-        """Era obligatoria y sólo estaba por debajo de 992 píxeles."""
+        """Era obligatoria y sólo estaba por debajo de 992 píxeles.
+
+        Antes esto se comprobaba mirando si aparecía `d-lg-none` en los
+        cuatrocientos caracteres anteriores al campo. Esa ventana da falsos
+        positivos en cuanto algo cercano —el rótulo de un botón vecino, por
+        ejemplo— lleva esa clase sin envolver nada. Ahora se recorre el árbol
+        de verdad y se pregunta por los ancestros del campo, que es la
+        invariante que importa.
+        """
         pagina = navegador.get(reverse("produccion:viga_list")).content.decode()
-        posicion = pagina.find('id="globalFechaOperacion"')
-        assert posicion > 0
-        # El contenedor que la envuelve no puede esconderla por ancho.
-        contexto = pagina[max(0, posicion - 400) : posicion]
-        assert "d-lg-none" not in contexto
+        ancestros = _ancestros_de(pagina, "globalFechaOperacion")
+
+        assert ancestros is not None, "No se encontró el campo de fecha de operación"
+        escondidos = [c for c in ancestros if _se_oculta_por_ancho(c)]
+        assert not escondidos, f"La fecha va dentro de {escondidos}"
 
     def test_la_fila_no_depende_de_javascript_para_verse(self):
         texto = FILA.read_text(encoding="utf-8")

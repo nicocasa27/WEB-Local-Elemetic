@@ -38,13 +38,24 @@
     <span class="mes-col-descripcion text-muted small mes-truncar">{{ v.descripcion }}</span>
     <span class="mes-col-fecha small">
       <span class="js-fecha-compromiso">{{ v.fecha_compromiso|date:"Y-m-d" }}</span>
-      <span class="text-muted js-prioridad">P{{ v.prioridad }}</span>
+      <span class="text-muted js-prioridad" title="Prioridad {{ v.prioridad }}">P{{ v.prioridad }}</span>
+      <span class="mes-relativo">{{ v.fecha_compromiso|desde_hoy }}</span>
     </span>
     <span class="mes-col-peso small">{{ v.peso_kg|floatformat:"-3" }} kg</span>
   </div>
 
   <div class="mes-col-estado">
     <span class="badge js-bg js-estado-badge {{ v.estado|estado_clase }}">{{ v.estado }}</span>
+    {% comment %}
+      Una orden grande no pasa por armado ni pintura: de soldadura salta al
+      cierre. Por eso la escala se pide con su propia secuencia; con la de una
+      pieza suelta marcaría el tramo equivocado.
+    {% endcomment %}
+    <div class="mes-escala" aria-hidden="true">
+      {% for tramo in v.estado|escala_etapas:v.es_op %}
+        <span class="{% if tramo.pasada %}pasada{% endif %}{% if tramo.actual %}actual {{ v.estado|estado_clase }}{% endif %}"></span>
+      {% endfor %}
+    </div>
     <div class="text-muted small js-ultimo-mov">{{ v.ultimo_mov_str }}</div>
   </div>
 

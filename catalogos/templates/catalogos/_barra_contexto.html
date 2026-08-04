@@ -1,0 +1,69 @@
+{% comment %}
+  La barra de contexto de Herrería y Corta.mx.
+
+  Sustituye a dos bloques que estaban separados: la cabecera de filtros y,
+  debajo, la fecha de operación a todo lo ancho con su texto de ayuda. Entre
+  los dos, más el resto de la cabecera de la pantalla, la primera orden de la
+  lista quedaba a más de mil píxeles del borde superior.
+
+  Y la jerarquía estaba invertida. La fecha de operación no es un campo del
+  formulario: es el modo con el que se registra **todo** lo que se haga en la
+  pantalla. Estaba pintada como lo más importante de la página.
+
+  El botón «Buscar» se fue: la búsqueda ya era en vivo, así que al pulsarlo no
+  pasaba nada que no hubiera pasado ya al escribir.
+
+  Recibe:  total      cuántos registros hay
+           unidad     en singular: «orden», «pieza»…
+           plural     la palabra entera en plural. Va completa y no como
+                      sufijo porque «orden» hace «órdenes»: el plural lleva
+                      tilde y con `pluralize` salía «ordenes»
+           marcador   el texto de ayuda del buscador
+           campo      nombre del filtro desplegable: Herrería agrupa por
+                      proyecto y Corta.mx por cliente
+           opciones   sus valores
+           elegido    el valor seleccionado
+           etiqueta   cómo se llama ese filtro en pantalla
+{% endcomment %}
+<div class="mes-barra-contexto">
+  <span class="mes-conteo">
+    {{ total }}<span class="mes-conteo-unidad">{% if total == 1 %}{{ unidad }}{% else %}{{ plural }}{% endif %}</span>
+  </span>
+
+  <span class="mes-barra-sep" aria-hidden="true"></span>
+
+  <form method="get" class="d-flex gap-2 align-items-center flex-wrap flex-grow-1">
+    {% comment %}
+      Corta.mx no tiene pestañas de tipo; mandarlo vacío añadiría `tipo=` a la
+      dirección y la vista lo leería como un filtro puesto.
+    {% endcomment %}
+    {% if filters.tipo %}<input type="hidden" name="tipo" value="{{ filters.tipo }}">{% endif %}
+    <input type="hidden" name="estado" value="{{ filters.estado }}">
+    <input type="hidden" name="order" value="{{ filters.order }}">
+    <label class="mes-oculto-visualmente" for="campo-agrupador">{{ etiqueta }}</label>
+    <select id="campo-agrupador" class="form-select form-select-sm" name="{{ campo }}" style="max-width: 220px;">
+      {% for p in opciones %}
+        <option value="{{ p }}" {% if elegido == p %}selected{% endif %}>{{ p }}</option>
+      {% endfor %}
+    </select>
+    <div class="input-group input-group-sm mes-buscar">
+      <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+      <label class="mes-oculto-visualmente" for="liveSearchViga">Buscar orden</label>
+      <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="{{ marcador }}" list="vigaSuggestions" autocomplete="off" />
+      <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar búsqueda">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}" title="Restablecer filtros">
+      <i class="bi bi-arrow-counterclockwise"></i><span class="d-lg-none ms-1">Restablecer</span>
+    </a>
+  </form>
+
+  <span class="mes-barra-sep d-none d-sm-block" aria-hidden="true"></span>
+
+  <div class="mes-modo-fecha" title="Con esta fecha se registra en la bitácora todo lo que se haga en esta pantalla">
+    <label for="globalFechaOperacion">Fecha de operación</label>
+    <input id="globalFechaOperacion" type="date" required>
+  </div>
+</div>
+<datalist id="vigaSuggestions"></datalist>

@@ -5,9 +5,12 @@
 {% block content %}
   <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
     <div>
-      <div class="kpi-label">
-        {% if mode == "corte" %}Corte{% elif mode == "soldadura" %}Soldadura{% else %}Producción{% endif %}
-      </div>
+      {% comment %}
+        Aquí había además un eyebrow con el nombre del área. Entre las migas de
+        pan («Menú / Corte»), el eyebrow («CORTE») y el título («Área Corte»),
+        la misma palabra aparecía tres veces en noventa píxeles de alto. Las
+        migas ya dicen dónde estás.
+      {% endcomment %}
       <div class="h3 mb-0">
         {% if mode == "corte" %}Área Corte{% elif mode == "soldadura" %}Área Soldadura{% else %}Control de producción{% endif %}
       </div>
@@ -76,37 +79,59 @@
   </div>
 
   <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <span class="badge badge-soft">Resultados</span>
-        <span class="text-muted small">{{ pagina.paginator.count }} pieza{{ pagina.paginator.count|pluralize }}</span>
-      </div>
-      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+    {% comment %}
+      Una sola barra donde antes había dos bloques.
+
+      Estaban la tarjeta de filtros y, debajo, el bloque de la fecha de
+      operación a todo lo ancho con su texto de ayuda. Entre los dos se comían
+      casi la mitad de la pantalla: de trece piezas se veían cuatro sin
+      desplazar.
+
+      Aparte, la jerarquía estaba al revés. La fecha de operación no es un
+      campo del formulario: es el modo en el que se registra **todo** lo que se
+      haga en la pantalla. Ahora tiene el tamaño de lo que es.
+
+      También se quitó el botón «Buscar»: la búsqueda ya es en vivo, así que el
+      botón no hacía nada que no hubiera pasado ya al escribir.
+    {% endcomment %}
+    <div class="mes-barra-contexto">
+      <span class="mes-conteo">
+        {{ pagina.paginator.count }}<span class="mes-conteo-unidad">pieza{{ pagina.paginator.count|pluralize }}</span>
+      </span>
+
+      <span class="mes-barra-sep" aria-hidden="true"></span>
+
+      <form method="get" class="d-flex gap-2 align-items-center flex-wrap flex-grow-1">
         <input type="hidden" name="src" value="{{ request.GET.src|default:'nav' }}">
         <input type="hidden" name="estado" value="{{ filters.estado }}">
         <input type="hidden" name="order" value="{{ filters.order }}">
-        <select class="form-select form-select-sm" name="proyecto" style="max-width: 240px;">
+        <label class="mes-oculto-visualmente" for="campo-proyecto-barra">Proyecto</label>
+        <select id="campo-proyecto-barra" class="form-select form-select-sm" name="proyecto" style="max-width: 220px;">
           {% for p in proyectos %}
             <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
           {% endfor %}
         </select>
-        <div class="input-group input-group-sm" style="min-width: 280px;">
+        <div class="input-group input-group-sm mes-buscar">
           <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-          <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar viga (código / proyecto / descripción)..." list="vigaSuggestions" autocomplete="off" />
-          <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar">
+          <label class="mes-oculto-visualmente" for="liveSearchViga">Buscar pieza</label>
+          <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="Código, proyecto o descripción" list="vigaSuggestions" autocomplete="off" />
+          <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar búsqueda">
             <i class="bi bi-x-lg"></i>
           </button>
         </div>
-        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
-        <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}?src={{ request.GET.src|default:'nav' }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
+        <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}?src={{ request.GET.src|default:'nav' }}" title="Restablecer filtros">
+          <i class="bi bi-arrow-counterclockwise"></i><span class="d-lg-none ms-1">Restablecer</span>
+        </a>
       </form>
+
+      <span class="mes-barra-sep d-none d-sm-block" aria-hidden="true"></span>
+
+      <div class="mes-modo-fecha" title="Con esta fecha se registra en la bitácora todo lo que se haga en esta pantalla">
+        <label for="globalFechaOperacion">Fecha de operación</label>
+        <input id="globalFechaOperacion" type="date" required>
+      </div>
     </div>
     <datalist id="vigaSuggestions"></datalist>
-    <div class="p-3 border-bottom bg-white">
-      <label class="form-label mb-1" for="globalFechaOperacion">Fecha de operación (obligatoria)</label>
-      <input id="globalFechaOperacion" class="form-control" type="date" required>
-      <div class="text-muted small mt-1">Se usa para registrar el cambio en la bitácora de producción.</div>
-    </div>
 
     <div class="mes-encabezado">
       <div class="mes-col-id">ID</div>

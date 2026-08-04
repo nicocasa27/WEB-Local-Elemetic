@@ -26,8 +26,23 @@
   <div class="row g-3 mb-3">
     <div class="col-12">
       <div class="vstack gap-3 h-100">
+        {% comment %}
+          Vacías, estas dos tablas ocupaban 470px —media pantalla— con su
+          cabecera, sus seis columnas y un «Sin registros» centrado, y la
+          primera orden de verdad quedaba a más de mil píxeles del borde. Casi
+          siempre están vacías.
+
+          Cuando no hay nada, ahora queda el renglón del título con su cuenta
+          en cero. Se sigue sabiendo que la sección existe y que está vacía,
+          que es toda la información que daba antes, en una línea en vez de en
+          media pantalla.
+        {% endcomment %}
         <div class="card">
-          <div class="card-header fw-semibold">Órdenes de Producción (recepción)</div>
+          <div class="card-header fw-semibold d-flex justify-content-between align-items-center gap-2">
+            <span>Órdenes de Producción (recepción)</span>
+            <span class="mes-conteo">{{ pedidos_pendientes|length }}<span class="mes-conteo-unidad">pendiente{{ pedidos_pendientes|length|pluralize:"s" }}</span></span>
+          </div>
+          {% if pedidos_pendientes %}
           <div class="card-body p-0">
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
@@ -76,17 +91,20 @@
                         {% endif %}
                       </td>
                     </tr>
-                  {% empty %}
-                    <tr><td colspan="5" class="text-center text-muted py-4">Sin órdenes pendientes.</td></tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
           </div>
+          {% endif %}
         </div>
 
         <div class="card">
-          <div class="card-header fw-semibold">Espera de Material</div>
+          <div class="card-header fw-semibold d-flex justify-content-between align-items-center gap-2">
+            <span>Espera de Material</span>
+            <span class="mes-conteo">{{ espera_material|length }}<span class="mes-conteo-unidad">{% if espera_material|length == 1 %}orden{% else %}órdenes{% endif %}</span></span>
+          </div>
+          {% if espera_material %}
           <div class="card-body p-0">
             <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
@@ -122,13 +140,12 @@
                         {% endif %}
                       </td>
                     </tr>
-                  {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">Sin registros.</td></tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
           </div>
+          {% endif %}
         </div>
 
       </div>
@@ -184,32 +201,8 @@
   </div>
 
   <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <span class="badge badge-soft">Resultados</span>
-        <span class="text-muted small">{{ total_registros }} orden{{ total_registros|pluralize:'es' }}</span>
-      </div>
-      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
-        <input type="hidden" name="tipo" value="{{ filters.tipo }}">
-        <input type="hidden" name="estado" value="{{ filters.estado }}">
-        <input type="hidden" name="order" value="{{ filters.order }}">
-        <select class="form-select form-select-sm" name="proyecto" style="max-width: 240px;">
-          {% for p in proyectos %}
-            <option value="{{ p }}" {% if filters.proyecto == p %}selected{% endif %}>{{ p }}</option>
-          {% endfor %}
-        </select>
-        <div class="input-group input-group-sm" style="min-width: 280px;">
-          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-          <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (código / proyecto / descripción)..." list="vigaSuggestions" autocomplete="off" />
-          <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
-        <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
-      </form>
-    </div>
-    <div class="px-3 py-2 border-top bg-white">
+    {% include "catalogos/_barra_contexto.html" with unidad="orden" plural="órdenes" total=total_registros marcador="Código, proyecto o descripción" campo="proyecto" opciones=proyectos elegido=filters.proyecto etiqueta="Proyecto" %}
+    <div class="px-3 py-2 border-bottom bg-white">
       <ul class="nav nav-pills gap-2 flex-nowrap overflow-auto">
         {% for t in tipo_tabs %}
           <li class="nav-item">
@@ -218,83 +211,82 @@
         {% endfor %}
       </ul>
     </div>
-    <datalist id="vigaSuggestions"></datalist>
-    <div class="p-3 border-bottom bg-white">
-      <label for="globalFechaOperacion" class="form-label mb-1">Fecha de operación (obligatoria)</label>
-      <input id="globalFechaOperacion" class="form-control" type="date" required>
-      <div class="text-muted small mt-1">Se usa para registrar el cambio en la bitácora.</div>
-    </div>
     {% if filters.tipo != "obra" %}
-    <div class="px-3 py-2 border-bottom bg-white">
-      <div class="fw-semibold">Órdenes de Producción (Ventas)</div>
-      <div class="text-muted small">{{ vigas_op_ventas|length }} registros</div>
+    {% comment %}
+      Título y cuenta en el mismo renglón, y los encabezados de columna sólo si
+      hay algo debajo. Una rejilla de nueve columnas rotuladas sobre un hueco
+      vacío promete una tabla que no existe.
+    {% endcomment %}
+    <div class="px-3 py-2 border-bottom bg-white d-flex justify-content-between align-items-center gap-2">
+      <span class="fw-semibold">Órdenes de Producción (Ventas)</span>
+      <span class="mes-conteo">{{ vigas_op_ventas|length }}<span class="mes-conteo-unidad">registro{{ vigas_op_ventas|length|pluralize:"s" }}</span></span>
     </div>
-    <div class="mes-encabezado con-avance">
-      <div class="mes-col-id">ID</div>
-      <div class="mes-col-titulo">Código</div>
-      <div class="mes-col-proyecto">Proyecto</div>
-      <div class="mes-col-descripcion">Descripción</div>
-      <div class="mes-col-fecha">Fecha</div>
-      <div class="mes-col-estado">Estado</div>
-      <div class="mes-col-avance">Avance</div>
-      <div class="mes-col-peso mes-encabezado-peso">Kg</div>
-      <div class="mes-col-acciones">Acciones</div>
-    </div>
-    <div class="mes-lista">
-      {% for v in vigas_op_ventas %}
-        {% include "catalogos/_orden_fila.html" with linea="herreria" %}
-      {% empty %}
-        <div class="text-center text-muted py-4">Sin OP de ventas.</div>
-      {% endfor %}
-    </div>
+    {% if vigas_op_ventas %}
+      <div class="mes-encabezado con-avance">
+        <div class="mes-col-id">ID</div>
+        <div class="mes-col-titulo">Código</div>
+        <div class="mes-col-proyecto">Proyecto</div>
+        <div class="mes-col-descripcion">Descripción</div>
+        <div class="mes-col-fecha">Fecha</div>
+        <div class="mes-col-estado">Estado</div>
+        <div class="mes-col-avance">Avance</div>
+        <div class="mes-col-peso mes-encabezado-peso">Kg</div>
+        <div class="mes-col-acciones">Acciones</div>
+      </div>
+      <div class="mes-lista">
+        {% for v in vigas_op_ventas %}
+          {% include "catalogos/_orden_fila.html" with linea="herreria" %}
+        {% endfor %}
+      </div>
+    {% endif %}
     {% endif %}
     {% if filters.tipo != "ventas" %}
-    <div class="px-3 py-2 border-bottom bg-white">
-      <div class="fw-semibold">Órdenes grandes (OP)</div>
-      <div class="text-muted small">{{ vigas_op|length }} registros</div>
+    <div class="px-3 py-2 border-bottom bg-white d-flex justify-content-between align-items-center gap-2">
+      <span class="fw-semibold">Órdenes grandes (OP)</span>
+      <span class="mes-conteo">{{ vigas_op|length }}<span class="mes-conteo-unidad">registro{{ vigas_op|length|pluralize:"s" }}</span></span>
     </div>
-    <div class="mes-encabezado con-avance">
-      <div class="mes-col-id">ID</div>
-      <div class="mes-col-titulo">Código</div>
-      <div class="mes-col-proyecto">Proyecto</div>
-      <div class="mes-col-descripcion">Descripción</div>
-      <div class="mes-col-fecha">Fecha</div>
-      <div class="mes-col-estado">Estado</div>
-      <div class="mes-col-avance">Avance</div>
-      <div class="mes-col-peso mes-encabezado-peso">Kg</div>
-      <div class="mes-col-acciones">Acciones</div>
-    </div>
-    <div class="mes-lista">
-      {% for v in vigas_op %}
-        {% include "catalogos/_orden_fila.html" with linea="herreria" %}
-      {% empty %}
-        <div class="text-center text-muted py-4">Sin órdenes grandes.</div>
-      {% endfor %}
-    </div>
+    {% if vigas_op %}
+      <div class="mes-encabezado con-avance">
+        <div class="mes-col-id">ID</div>
+        <div class="mes-col-titulo">Código</div>
+        <div class="mes-col-proyecto">Proyecto</div>
+        <div class="mes-col-descripcion">Descripción</div>
+        <div class="mes-col-fecha">Fecha</div>
+        <div class="mes-col-estado">Estado</div>
+        <div class="mes-col-avance">Avance</div>
+        <div class="mes-col-peso mes-encabezado-peso">Kg</div>
+        <div class="mes-col-acciones">Acciones</div>
+      </div>
+      <div class="mes-lista">
+        {% for v in vigas_op %}
+          {% include "catalogos/_orden_fila.html" with linea="herreria" %}
+        {% endfor %}
+      </div>
+    {% endif %}
     {% endif %}
     {% if filters.tipo != "ventas" %}
-    <div class="px-3 py-2 border-bottom bg-white">
-      <div class="fw-semibold">Órdenes individuales</div>
-      <div class="text-muted small">{{ vigas_individual|length }} registros</div>
+    <div class="px-3 py-2 border-bottom bg-white d-flex justify-content-between align-items-center gap-2">
+      <span class="fw-semibold">Órdenes individuales</span>
+      <span class="mes-conteo">{{ vigas_individual|length }}<span class="mes-conteo-unidad">registro{{ vigas_individual|length|pluralize:"s" }}</span></span>
     </div>
-    <div class="mes-encabezado con-avance">
-      <div class="mes-col-id">ID</div>
-      <div class="mes-col-titulo">Código</div>
-      <div class="mes-col-proyecto">Proyecto</div>
-      <div class="mes-col-descripcion">Descripción</div>
-      <div class="mes-col-fecha">Fecha</div>
-      <div class="mes-col-estado">Estado</div>
-      <div class="mes-col-avance">Avance</div>
-      <div class="mes-col-peso mes-encabezado-peso">Kg</div>
-      <div class="mes-col-acciones">Acciones</div>
-    </div>
-    <div class="mes-lista">
-      {% for v in vigas_individual %}
-        {% include "catalogos/_orden_fila.html" with linea="herreria" %}
-      {% empty %}
-        <div class="text-center text-muted py-4">Sin órdenes individuales.</div>
-      {% endfor %}
-    </div>
+    {% if vigas_individual %}
+      <div class="mes-encabezado con-avance">
+        <div class="mes-col-id">ID</div>
+        <div class="mes-col-titulo">Código</div>
+        <div class="mes-col-proyecto">Proyecto</div>
+        <div class="mes-col-descripcion">Descripción</div>
+        <div class="mes-col-fecha">Fecha</div>
+        <div class="mes-col-estado">Estado</div>
+        <div class="mes-col-avance">Avance</div>
+        <div class="mes-col-peso mes-encabezado-peso">Kg</div>
+        <div class="mes-col-acciones">Acciones</div>
+      </div>
+      <div class="mes-lista">
+        {% for v in vigas_individual %}
+          {% include "catalogos/_orden_fila.html" with linea="herreria" %}
+        {% endfor %}
+      </div>
+    {% endif %}
     {% endif %}
   </div>
 
@@ -306,7 +298,7 @@
         <div class="fw-semibold">Piezas enviadas (menos de {{ decote_days }} días)</div>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <span class="text-muted small">{{ enviados_total }} piezas</span>
+        <span class="text-muted small">{{ enviados_total }} pieza{{ enviados_total|pluralize:'s' }}</span>
       </div>
     </div>
     <div class="card-body p-0">
@@ -314,7 +306,7 @@
         {% for proyecto, items in enviados_por_proyecto %}
           <div class="px-3 py-2 border-bottom bg-white">
             <div class="fw-semibold">{{ proyecto }}</div>
-            <div class="text-muted small">{{ items|length }} piezas</div>
+            <div class="text-muted small">{{ items|length }} pieza{{ items|length|pluralize:'s' }}</div>
           </div>
           <div class="list-group list-group-flush">
             {% for v in items %}
@@ -392,7 +384,7 @@
         <div class="fw-semibold">Enviadas hace más de {{ decote_days }} días</div>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <span class="text-muted small">{{ decote_total }} piezas</span>
+        <span class="text-muted small">{{ decote_total }} pieza{{ decote_total|pluralize:'s' }}</span>
         {% if decote_total %}
           <button
             type="button"

@@ -32,6 +32,68 @@ def hoja():
     return Path(finders.find("css/mes.css")).read_text(encoding="utf-8")
 
 
+def _luminancia(hexadecimal):
+    """Luminancia relativa de un color, según WCAG 2.1."""
+    crudo = hexadecimal.lstrip("#")
+    canales = [int(crudo[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    lineales = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in canales]
+    return 0.2126 * lineales[0] + 0.7152 * lineales[1] + 0.0722 * lineales[2]
+
+
+def contraste(uno, otro):
+    a, b = sorted((_luminancia(uno), _luminancia(otro)), reverse=True)
+    return (a + 0.05) / (b + 0.05)
+
+
+class TestElBotonPrincipalSeLee:
+    """El botón de la acción principal toma el color del área.
+
+    Varios acentos están elegidos para verse como señal —una franja, un
+    filete— y no sirven de fondo bajo texto blanco. El verde de Herrería con
+    blanco daba **2,2:1** cuando el mínimo legible son 4,5:1, y ese botón es
+    «Nueva pieza». En una nave con sol entrando no se leía.
+
+    Por eso `--section-boton` va aparte de `--section-accent`. Este test es lo
+    que impide que alguien vuelva a igualarlos sin darse cuenta.
+    """
+
+    MINIMO = 4.5
+
+    def _tonos_de_boton(self, hoja):
+        """Color de botón efectivo de cada sección, con su herencia."""
+        por_defecto = re.search(r"--section-accent-dark:\s*(#[0-9a-fA-F]{6})", hoja).group(1)
+        tonos = {}
+        for bloque in re.finditer(
+            r'body\[data-section="(\w+)"\]\s*\{([^}]*)\}', hoja
+        ):
+            seccion, cuerpo = bloque.group(1), bloque.group(2)
+            propio = re.search(r"--section-boton:\s*(#[0-9a-fA-F]{6})", cuerpo)
+            heredado = re.search(r"--section-accent-dark:\s*(#[0-9a-fA-F]{6})", cuerpo)
+            tonos[seccion] = (
+                propio.group(1) if propio
+                else (heredado.group(1) if heredado else por_defecto)
+            )
+        return tonos
+
+    def test_hay_un_tono_de_boton_por_seccion(self, hoja):
+        tonos = self._tonos_de_boton(hoja)
+        assert len(tonos) >= 10, f"Sólo se resolvieron {len(tonos)} secciones"
+
+    def test_todas_pasan_el_minimo_con_texto_blanco(self, hoja):
+        flojos = {
+            seccion: round(contraste(tono, "#ffffff"), 2)
+            for seccion, tono in self._tonos_de_boton(hoja).items()
+            if contraste(tono, "#ffffff") < self.MINIMO
+        }
+        assert not flojos, f"Botón ilegible (mínimo {self.MINIMO}:1): {flojos}"
+
+    def test_el_acento_crudo_no_se_usa_de_fondo_del_boton(self, hoja):
+        """La regresión concreta: `background: var(--section-accent)`."""
+        regla = re.search(r"\.btn-argon\s*\{([^}]*)\}", hoja).group(1)
+        assert "var(--section-boton)" in regla
+        assert "var(--section-accent)" not in regla
+
+
 class TestLosEstadosSePintanSinJavaScript:
     def test_cada_estado_tiene_su_clase_en_la_hoja(self, hoja):
         faltan = [e for e in estados.COLORES if f".{estados.clase(e)} " not in hoja]

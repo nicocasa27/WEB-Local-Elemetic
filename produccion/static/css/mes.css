@@ -25,23 +25,71 @@
 /* ============================================================== fichas */
 
 :root {
+  /* --------------------------------------------------------- tipografía
+   *
+   * Tres familias con un papel cada una, y el papel no se mezcla:
+   *
+   *   ui     texto corrido, botones, prosa.
+   *   etiq   encabezados de columna, eyebrows, etiquetas. Condensada, porque
+   *          una lista de taller tiene muchas columnas estrechas.
+   *   dato   **todo lo que es un valor**: identificadores, códigos, kilos,
+   *          fechas, contadores.
+   *
+   * Lo de los valores en monoespaciada no es un gusto: en el piso los códigos
+   * se leen en voz alta y se teclean. Con una proporcional, HSS-E y HSS-F se
+   * parecen; con esta, cada carácter ocupa lo mismo y las columnas de números
+   * quedan alineadas dígito con dígito, así que un 51,05 y un 5,105 no se
+   * confunden de un vistazo.
+   *
+   * Se sirven desde el propio equipo (css/tipografia.css). Si no cargaran, la
+   * reserva de cada una mantiene el papel: hay una mono y una condensada en
+   * cualquier sistema.
+   */
+  --fuente-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --fuente-etiq: 'IBM Plex Sans Condensed', 'Segoe UI Semibold', system-ui, sans-serif;
+  --fuente-dato: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  /* ------------------------------------------------------------- acero
+   *
+   * Grises con algo de azul en vez de gris neutro. Sobre el blanco del papel
+   * de un plano, el gris puro se ve sucio.
+   */
+  --acero-900: #10171f;   /* barra superior */
+  --acero-700: #26313f;
+  --acero-500: #5b6b7f;   /* texto secundario */
+  --acero-300: #9aa8b8;
+  --acero-200: #dde3ea;   /* filetes */
+  --acero-050: #f2f5f8;   /* fondo de página */
+
   /* Marca */
-  --argon-bg: #f8f9fe;
+  --argon-bg: var(--acero-050);
   --argon-primary: #5e72e4;
   --argon-primary-2: #825ee4;
-  --argon-dark: #172b4d;
+  --argon-dark: var(--acero-900);
   --argon-soft: #e9ecef;
-  --argon-muted: #8898aa;
+  --argon-muted: var(--acero-500);
 
   /* Acento de la sección. Lo sobreescribe body[data-section]. */
   --section-accent: var(--argon-primary);
   --section-accent-dark: #324cdd;
   --section-on-accent: #fff;
 
-  /* Superficie */
-  --mes-card-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15);
-  --mes-hairline: rgba(0, 0, 0, .05);
-  --mes-radius: .5rem;
+  /* Fondo del botón principal.
+   *
+   * Va aparte del acento a propósito. El acento está elegido para verse como
+   * señal —una franja, un filete—, y varios de ellos no sirven de fondo bajo
+   * texto blanco: el verde de Herrería da 2,2:1 y el mínimo legible es 4,5:1.
+   * En una nave con sol entrando, eso es un botón que no se lee. Cada sección
+   * declara abajo el tono que sí pasa. */
+  --section-boton: var(--section-accent-dark);
+  --section-on-boton: #fff;
+
+  /* Superficie. Una tarjeta es una hoja sobre el banco: filete y nada más.
+   * La sombra difusa que había antes emborronaba el borde justo donde hace
+   * falta saber dónde acaba una fila y empieza la otra. */
+  --mes-card-shadow: none;
+  --mes-hairline: var(--acero-200);
+  --mes-radius: .375rem;
 
   /* Tamaño mínimo de un objetivo táctil. 44px es lo que se puede pulsar con
    * el dedo, y con guantes de soldador es el mínimo que funciona. */
@@ -57,13 +105,21 @@
 
 /* ====================================================== acento por área */
 
+/* `--section-boton` sólo se declara donde el tono oscuro del acento todavía
+ * no llega a 4,5:1 con texto blanco. Los valores están comprobados con la
+ * fórmula de contraste de WCAG en tests/test_diseno.py: si alguien cambia un
+ * color y deja el botón ilegible, el test lo dice. */
 body[data-section="estructuras"] { --section-accent: #5e72e4; --section-accent-dark: #324cdd; --section-on-accent: #fff; }
 body[data-section="corta"]       { --section-accent: #d35400; --section-accent-dark: #b04a00; --section-on-accent: #fff; }
-body[data-section="corte"]       { --section-accent: #f1c40f; --section-accent-dark: #c9a007; --section-on-accent: #111; }
-body[data-section="soldadura"]   { --section-accent: #3498db; --section-accent-dark: #2c81ba; --section-on-accent: #fff; }
+body[data-section="corte"]       { --section-accent: #f1c40f; --section-accent-dark: #c9a007; --section-on-accent: #111;
+                                   --section-boton: #6b5300; }
+body[data-section="soldadura"]   { --section-accent: #3498db; --section-accent-dark: #2c81ba; --section-on-accent: #fff;
+                                   --section-boton: #1a5f8f; }
 body[data-section="robotica"]    { --section-accent: #8e44ad; --section-accent-dark: #763993; --section-on-accent: #fff; }
-body[data-section="herreria"]    { --section-accent: #2ecc71; --section-accent-dark: #25a95d; --section-on-accent: #fff; }
-body[data-section="pedidos"]     { --section-accent: #11cdef; --section-accent-dark: #0da5c0; --section-on-accent: #fff; }
+body[data-section="herreria"]    { --section-accent: #2ecc71; --section-accent-dark: #25a95d; --section-on-accent: #fff;
+                                   --section-boton: #15703c; }
+body[data-section="pedidos"]     { --section-accent: #11cdef; --section-accent-dark: #0da5c0; --section-on-accent: #fff;
+                                   --section-boton: #0a6273; }
 body[data-section="paros"]       { --section-accent: #f5365c; --section-accent-dark: #c62a49; --section-on-accent: #fff; }
 body[data-section="reportes"]    { --section-accent: #6c757d; --section-accent-dark: #545b62; --section-on-accent: #fff; }
 body[data-section="configuracion"] { --section-accent: #344767; --section-accent-dark: #233252; --section-on-accent: #fff; }
@@ -71,7 +127,38 @@ body[data-section="configuracion"] { --section-accent: #344767; --section-accent
 /* ============================================================ estructura */
 
 html, body { overflow-x: hidden; }
-body { background: var(--argon-bg); }
+body {
+  background: var(--argon-bg);
+  font-family: var(--fuente-ui);
+  color: var(--acero-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La voz de señalización: encabezados de columna, eyebrows, etiquetas de
+ * indicador. Condensada, versalitas y con separación entre letras, como la
+ * rotulación de una nave. */
+.kpi-label,
+.mes-encabezado,
+.table thead th,
+.form-label,
+.mes-eyebrow { font-family: var(--fuente-etiq); }
+
+/* Y la voz de los valores. `tabular-nums` es lo que alinea la coma de los
+ * kilos en toda la columna; sin ella cada dígito mide distinto y la columna
+ * queda en zigzag. */
+.mes-dato,
+.mes-col-id,
+.mes-col-fecha,
+.mes-col-peso,
+.mes-col-titulo .fw-semibold,
+.js-ultimo-mov,
+.kpi {
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 
 .app-shell { min-height: 100vh; width: 100%; }
 .app-main { min-width: 0; width: 100%; margin-left: 0; }
@@ -83,18 +170,41 @@ body { background: var(--argon-bg); }
 
 /* ========================================================== navegación */
 
+/* La barra superior es acero para todas las áreas, y el color del área va en
+ * la franja de abajo.
+ *
+ * La tentación era pintar la barra entera del color de la sección: se vería
+ * de lejos. No pasa contraste. El verde de Herrería con texto blanco da 2,2:1
+ * y el mínimo legible es 4,5:1; el amarillo de Corte obligaría a texto negro,
+ * de modo que la barra cambiaría de color *y* de polaridad al navegar. Una
+ * franja de 4px sobre acero se distingue igual de lejos y se lee siempre. */
 .navbar-argon {
-  background: linear-gradient(87deg, var(--argon-primary) 0, var(--argon-primary-2) 100%);
+  background: var(--acero-900);
+  border-bottom: 4px solid var(--section-accent);
+  padding-top: .4rem;
+  padding-bottom: .4rem;
 }
 .navbar-argon .navbar-brand,
 .navbar-argon .nav-link { color: #fff !important; }
+.navbar-argon .nav-link {
+  font-family: var(--fuente-etiq);
+  letter-spacing: .01em;
+  border-radius: var(--mes-radius);
+  padding-left: .6rem;
+  padding-right: .6rem;
+}
+.navbar-argon .nav-link:hover,
+.navbar-argon .nav-link:focus-visible { background: rgba(255, 255, 255, .1); }
+.navbar-argon .navbar-brand { font-family: var(--fuente-etiq); letter-spacing: .02em; }
 
+/* La misma franja de área que la barra de escritorio. Sin ella, en el celular
+ * —que es donde se trabaja— no había forma de saber en qué área estabas. */
 .mobile-topbar {
   position: sticky;
   top: 0;
   z-index: 1020;
-  background: var(--argon-bg);
-  border-bottom: 1px solid rgba(0, 0, 0, .06);
+  background: #fff;
+  border-bottom: 3px solid var(--section-accent);
 }
 .mobile-topbar .brand-mark { box-shadow: none; padding: 0; background: transparent; }
 .mobile-topbar .brand-mark img { height: 26px; }
@@ -150,9 +260,11 @@ body { background: var(--argon-bg); }
 
 /* ============================================================= tarjetas */
 
+/* El acento ya lo lleva la franja de la barra superior. Repetirlo en el borde
+ * de cada tarjeta lo convertía en decoración: en una pantalla con seis
+ * tarjetas, seis rayas de color no dicen en qué área estás, sólo hacen ruido. */
 .card {
-  border: 0;
-  border-top: 3px solid var(--section-accent);
+  border: 1px solid var(--mes-hairline);
   box-shadow: var(--mes-card-shadow);
 }
 .card-header { background: #fff; border-bottom: 1px solid var(--mes-hairline); }
@@ -170,14 +282,23 @@ body { background: var(--argon-bg); }
 .table-sm td, .table-sm th { font-size: .9rem; }
 
 .btn-argon {
-  background: var(--section-accent);
-  border-color: var(--section-accent);
-  color: var(--section-on-accent);
+  background: var(--section-boton);
+  border-color: var(--section-boton);
+  color: var(--section-on-boton);
+  font-family: var(--fuente-etiq);
 }
-.btn-argon:hover {
-  background: var(--section-accent-dark);
-  border-color: var(--section-accent-dark);
-  color: var(--section-on-accent);
+.btn-argon:hover,
+.btn-argon:focus-visible {
+  background: var(--acero-900);
+  border-color: var(--acero-900);
+  color: #fff;
+}
+
+/* El foco del teclado se ve en el color del área, no en el azul de Bootstrap:
+ * sobre una franja amarilla o verde, el azul no se distingue del borde. */
+:focus-visible {
+  outline: 3px solid var(--section-accent-dark);
+  outline-offset: 2px;
 }
 .btn-outline-light.bg-white { color: #000 !important; }
 .btn-outline-light.bg-white i { color: #000 !important; }
@@ -253,6 +374,133 @@ body { background: var(--argon-bg); }
   .js-action-buttons .bi { font-size: 1rem; }
 }
 
+/* ==================================================== barra de contexto
+ *
+ * Antes, sobre la primera fila de la lista había una tarjeta de filtros y,
+ * debajo, un bloque aparte con la fecha de operación: entre las dos cosas se
+ * comían cerca de la mitad de la pantalla, así que de trece piezas se veían
+ * cuatro sin desplazar.
+ *
+ * Y la jerarquía estaba invertida. La fecha de operación es un **modo**: vale
+ * para todo lo que se registre en la pantalla. Estaba pintada como el campo
+ * más importante de la página, a todo lo ancho y con su texto de ayuda.
+ * Ahora es un dato del contexto, del tamaño de lo que es.
+ */
+
+.mes-barra-contexto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem .75rem;
+  padding: .6rem .85rem;
+  background: #fff;
+  border-bottom: 1px solid var(--mes-hairline);
+}
+
+.mes-conteo {
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mes-conteo .mes-conteo-unidad {
+  font-family: var(--fuente-etiq);
+  color: var(--acero-500);
+  margin-left: .3rem;
+}
+
+/* Separador vertical entre grupos de la barra. Un filete, no un borde de caja:
+ * agrupa sin dibujar más cajas. */
+.mes-barra-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--mes-hairline);
+  margin: 0 .25rem;
+}
+
+.mes-barra-contexto .mes-buscar { flex: 1 1 16rem; min-width: 0; max-width: 30rem; }
+.mes-barra-contexto .mes-empuje { margin-left: auto; }
+
+/* La fecha de operación: etiqueta condensada delante, valor en la fuente de
+ * datos, y un fondo tenue que la marca como ajuste del contexto y no como un
+ * campo más del formulario. */
+.mes-modo-fecha {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .2rem .2rem .2rem .6rem;
+  background: var(--acero-050);
+  border: 1px solid var(--mes-hairline);
+  border-radius: var(--mes-radius);
+}
+.mes-modo-fecha > label {
+  font-family: var(--fuente-etiq);
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--acero-500);
+  margin: 0;
+  white-space: nowrap;
+}
+.mes-modo-fecha > input {
+  font-family: var(--fuente-dato);
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--mes-hairline);
+  border-radius: calc(var(--mes-radius) - 1px);
+  padding: .25rem .45rem;
+  background: #fff;
+  min-height: var(--mes-touch);
+}
+/* Sin fecha no se puede registrar nada, así que el aviso va en el sitio, no
+ * en un mensaje después de intentarlo. */
+.mes-modo-fecha > input:invalid,
+.mes-modo-fecha > input:placeholder-shown { border-color: var(--mes-aviso); }
+
+@media (min-width: 992px) {
+  .mes-modo-fecha > input { min-height: 34px; }
+}
+@media (max-width: 575.98px) {
+  .mes-modo-fecha { width: 100%; }
+  .mes-modo-fecha > input { flex: 1 1 auto; }
+}
+
+/* ====================================================== escala de etapas
+ *
+ * El elemento que da nombre a este rediseño.
+ *
+ * La etiqueta de estado dice «Espera de armado», pero no dice **dónde cae eso
+ * en el proceso**. Para saber si una pieza va empezando o va terminando había
+ * que conocerse la secuencia de memoria. En una lista de trescientas órdenes,
+ * eso es la diferencia entre leer y saber.
+ *
+ * La escala son los tramos de core/estados.py: los recorridos en macizo, el
+ * actual en el color del estado, los que faltan en filete. Convierte una
+ * etiqueta en una posición, y no inventa ningún dato: la secuencia ya existía
+ * en el servidor, sólo que no se enseñaba.
+ */
+
+.mes-escala {
+  display: flex;
+  gap: 2px;
+  margin-top: .3rem;
+  height: 4px;
+}
+/* El tramo actual lleva encima su clase `.est-*`, que es la que pone el color.
+ * De ahí el `:not(.actual)`: sin él esta regla, que es más específica, ganaría
+ * y el tramo actual quedaría del mismo gris que los que faltan. */
+.mes-escala > span:not(.actual) {
+  flex: 1 1 0;
+  border-radius: 1px;
+  background: var(--acero-200);
+}
+.mes-escala > span { flex: 1 1 0; border-radius: 1px; }
+.mes-escala > span.pasada:not(.actual) { background: var(--acero-300); }
+
+/* En la fila ancha la escala se alinea con la etiqueta de estado. */
+@media (min-width: 992px) {
+  .mes-escala { max-width: 8rem; }
+}
+
 /* ===================================================== ayudas generales */
 
 /* Un contenedor ancho —una tabla, una gráfica— se desplaza dentro de su
@@ -287,6 +535,37 @@ body { background: var(--argon-bg); }
  */
 
 .mes-lista { display: block; }
+
+/* El código de la pieza es lo que se busca con la vista, así que es lo único
+ * de la fila con peso y separación de letras. */
+.mes-col-titulo .fw-semibold { letter-spacing: .02em; }
+
+/* La etiqueta de estado, cuadrada y en condensada: es un rótulo, no una
+ * pastilla decorativa. */
+.js-estado-badge {
+  font-family: var(--fuente-etiq);
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-radius: 3px;
+  padding: .3rem .45rem;
+  white-space: normal;
+  text-align: left;
+}
+
+/* «hace 3 meses» debajo de la fecha. Hoy **todas** las piezas y órdenes del
+ * sistema están vencidas, así que marcar el atraso con color dejaría la
+ * pantalla entera en rojo y el aviso no diría nada. El tiempo en relativo
+ * enseña el mismo hecho sin convertir la lista en una alarma. */
+.mes-relativo {
+  font-family: var(--fuente-ui);
+  font-size: .75rem;
+  color: var(--acero-500);
+}
+/* En el celular los datos van corridos en una línea; sólo en la tabla ancha
+ * cae debajo de la fecha, que es donde tiene una columna propia. */
+@media (min-width: 992px) {
+  .mes-relativo { display: block; }
+}
 
 .mes-fila {
   display: grid;
@@ -355,6 +634,7 @@ body { background: var(--argon-bg); }
       21rem;          /* acciones    */
     align-items: center;
     gap: .75rem;
+    padding: .6rem 1rem;
   }
   .mes-encabezado {
     display: grid;
@@ -396,7 +676,10 @@ body { background: var(--argon-bg); }
       9rem            /* estado      */
       9rem            /* avance      */
       5rem            /* kg          */
-      21rem;          /* acciones    */
+      /* Más ancha que en Estructuras: estas órdenes llevan hasta siete
+       * botones. Con 21rem el texto del estado final se recortaba en
+       * «Termin…» y en «Te…». */
+      24rem;          /* acciones    */
   }
   .mes-col-avance { text-align: right; }
   .mes-barras { margin-left: auto; width: 8rem; }
@@ -407,6 +690,28 @@ body { background: var(--argon-bg); }
 /* La acción principal ocupa todo el ancho en el celular y se encoge en la
  * PC, donde hay ratón y caben más filas a la vista. */
 .mes-avanzar { width: 100%; min-height: var(--mes-touch-grande); }
+
+/* Un estado sin acción posible no se pinta como botón en ningún tamaño.
+ *
+ * En el celular era lo peor: un bloque gris de 56px a todo el ancho, el
+ * elemento más grande de la tarjeta, para decir que ahí no hay nada que hacer.
+ * La acción principal y la ausencia de acción ocupaban el mismo sitio y
+ * pesaban lo mismo. */
+.mes-avanzar[disabled] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--acero-500);
+  font-family: var(--fuente-etiq);
+  opacity: 1;
+  cursor: default;
+  width: auto;
+  min-height: 0;
+  padding: .35rem 0;
+  justify-content: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
 .mes-acciones-secundarias { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 .mes-acciones-secundarias > * { flex: 1 1 auto; }
 
@@ -433,10 +738,39 @@ body { background: var(--argon-bg); }
   .mes-acciones-secundarias > * { flex: 0 0 auto; }
   /* En la tabla el botón de avanzar sólo lleva el nombre de la etapa: con el
    * icono delante, un nombre largo se recorta y deja el icono a medias. */
-  .mes-avanzar .mes-avanzar-largo { display: none; }
+  .js-next-btn.mes-avanzar .mes-avanzar-largo { display: none; }
   .js-next-btn.mes-avanzar .bi { display: none; }
-  /* Y el botón de estado final no es una acción: basta el icono. */
-  .mes-avanzar[disabled] { width: auto; max-width: none; padding: .35rem .6rem; }
+
+  /* Cuando no hay nada que avanzar, esto **no es un botón**.
+   *
+   * Antes se pintaba como un botón deshabilitado y, para que no se recortara
+   * el texto, se le escondía la etiqueta: quedaba un círculo gris con una
+   * flecha, que se lee como «esto está roto» y no como «en esta área esta
+   * pieza ya terminó». Ahora es texto tranquilo que dice el estado. */
+  .mes-avanzar[disabled] {
+    width: auto;
+    max-width: none;
+    padding: .35rem .1rem;
+    background: transparent;
+    border-color: transparent;
+    color: var(--acero-500);
+    font-family: var(--fuente-etiq);
+    opacity: 1;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .mes-avanzar[disabled] .mes-avanzar-corto { display: none; }
+  /* El texto del estado cede el sitio antes que los botones: si no cabe, más
+   * vale recortarlo —el estado ya está en su columna— que empujar una acción
+   * fuera de la pantalla. */
+  .mes-avanzar[disabled] .mes-avanzar-largo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mes-col-acciones > .mes-acciones-secundarias { flex-shrink: 0; }
 }
 @media (max-width: 991.98px) {
   .mes-avanzar .mes-avanzar-corto { display: none; }

@@ -78,55 +78,57 @@
   </div>
 
   <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <span class="badge badge-soft">Resultados</span>
-        <span class="text-muted small">{{ total_registros }} orden{{ total_registros|pluralize:'es' }}</span>
-      </div>
-      <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
-        <input type="hidden" name="estado" value="{{ filters.estado }}">
-        <input type="hidden" name="order" value="{{ filters.order }}">
-        <select class="form-select form-select-sm" name="cliente" style="max-width: 240px;">
-          {% for p in clientes_proyectos %}
-            <option value="{{ p }}" {% if filters.cliente == p %}selected{% endif %}>{{ p }}</option>
-          {% endfor %}
-        </select>
-        <div class="input-group input-group-sm" style="min-width: 280px;">
-          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-          <input id="liveSearchViga" class="form-control" name="q" value="{{ filters.q }}" placeholder="Buscar (folio / código / proyecto / descripción)..." list="vigaSuggestions" autocomplete="off" />
-          <button id="clearLiveSearch" class="btn btn-outline-secondary" type="button" title="Limpiar">
-            <i class="bi bi-x-lg"></i>
-          </button>
-        </div>
-        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
-        <a class="btn btn-sm btn-outline-secondary js-reset-vigas" href="{{ reset_url }}"><i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer</a>
-      </form>
-    </div>
-    <datalist id="vigaSuggestions"></datalist>
-    <div class="p-3 border-bottom bg-white">
-      <label for="globalFechaOperacion" class="form-label mb-1">Fecha de operación (obligatoria)</label>
-      <input id="globalFechaOperacion" class="form-control" type="date" required>
-      <div class="text-muted small mt-1">Se usa para registrar el cambio en la bitácora.</div>
-    </div>
+    {% include "catalogos/_barra_contexto.html" with unidad="orden" plural="órdenes" total=total_registros marcador="Folio, código, proyecto o descripción" campo="cliente" opciones=clientes_proyectos elegido=filters.cliente etiqueta="Cliente" %}
 
-    <div class="mes-encabezado con-avance">
-      <div class="mes-col-id">ID</div>
-      <div class="mes-col-titulo">Folio</div>
-      <div class="mes-col-proyecto">Cliente/Proyecto</div>
-      <div class="mes-col-descripcion">Descripción</div>
-      <div class="mes-col-fecha">Fecha</div>
-      <div class="mes-col-estado">Estado</div>
-      <div class="mes-col-avance">Avance</div>
-      <div class="mes-col-peso mes-encabezado-peso">Kg</div>
-      <div class="mes-col-acciones">Acciones</div>
-    </div>
-    <div class="mes-lista">
-      {% for v in vigas %}
-        {% include "catalogos/_orden_fila.html" with linea="corta" %}
-      {% empty %}
-        <div class="text-center text-muted py-4">Sin resultados.</div>
-      {% endfor %}
-    </div>
+    {% if vigas %}
+      <div class="mes-encabezado con-avance">
+        <div class="mes-col-id">ID</div>
+        <div class="mes-col-titulo">Folio</div>
+        <div class="mes-col-proyecto">Cliente/Proyecto</div>
+        <div class="mes-col-descripcion">Descripción</div>
+        <div class="mes-col-fecha">Fecha</div>
+        <div class="mes-col-estado">Estado</div>
+        <div class="mes-col-avance">Avance</div>
+        <div class="mes-col-peso mes-encabezado-peso">Kg</div>
+        <div class="mes-col-acciones">Acciones</div>
+      </div>
+      <div class="mes-lista">
+        {% for v in vigas %}
+          {% include "catalogos/_orden_fila.html" with linea="corta" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      {% comment %}
+        Un vacío se explica y ofrece salida. Antes eran nueve encabezados de
+        columna sobre un hueco con «Sin resultados.», que promete una tabla que
+        no está y no dice qué hacer.
+
+        «Todos» es el valor que usa la vista para decir «sin filtrar», así que
+        hay que compararlo contra eso y no contra la cadena vacía: un filtro
+        puesto y uno sin poner son los dos ciertos.
+
+        Y el tercer caso es real y desconcertaba: la barra puede decir «1
+        orden» con esta lista vacía, porque esa orden ya se envió y aparece más
+        abajo. El conteo cuenta todo lo que casa con el filtro; esta lista sólo
+        enseña lo que sigue en producción.
+      {% endcomment %}
+      <div class="p-4 text-center">
+        <div class="fw-semibold">Ninguna orden en producción</div>
+        <div class="text-muted small mt-1">
+          {% if filters.q %}
+            Nada coincide con «{{ filters.q }}». <a href="{{ reset_url }}">Quitar los filtros</a>.
+          {% elif filters.cliente != "Todos" or filters.estado != "Todos" %}
+            Con estos filtros no hay nada. <a href="{{ reset_url }}">Quitar los filtros</a>.
+          {% elif total_registros == 1 %}
+            La orden que hay ya se envió: está más abajo.
+          {% elif total_registros %}
+            Las {{ total_registros }} órdenes que hay ya se enviaron: están más abajo.
+          {% else %}
+            Las órdenes aparecen aquí en cuanto se dan de alta.
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
 
   {% if mode == "admin" %}
   <div class="card mt-3">
@@ -136,7 +138,7 @@
         <div class="fw-semibold">Piezas enviadas (menos de {{ decote_days }} días)</div>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <span class="text-muted small">{{ enviados_total }} piezas</span>
+        <span class="text-muted small">{{ enviados_total }} pieza{{ enviados_total|pluralize:'s' }}</span>
       </div>
     </div>
     <div class="card-body p-0">
@@ -144,7 +146,7 @@
         {% for proyecto, items in enviados_por_proyecto %}
           <div class="px-3 py-2 border-bottom bg-white">
             <div class="fw-semibold">{{ proyecto }}</div>
-            <div class="text-muted small">{{ items|length }} piezas</div>
+            <div class="text-muted small">{{ items|length }} pieza{{ items|length|pluralize:'s' }}</div>
           </div>
           <div class="list-group list-group-flush">
             {% for v in items %}
@@ -222,7 +224,7 @@
         <div class="fw-semibold">Enviadas hace más de {{ decote_days }} días</div>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <span class="text-muted small">{{ decote_total }} piezas</span>
+        <span class="text-muted small">{{ decote_total }} pieza{{ decote_total|pluralize:'s' }}</span>
         {% if decote_total %}
           <button
             type="button"
