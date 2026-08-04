@@ -21,7 +21,7 @@
         {% for material, queda, comprar in faltantes %}
           <li>
             <span class="mes-dato">{{ material.codigo }}</span> — {{ material.nombre }}:
-            quedan <span class="mes-dato">{{ queda }}</span>,
+            quedan <span class="mes-dato">{{ queda|cantidad }}</span>,
             mínimo <span class="mes-dato">{{ material.stock_minimo|cantidad }}</span>
           </li>
         {% endfor %}
