@@ -1,0 +1,26 @@
+{% comment %}
+  El menú, dibujado una sola vez.
+
+  La barra fija de escritorio y el panel del celular incluyen este mismo
+  archivo, así que no pueden ofrecer cosas distintas. Antes eran dos bloques
+  separados y se desincronizaron: Almacén y Usuarios sólo existían en el de
+  escritorio, justo cuando el almacenista trabaja con el celular en la mano.
+
+  Los destinos salen de produccion/navegacion.py.
+{% endcomment %}
+<nav class="mes-menu" aria-label="Secciones">
+  {% for grupo in menu %}
+    <div class="mes-menu-grupo">
+      <div class="mes-menu-titulo">{{ grupo.titulo }}</div>
+      {% for item in grupo.items %}
+        <a class="mes-menu-item{% if item.url == ruta_actual %} activo{% endif %}"
+           href="{% url item.url %}{{ item.consulta }}"
+           {% if item.url == ruta_actual %}aria-current="page"{% endif %}>
+          <i class="bi {{ item.icono }}" aria-hidden="true"></i>
+          <span class="mes-menu-texto">{{ item.nombre }}</span>
+          {% if item.nota %}<span class="mes-menu-nota">{{ item.nota }}</span>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</nav>

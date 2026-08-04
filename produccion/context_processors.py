@@ -1,8 +1,12 @@
 """Datos que necesitan todas las plantillas.
 
-`user_access` resuelve qué puede ver cada quien; `navegacion` resuelve dónde
-está.
+`user_access` resuelve qué puede ver cada quien y arma el menú a partir de eso;
+`navegacion` resuelve dónde está.
 """
+
+# Se importa con otro nombre a propósito: en este mismo archivo hay un
+# procesador de contexto llamado `navegacion`, y el `def` machaca al módulo.
+from produccion import navegacion as menu_lateral
 
 # ---------------------------------------------------------------- secciones
 #
@@ -97,7 +101,11 @@ def navegacion(request):
 
     migas = []
     if nombre not in SIN_MIGAS:
-        migas.append({"texto": "Menú", "url": reverse("produccion:home")})
+        # Antes el primer escalón era «Menú», porque la única forma de volver
+        # era el muro de mosaicos. Con la barra lateral siempre a la vista eso
+        # es un enlace de sobra en la cabecera de cada pantalla, así que las
+        # migas se quedan sólo con lo que la barra no dice: en qué área estás
+        # dentro de la sección.
         titulo, ruta = INICIO_DE_SECCION.get(seccion, (None, None))
         if titulo:
             try:
@@ -165,7 +173,7 @@ def user_access(request):
         can_robotica = False
         can_herreria = False
         can_corte_laser = False
-    return {
+    acceso = {
         "is_admin": is_admin,
         "can_pedidos": can_pedidos,
         "can_logistica_corta": can_logistica_corta,
@@ -176,3 +184,11 @@ def user_access(request):
         "can_herreria": can_herreria or is_admin,
         "can_corte_laser": can_corte_laser or is_admin,
     }
+    # El menú se arma desde estos mismos permisos, en un solo sitio. Antes
+    # estaba escrito tres veces —barra, panel del celular y mosaicos— y las
+    # tres se desincronizaron.
+    acceso["menu"] = menu_lateral.para(acceso) if is_auth else []
+    acceso["ruta_actual"] = (
+        getattr(getattr(request, "resolver_match", None), "view_name", "") or ""
+    )
+    return acceso

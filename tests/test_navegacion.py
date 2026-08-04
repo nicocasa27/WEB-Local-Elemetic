@@ -22,6 +22,7 @@ from django.conf import settings
 from django.test import Client
 from django.urls import reverse
 
+from produccion import navegacion as navegacion_lateral
 from produccion.context_processors import navegacion
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
@@ -58,21 +59,21 @@ class TestMigasDePan:
             self.resolver_match = type("R", (), {"url_name": url_name})()
             self.path = path
 
-    def test_toda_pantalla_sabe_volver_al_menu(self):
+    def test_toda_pantalla_dice_de_que_area_es(self):
+        """El primer escalón era «Menú», porque volver sólo se podía por el
+        muro de mosaicos. Con la barra lateral siempre a la vista eso es un
+        enlace de sobra en cada cabecera: las migas se quedan con lo que la
+        barra no dice, que es en qué parte del área estás.
+        """
         migas = navegacion(self.Peticion("herreria_ordenes"))["migas"]
-        assert migas[0]["texto"] == "Menú"
-        assert migas[0]["url"] == reverse("produccion:home")
-
-    def test_lleva_tambien_a_la_portada_de_su_area(self):
-        migas = navegacion(self.Peticion("herreria_ordenes"))["migas"]
-        assert [m["texto"] for m in migas] == ["Menú", "Herrería"]
-        assert migas[1]["url"] == reverse("catalogos:herreria_control")
+        assert [m["texto"] for m in migas] == ["Herrería"]
+        assert migas[0]["url"] == reverse("catalogos:herreria_control")
 
     def test_la_portada_de_un_area_no_se_enlaza_a_si_misma(self):
-        """«Herrería › Herrería» con el segundo enlazado no dice nada."""
+        """Un enlace a la pantalla en la que ya estás no lleva a ningún sitio."""
         peticion = self.Peticion("herreria_control", reverse("catalogos:herreria_control"))
         migas = navegacion(peticion)["migas"]
-        assert migas[1]["url"] == ""
+        assert migas[0]["url"] == ""
 
     def test_el_menu_no_lleva_migas(self):
         assert navegacion(self.Peticion("home"))["migas"] == []
@@ -81,14 +82,15 @@ class TestMigasDePan:
         """En el celular, cada renglón que no sea trabajo estorba."""
         assert navegacion(self.Peticion("movil"))["migas"] == []
 
-    def test_una_ruta_sin_area_al_menos_vuelve_al_menu(self):
-        migas = navegacion(self.Peticion("una_ruta_rara"))["migas"]
-        assert [m["texto"] for m in migas] == ["Menú"]
+    def test_una_ruta_sin_area_no_inventa_migas(self):
+        """Sin sección a la que pertenecer no hay nada que decir, y la barra
+        lateral ya enseña dónde estás."""
+        assert navegacion(self.Peticion("una_ruta_rara"))["migas"] == []
 
     def test_llegan_a_la_pagina(self, navegador):
         pagina = navegador.get(reverse("catalogos:paros")).content.decode()
         assert 'aria-label="Ruta de navegación"' in pagina
-        assert ">Menú</a>" in pagina
+        assert ">Paros<" in pagina
 
 
 class TestElMenuLlevaALoQueMasSeUsa:
@@ -97,28 +99,72 @@ class TestElMenuLlevaALoQueMasSeUsa:
         pagina = navegador.get(reverse("produccion:viga_list")).content.decode()
         assert reverse("produccion:movil") in pagina
 
-    def test_el_menu_del_celular_llega_a_lo_mismo_que_el_de_escritorio(self):
-        """El menú está escrito dos veces: barra para PC, panel lateral para
-        celular. Nada obliga a que coincidan, y no coincidían: Almacén,
-        Usuarios y «Listo para salir» sólo existían en el de escritorio.
+    def test_el_menu_se_declara_una_sola_vez(self):
+        """Estuvo escrito tres veces —barra de escritorio, panel del celular y
+        mosaicos de la portada— y las tres se desincronizaron: Almacén,
+        Usuarios y «Listo para salir» acabaron existiendo sólo en una.
 
-        El que más duele es Almacén. El almacenista trabaja con el celular
-        junto al anaquel, así que confirmar una entrega —la validación de
-        doble factor— exigía ir a una computadora.
+        El que más dolía era Almacén. El almacenista trabaja con el celular
+        junto al anaquel, así que confirmar una entrega —la validación de doble
+        factor— exigía ir a una computadora.
+
+        Ahora los destinos viven en `produccion/navegacion.py` y las dos
+        formas de enseñarlos incluyen el mismo parcial. Este test vigila que
+        nadie vuelva a escribir enlaces de menú a mano en el armazón.
         """
         base = (
             Path(settings.BASE_DIR)
             / "produccion" / "templates" / "produccion" / "base.html"
         ).read_text(encoding="utf-8")
-        corte = base.index('id="navCanvas"')
-        escritorio, celular = base[:corte], base[corte:]
 
-        enlaces = re.compile(r"{%\s*url\s+'([^']+)'\s*%}")
-        # `logout` y `login` son formularios, no destinos de navegación.
-        aparte = {"logout", "login", "produccion:home"}
-        faltan = (set(enlaces.findall(escritorio)) - set(enlaces.findall(celular))) - aparte
+        assert base.count('include "produccion/_menu.html"') == 2
 
-        assert not faltan, f"Sólo se llega desde la computadora: {sorted(faltan)}"
+        destinos = {
+            item.url
+            for grupo in navegacion_lateral.MENU
+            for item in grupo.items
+        }
+        enlaces = set(re.findall(r"{%\s*url\s+'([^']+)'\s*%}", base))
+        a_mano = (enlaces & destinos) - {"produccion:home"}
+
+        assert not a_mano, (
+            f"Enlaces de menú escritos a mano en base.html: {sorted(a_mano)}. "
+            "Van en produccion/navegacion.py."
+        )
+
+    def test_todo_lo_que_ofrece_el_menu_se_puede_abrir(self, navegador):
+        """Un renglón del menú que lleva a un error es peor que no tenerlo:
+        parece que la pantalla existe y está rota.
+        """
+        rotos = []
+        for grupo in navegacion_lateral.MENU:
+            for item in grupo.items:
+                try:
+                    destino = reverse(item.url)
+                except Exception as error:
+                    rotos.append(f"{item.url}: {error}")
+                    continue
+                respuesta = navegador.get(destino)
+                if respuesta.status_code >= 500:
+                    rotos.append(f"{item.url}: {respuesta.status_code}")
+
+        assert not rotos, rotos
+
+    def test_cada_quien_ve_lo_suyo(self):
+        """El menú se arma desde los permisos, no desde condiciones sueltas en
+        la plantilla. Una condición en una plantilla no se puede probar sola.
+        """
+        de_corte = navegacion_lateral.para({"can_corte": True})
+        titulos = {g["titulo"] for g in de_corte}
+
+        assert "Configuración" not in titulos
+        assert "Producción" in titulos
+
+    def test_un_grupo_sin_destinos_no_se_ensena(self):
+        """Un título de grupo vacío parece un fallo de carga."""
+        pelado = navegacion_lateral.para({})
+
+        assert all(g["items"] for g in pelado)
 
 
 class TestLasEtiquetasApuntanASuCampo:

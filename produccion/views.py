@@ -33,6 +33,7 @@ except ModuleNotFoundError:
     PdfReader = None
 from core import metricas, paginacion
 from core.estados import clase as clase_de_estado
+from core.servicios import inventario as servicio_inventario
 from core.servicios import trabajo as servicio_trabajo
 
 from catalogos.models import Proyecto
@@ -773,23 +774,103 @@ def _delete_plano_for_vigas(internal_ids):
 
 @login_required
 def home(request):
+    """La portada: qué hay que atender hoy.
+
+    Antes era un muro de diecisiete mosaicos sobre una foto —«selecciona tu
+    grupo»— que sólo servía para entrar. Con la barra lateral eso sobra: el
+    menú ya está siempre a la vista, así que la portada puede decir algo en vez
+    de preguntar a dónde vas.
+
+    Los números salen de lo que ya se deduce en cada módulo. Ninguno se guarda
+    aparte: un contador guardado se desactualiza y entonces la portada miente,
+    que es peor que no tenerla.
+    """
     u = request.user
     can_admin = bool(_is_admin_user(u) or getattr(u, "is_staff", False))
-    can_corte = bool(can_admin or _user_in_group(u, "corte"))
-    can_soldadura = bool(can_admin or _user_in_group(u, "soldadura"))
-    can_robotica = bool(can_admin or _user_in_group(u, "robotica"))
-    can_herreria = bool(can_admin or _user_in_group(u, "herreria") or _user_in_group(u, "herreria_supervision"))
+
     return render(
         request,
         "produccion/home.html",
         {
             "can_admin": can_admin,
-            "can_corte": can_corte,
-            "can_soldadura": can_soldadura,
-            "can_robotica": can_robotica,
-            "can_herreria": can_herreria,
+            "pendientes": _pendientes_del_dia(u),
+            "hoy": timezone.localdate(),
         },
     )
+
+
+def _pendientes_del_dia(usuario):
+    """Los avisos de la portada, cada uno con a dónde ir a resolverlo.
+
+    Un aviso sin destino obliga a buscar la pantalla; con destino, ver el
+    problema y entrar a arreglarlo es el mismo gesto.
+
+    Si algo falla al contar, ese aviso no sale y los demás sí. Una portada en
+    blanco por un módulo caído deja al taller sin saber qué hacer.
+    """
+    from catalogos.despacho import cuantos_esperan_despacho
+    from catalogos.models import Cuadrilla
+    from core import roles
+    from inventario.compras import cuantos_hay_que_comprar
+
+    avisos = []
+
+    def contar(titulo, detalle, icono, ruta, funcion, tono="neutro", cuando_cero=None):
+        try:
+            cuantos = funcion()
+        except Exception:
+            logger.exception("no se pudo contar «%s» para la portada", titulo)
+            return
+        if not cuantos and cuando_cero is None:
+            return
+        avisos.append({
+            "titulo": titulo,
+            "cuantos": cuantos,
+            "detalle": cuando_cero if not cuantos else detalle,
+            "icono": icono,
+            "ruta": ruta,
+            "tono": tono if cuantos else "bien",
+        })
+
+    contar(
+        "Listo para salir", "esperan que Logística los despache",
+        "bi-box-seam", "catalogos:despacho", cuantos_esperan_despacho,
+        cuando_cero="Nada terminado esperando camión",
+    )
+    contar(
+        "Por comprar", "materiales en o bajo su mínimo",
+        "bi-cart-plus", "inventario:compras", cuantos_hay_que_comprar,
+        tono="aviso", cuando_cero="Ningún material bajo mínimo",
+    )
+    contar(
+        "Material apartado", "obras con material esperando surtirse",
+        "bi-buildings", "inventario:por_proyecto",
+        lambda: len(servicio_inventario.proyectos_por_surtir()),
+    )
+
+    # La cuadrilla es distinta: lo que importa es que falte, no que haya.
+    if roles.puede_administrar_usuarios(usuario) or can_ver_cuadrillas(usuario):
+        try:
+            armadas = Cuadrilla.objects.using("mes").filter(
+                fecha=timezone.localdate()
+            ).count()
+        except Exception:
+            logger.exception("no se pudo contar las cuadrillas de hoy")
+        else:
+            avisos.append({
+                "titulo": "Cuadrillas de hoy",
+                "cuantos": armadas,
+                "detalle": "armadas" if armadas else "Sin armar: el trabajo de hoy no se atribuirá a nadie",
+                "icono": "bi-people-fill",
+                "ruta": "catalogos:cuadrillas",
+                "tono": "bien" if armadas else "aviso",
+            })
+
+    return avisos
+
+
+def can_ver_cuadrillas(usuario):
+    return bool(getattr(usuario, "is_staff", False) or _is_admin_user(usuario))
 
 def _sync_projects() -> None:
     names = (
