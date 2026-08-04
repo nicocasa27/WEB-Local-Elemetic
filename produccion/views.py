@@ -3498,9 +3498,9 @@ def dashboard(request):
         .values_list("viga_internal_id", flat=True)
         .distinct()
     )
-    weekly_peso_map = dict(
-        Viga.objects.filter(internal_id__in=weekly_term_ids).values_list("internal_id", "peso_kg")
-    )
+    # El peso de esas piezas se pedía aquí y no se usaba: una consulta por
+    # cada carga del tablero, para nada. El KPI de toneladas de la semana se
+    # calcula más abajo, a partir de la bitácora.
     weekly_retrabajo_piezas = int(
         ProductionLog.objects.filter(
             viga_internal_id__in=weekly_term_ids,

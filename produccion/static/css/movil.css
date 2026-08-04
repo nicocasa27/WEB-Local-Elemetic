@@ -155,15 +155,22 @@
   transition: opacity .35s ease, transform .35s ease;
 }
 
-/* Cuando la cuenta no está en el grupo del área. Antes el botón se enseñaba
- * igual y el servidor lo rechazaba con un «Sin permiso» que en el piso no
- * dice nada. */
-.mov-aviso {
-  margin-top: .9rem;
-  padding: .75rem;
-  border-radius: .5rem;
-  background: rgba(251, 99, 64, .08);
-  color: #8a4b2a;
-  font-size: .9rem;
-  line-height: 1.4;
+/* La línea de negocio de la tarjeta. Sólo aparece cuando alguien ve más de
+ * una —un administrador, un supervisor de dos áreas—; para un herrero,
+ * repetir «Herrería» en cada tarjeta no es información. */
+.mov-linea {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #7a8398;
+  margin-bottom: .2rem;
 }
+
+/* Tomar una pieza que espera no es lo mismo que terminar la que ya tienes en
+ * la mano. Mismo tamaño —las dos se pulsan igual de a menudo— y distinto
+ * color, para que se distingan de un vistazo sin leer. */
+.mov-terminar.mov-empezar {
+  background: var(--argon-primary, #5e72e4);
+}
+.mov-terminar.mov-empezar:active { background: #4756b8; }

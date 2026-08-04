@@ -194,3 +194,124 @@ def test_ningun_bloque_queda_sobreindentado(ruta_modulo):
         f"{ruta_modulo}: cuerpos indentados de más en las líneas {sorted(sospechosos)}. "
         "Revisar de qué condición cuelgan en realidad."
     )
+
+
+# ------------------------------------------------------- plantillas huérfanas
+
+
+def _plantillas_del_proyecto():
+    raiz = Path(settings.BASE_DIR)
+    for carpeta in sorted(raiz.glob("*/templates")):
+        for plantilla in sorted(carpeta.rglob("*.html")):
+            yield plantilla.relative_to(carpeta).as_posix(), plantilla
+
+
+def _todo_lo_que_nombra_archivos():
+    """El texto de todo el código y todas las plantillas, junto."""
+    raiz = Path(settings.BASE_DIR)
+    trozos = []
+    for patron in ("*/*.py", "*/*/*.py", "*/*/*/*.py", "*/templates/**/*.html"):
+        for archivo in raiz.glob(patron):
+            if ".venv" in archivo.parts or "attic" in archivo.parts:
+                continue
+            try:
+                trozos.append(archivo.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+    return "\n".join(trozos)
+
+
+class TestNoHayPlantillasQueNadieRenderiza:
+    """Una plantilla huérfana engaña a quien viene después.
+
+    Quien busca dónde se dibuja el control de Herrería abre
+    `herreria_control.html` y edita un archivo que el servidor no mira: la
+    vista renderiza `herreria_list.html`. Se perdió tiempo así de verdad.
+
+    Las que se quedan sin uso se mueven a `attic/`, que está fuera de las
+    carpetas de plantillas, en vez de dejarlas donde parecen vivas.
+    """
+
+    def test_todas_se_nombran_desde_algun_sitio(self):
+        texto = _todo_lo_que_nombra_archivos()
+        huerfanas = [
+            ruta
+            for ruta, _ in _plantillas_del_proyecto()
+            # Una plantilla se puede nombrar entera («catalogos/x.html») o
+            # sólo por su archivo, según cómo esté escrito el `include`.
+            if ruta not in texto and Path(ruta).name not in texto
+        ]
+
+        assert huerfanas == [], (
+            "Plantillas que no renderiza ni incluye nadie: "
+            + ", ".join(huerfanas)
+            + ". Si ya no sirven, muévelas a attic/."
+        )
+
+
+# ------------------------------------------------------- código inalcanzable
+
+
+#: Las cuatro pantallas que alguien aparcó mandándolas a la de control y
+#: dejando el cuerpo entero debajo del `return`. Unas 600 líneas que se leen
+#: como código vivo y no se ejecutan nunca. Están marcadas con un aviso en el
+#: propio archivo; esta lista existe para que no aparezcan más.
+INALCANZABLE_CONOCIDO = {
+    "herreria_ordenes",
+    "herreria_orden_detalle",
+    "corte_laser_ordenes",
+    "corte_laser_orden_detalle",
+}
+
+
+def _funciones_con_codigo_muerto():
+    encontradas = {}
+    raiz = Path(settings.BASE_DIR)
+    for archivo in sorted(raiz.glob("*/*.py")) + sorted(raiz.glob("*/*/*.py")):
+        if ".venv" in archivo.parts or "attic" in archivo.parts:
+            continue
+        try:
+            arbol = ast.parse(archivo.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for nodo in ast.walk(arbol):
+            if not isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for i, sentencia in enumerate(nodo.body[:-1]):
+                if isinstance(sentencia, (ast.Return, ast.Raise)):
+                    encontradas[nodo.name] = (
+                        archivo.relative_to(raiz).as_posix(),
+                        sentencia.lineno,
+                    )
+                    break
+    return encontradas
+
+
+class TestNoHayCodigoInalcanzableNuevo:
+    """Un `return` incondicional a media función deja el resto muerto.
+
+    Python no avisa y el editor tampoco, así que se lee como código vivo. Ha
+    pasado: se han hecho cambios en esas seiscientas líneas sin ningún efecto,
+    y se ha buscado un fallo dentro de código que no se ejecuta.
+    """
+
+    def test_solo_los_cuatro_conocidos(self):
+        nuevas = set(_funciones_con_codigo_muerto()) - INALCANZABLE_CONOCIDO
+
+        assert nuevas == set(), (
+            "Funciones con código detrás de un return incondicional: "
+            + ", ".join(sorted(nuevas))
+        )
+
+    def test_la_lista_de_conocidos_no_se_queda_vieja(self):
+        """Si alguien limpia una, que la lista se entere.
+
+        Una lista de excepciones que nadie poda deja de ser una lista de
+        deuda y pasa a ser ruido.
+        """
+        sobran = INALCANZABLE_CONOCIDO - set(_funciones_con_codigo_muerto())
+
+        assert sobran == set(), (
+            "Ya no tienen código muerto; quítalas de INALCANZABLE_CONOCIDO: "
+            + ", ".join(sorted(sobran))
+        )

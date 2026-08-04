@@ -55,6 +55,11 @@
         {% if t.mia %}<span class="mov-mia" title="Asignada a ti">Tuya</span>{% endif %}
         <span class="badge {{ t.clase_etapa }}">{{ t.etapa }}</span>
       </div>
+      {% comment %}
+        La línea sólo se dice cuando la persona ve más de una. Para un
+        herrero, poner «Herrería» en las quince tarjetas es ruido.
+      {% endcomment %}
+      {% if varias_lineas %}<div class="mov-linea">{{ t.linea_titulo }}</div>{% endif %}
       <div class="mov-detalle">{{ t.detalle }}</div>
       {% if t.descripcion %}<div class="mov-detalle">{{ t.descripcion }}</div>{% endif %}
       <div class="mov-detalle">
@@ -63,14 +68,19 @@
         · {{ t.peso_kg }} kg
       </div>
 
-      {% if not t.puede_mover %}
-        <div class="mov-aviso">
-          Tu cuenta no está en el grupo del área de esta etapa, así que no
-          puedes registrar el avance. Se arregla en Configuración de planta.
-        </div>
+      {% if t.por_cantidades %}
+        {% comment %}
+          Una orden de varias piezas no avanza por etapas después de
+          soldadura: se lleva por contadores y se cierra. Enseñar aquí un
+          botón «Terminé soldadura» sería enseñar uno que el servidor
+          rechaza con un 409.
+        {% endcomment %}
+        <a class="mov-boton mov-problema" href="{{ t.url_control }}">
+          <i class="bi bi-bar-chart-steps"></i> Capturar avance por cantidades
+        </a>
       {% elif t.siguiente %}
         <form method="post"
-              action="{% url 'produccion:viga_change_status_json' t.id %}"
+              action="{{ t.url_avance }}"
               class="js-mov-avanzar">
           {% csrf_token %}
           <input type="hidden" name="estado_nuevo" value="{{ t.siguiente }}">
@@ -82,9 +92,9 @@
             pantalla.
           {% endcomment %}
           <input type="hidden" name="fecha_operacion" value="" class="js-hoy">
-          <button type="submit" class="mov-boton mov-terminar">
-            <i class="bi bi-check2-circle"></i>
-            Terminé {{ t.etapa|lower }}
+          <button type="submit" class="mov-boton mov-terminar {% if not t.en_curso %}mov-empezar{% endif %}">
+            <i class="bi {% if t.en_curso %}bi-check2-circle{% else %}bi-play-circle{% endif %}"></i>
+            {{ t.accion }}
           </button>
         </form>
       {% endif %}

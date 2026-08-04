@@ -520,7 +520,6 @@ class Command(BaseCommand):
     def _volcar_vigas(self):
         linea = self._linea("vigas")
         etapas = self._mapa_etapas(linea)
-        terminadas = {clave("Terminado"), clave("Enviado")}
 
         consulta = Viga.objects.using(BASE).order_by("internal_id")
         if self.limite:

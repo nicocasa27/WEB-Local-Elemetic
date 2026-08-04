@@ -177,18 +177,31 @@ def existencias(request):
     pueden prometer, y no poder verlas es lo que lleva a prometer material que
     no hay.
     """
-    filas = []
-    for material in (
-        Material.objects.using(BASE).filter(activo=True, inventariable=True)
+    materiales = list(
+        Material.objects.using(BASE)
+        .filter(activo=True, inventariable=True)
         .order_by("categoria", "nombre")
-    ):
-        totales = (
+    )
+
+    # Los totales de todos los materiales en una consulta, no una por
+    # material. Antes esta pantalla hacía una consulta por renglón: con
+    # catorce materiales son treinta y ocho consultas, y con doscientos
+    # serían cuatrocientas. Es la pantalla que más se abre del almacén.
+    totales = {
+        fila["material_id"]: fila
+        for fila in (
             Existencia.objects.using(BASE)
-            .filter(material=material)
-            .aggregate(fisico=Sum("cantidad"), apartado=Sum("comprometido"))
+            .filter(material__in=materiales)
+            .values("material_id")
+            .annotate(fisico=Sum("cantidad"), apartado=Sum("comprometido"))
         )
-        fisico = totales["fisico"] or CERO
-        apartado = totales["apartado"] or CERO
+    }
+
+    filas = []
+    for material in materiales:
+        del_material = totales.get(material.pk) or {}
+        fisico = del_material.get("fisico") or CERO
+        apartado = del_material.get("apartado") or CERO
         filas.append({
             "material": material,
             "fisico": fisico,

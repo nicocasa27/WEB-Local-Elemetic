@@ -2624,7 +2624,6 @@ def herreria_control(request):
     participantes_payload = _build_participantes_payload()
 
     hoy = timezone.localdate()
-    cutoff = hoy - timedelta(days=DECOTE_DAYS)
 
     enviados_recent_sales: list[HerrOrdenProduccion] = []
     decote_vigas_sales: list[HerrOrdenProduccion] = []
@@ -2660,7 +2659,7 @@ def herreria_control(request):
             v.__dict__["expediente_descargas_count"] = int(getattr(exp, "descargas_count", 0) or 0) if exp else 0
             can_decote = bool(v.expediente_generado and v.expediente_descargado)
             is_decote_age = bool(last_fecha and (hoy - last_fecha).days >= DECOTE_DAYS)
-            v.can_delete_decote = bool(last_fecha and (hoy - last_fecha).days >= 5)
+            v.can_delete_decote = bool(last_fecha and (hoy - last_fecha).days >= DECOTE_DAYS)
             if is_decote_age and can_decote:
                 decote_vigas_sales.append(v)
             else:
@@ -2688,7 +2687,7 @@ def herreria_control(request):
         enviado_fecha = timezone.localdate(enviado_dt) if enviado_dt else hoy
         v.enviado_fecha = enviado_fecha
         v.enviado_dias = int((hoy - enviado_fecha).days) if enviado_fecha else 0
-        v.can_delete_decote = bool(enviado_fecha and (hoy - enviado_fecha).days >= 5)
+        v.can_delete_decote = bool(enviado_fecha and (hoy - enviado_fecha).days >= DECOTE_DAYS)
         if v.enviado_dias >= DECOTE_DAYS:
             decote_vigas_obra.append(v)
         else:
@@ -3641,6 +3640,18 @@ def herreria_ordenes(request):
     if not _can_herreria(request.user):
         return redirect("/")
     return redirect("catalogos:herreria_control")
+    # AVISO: todo lo que sigue está muerto.
+    #
+    # Alguien aparcó esta pantalla mandándola a herreria_control y dejó el cuerpo
+    # entero debajo del `return`. Python no se queja y el editor tampoco, así
+    # que se lee como código vivo: se han hecho cambios aquí que no tenían
+    # ningún efecto.
+    #
+    # No se borra porque no está claro si se aparcó para siempre o hasta
+    # arreglar algo. Lo que sí está claro es que hoy no se ejecuta ni una
+    # línea. La guardia `TestNoHayCodigoInalcanzableNuevo` lo tiene en su
+    # lista de conocidos; si se decide retirarlo, sale de la lista también.
+
 
     form = HerrOrdenProduccionForm()
     if request.method == "POST":
@@ -3737,6 +3748,18 @@ def herreria_orden_detalle(request, pk: int):
     if not _can_herreria(request.user):
         return redirect("/")
     return redirect("catalogos:herreria_control")
+    # AVISO: todo lo que sigue está muerto.
+    #
+    # Alguien aparcó esta pantalla mandándola a herreria_control y dejó el cuerpo
+    # entero debajo del `return`. Python no se queja y el editor tampoco, así
+    # que se lee como código vivo: se han hecho cambios aquí que no tenían
+    # ningún efecto.
+    #
+    # No se borra porque no está claro si se aparcó para siempre o hasta
+    # arreglar algo. Lo que sí está claro es que hoy no se ejecuta ni una
+    # línea. La guardia `TestNoHayCodigoInalcanzableNuevo` lo tiene en su
+    # lista de conocidos; si se decide retirarlo, sale de la lista también.
+
 
     orden = get_object_or_404(HerrOrdenProduccion, pk=pk)
     edit_form = HerrOrdenProduccionForm(instance=orden)
@@ -4871,7 +4894,6 @@ def corte_laser_control(request):
     participantes_payload = _build_participantes_payload()
 
     hoy = timezone.localdate()
-    cutoff = hoy - timedelta(days=DECOTE_DAYS)
     enviados_recent: list[LaserOrdenProduccion] = []
     decote_vigas: list[LaserOrdenProduccion] = []
     if ordenes_enviadas_ids:
@@ -4908,7 +4930,7 @@ def corte_laser_control(request):
             v.__dict__["expediente_descargas_count"] = int(getattr(exp, "descargas_count", 0) or 0) if exp else 0
             can_decote = bool(v.expediente_generado and v.expediente_descargado)
             is_decote_age = bool(last_fecha and (hoy - last_fecha).days >= DECOTE_DAYS)
-            v.can_delete_decote = bool(last_fecha and (hoy - last_fecha).days >= 5)
+            v.can_delete_decote = bool(last_fecha and (hoy - last_fecha).days >= DECOTE_DAYS)
             if is_decote_age and can_decote:
                 decote_vigas.append(v)
             else:
@@ -5741,6 +5763,18 @@ def corte_laser_ordenes(request):
     if not _can_corte_laser(request.user):
         return redirect("/")
     return redirect("catalogos:corte_laser_control")
+    # AVISO: todo lo que sigue está muerto.
+    #
+    # Alguien aparcó esta pantalla mandándola a corte_laser_control y dejó el cuerpo
+    # entero debajo del `return`. Python no se queja y el editor tampoco, así
+    # que se lee como código vivo: se han hecho cambios aquí que no tenían
+    # ningún efecto.
+    #
+    # No se borra porque no está claro si se aparcó para siempre o hasta
+    # arreglar algo. Lo que sí está claro es que hoy no se ejecuta ni una
+    # línea. La guardia `TestNoHayCodigoInalcanzableNuevo` lo tiene en su
+    # lista de conocidos; si se decide retirarlo, sale de la lista también.
+
 
     form = LaserOrdenProduccionForm()
     if request.method == "POST":
@@ -5876,6 +5910,18 @@ def corte_laser_orden_detalle(request, pk: int):
     if not _can_corte_laser(request.user):
         return redirect("/")
     return redirect("catalogos:corte_laser_control")
+    # AVISO: todo lo que sigue está muerto.
+    #
+    # Alguien aparcó esta pantalla mandándola a corte_laser_control y dejó el cuerpo
+    # entero debajo del `return`. Python no se queja y el editor tampoco, así
+    # que se lee como código vivo: se han hecho cambios aquí que no tenían
+    # ningún efecto.
+    #
+    # No se borra porque no está claro si se aparcó para siempre o hasta
+    # arreglar algo. Lo que sí está claro es que hoy no se ejecuta ni una
+    # línea. La guardia `TestNoHayCodigoInalcanzableNuevo` lo tiene en su
+    # lista de conocidos; si se decide retirarlo, sale de la lista también.
+
 
     orden = get_object_or_404(LaserOrdenProduccion, pk=pk)
     edit_form = LaserOrdenProduccionForm(instance=orden)
@@ -7361,7 +7407,6 @@ def pedidos_orden_cancelar(request, pk: int):
         if prev_estado not in {"Activa", "Cancelada"}:
             return redirect("catalogos:pedidos_ordenes")
 
-        now = timezone.now()
         items = list(PedidoProduccionItem.objects.select_for_update().filter(pedido=pedido).select_related("producto"))
         for it in items:
             apartado = int(getattr(it, "apartado", 0) or 0)
@@ -7721,7 +7766,7 @@ def pedidos_logistica(request):
             p.__dict__["expediente_descargas_count"] = int(getattr(exp, "descargas_count", 0) or 0) if exp else 0
             can_decote = bool(p.expediente_generado and p.expediente_descargado)
             is_decote_age = bool(last_fecha and (today - last_fecha).days >= DECOTE_DAYS)
-            p.can_delete_decote = bool(last_fecha and (today - last_fecha).days >= 5)
+            p.can_delete_decote = bool(last_fecha and (today - last_fecha).days >= DECOTE_DAYS)
             if is_decote_age and can_decote:
                 decote_pedidos.append(p)
             else:
@@ -8126,7 +8171,7 @@ def logistica_corta(request):
             o.__dict__["expediente_descargas_count"] = int(getattr(exp, "descargas_count", 0) or 0) if exp else 0
             can_decote = bool(o.expediente_generado and o.expediente_descargado)
             is_decote_age = bool(last_fecha and (today - last_fecha).days >= DECOTE_DAYS)
-            o.can_delete_decote = bool(last_fecha and (today - last_fecha).days >= 5)
+            o.can_delete_decote = bool(last_fecha and (today - last_fecha).days >= DECOTE_DAYS)
             if is_decote_age and can_decote:
                 decote_ordenes.append(o)
             else:

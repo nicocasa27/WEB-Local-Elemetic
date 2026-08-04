@@ -200,20 +200,39 @@ class TestLaPantalla:
         assert respuesta.context["trabajos"] == []
         assert "no tiene un área de producción" in respuesta.content.decode()
 
-    def test_no_ensena_las_etapas_de_espera(self, django_user_model):
-        """Una orden en espera no es trabajo de nadie todavía.
+    def test_las_etapas_de_espera_si_salen(self, django_user_model):
+        """«Espera de pintura» es justo lo que el área de pintura tiene que
+        hacer: hay un marco que pintar.
 
-        Es la orden esperando a que alguien la tome. Enseñarla en «lo mío»
-        sólo añade ruido a una pantalla que vive de tener poco.
+        Mientras la pantalla enseñaba sólo lo asignado, una pieza en espera no
+        era trabajo de nadie —era la pieza esperando a que la repartieran— y
+        se escondía. Con la cola por área, esconderla vacía la pantalla justo
+        cuando hay más trabajo.
         """
         cliente = navegador(django_user_model, "juan")
-        yo = colaborador(usuario="juan")
-        asignar(yo, pieza(estado="Espera de pintura", codigo="ESPERA-1"))
-        asignar(yo, pieza(estado="Soldadura", codigo="ACTIVA-1"))
+        colaborador(usuario="juan")
+        pieza(estado="Espera de pintura", codigo="ESPERA-1")
+        pieza(estado="Soldadura", codigo="ACTIVA-1")
 
         trabajos = cliente.get(reverse("produccion:movil")).context["trabajos"]
 
-        assert [t["codigo"] for t in trabajos] == ["ACTIVA-1"]
+        assert sorted(t["codigo"] for t in trabajos) == ["ACTIVA-1", "ESPERA-1"]
+
+    def test_el_boton_dice_empezar_o_termine_segun_toque(self, django_user_model):
+        """Llamar «Terminé corte» a empezar a cortar es pedir que se registre
+        una mentira. En el piso esa palabra es toda la instrucción."""
+        cliente = navegador(django_user_model, "juan", grupo="corte")
+        colaborador(usuario="juan")
+        pieza(estado="Espera de corte", codigo="ESPERA-1")
+        pieza(estado="Corte", codigo="ACTIVA-1")
+
+        respuesta = cliente.get(reverse("produccion:movil"))
+        por_codigo = {t["codigo"]: t for t in respuesta.context["trabajos"]}
+
+        assert por_codigo["ESPERA-1"]["accion"] == "Empezar corte"
+        assert por_codigo["ESPERA-1"]["en_curso"] is False
+        assert por_codigo["ACTIVA-1"]["accion"] == "Terminé corte"
+        assert por_codigo["ACTIVA-1"]["en_curso"] is True
 
     def test_no_ensena_lo_terminado(self, django_user_model):
         cliente = navegador(django_user_model, "juan")

@@ -52,9 +52,33 @@ from core import estados
 
 BASE = "mes"
 
-#: Etapas en las que una persona está trabajando de verdad. Las de espera no
-#: son trabajo de nadie: son la orden esperando a que alguien la tome.
-ETAPAS_DE_TRABAJO = {estados.CORTE, estados.ARMADO, estados.SOLDADURA, estados.PINTURA}
+#: Las etapas que salen en la cola de un área.
+#:
+#: Incluye las de espera **a propósito**, y esto es el corazón del cambio.
+#: Mientras la pantalla enseñaba sólo lo asignado, «Espera de corte» no era
+#: trabajo de nadie: era la pieza esperando a que un supervisor la repartiera.
+#: Ahora que la cola es del área, «Espera de corte» es exactamente lo que el
+#: área tiene que hacer: hay un marco que pintar y está en «Espera de
+#: pintura».
+#:
+#: Dejarlas fuera vaciaba la pantalla justo cuando había más trabajo. Con los
+#: datos de hoy: doce piezas esperando corte, once esperando armado, y la
+#: pantalla decía «no hay nada pendiente en tu área».
+ETAPAS_DE_TRABAJO = {
+    estados.ESPERA_CORTE,
+    estados.CORTE,
+    estados.ESPERA_ARMADO,
+    estados.ARMADO,
+    estados.ESPERA_SOLDADURA,
+    estados.SOLDADURA,
+    estados.ESPERA_PINTURA,
+    estados.PINTURA,
+}
+
+#: Las etapas en las que alguien ya está trabajando. Se distinguen de las de
+#: espera sólo para el texto del botón: «Empezar corte» no es lo mismo que
+#: «Terminé corte», y en el piso esa palabra es toda la instrucción.
+ETAPAS_EN_CURSO = {estados.CORTE, estados.ARMADO, estados.SOLDADURA, estados.PINTURA}
 
 
 def colaborador_de(usuario):
@@ -89,8 +113,15 @@ def colaborador_de(usuario):
 #: botón que va a ser rechazado. Un botón que falla sin explicar por qué, en
 #: el piso, hace que la gente deje de usar la pantalla.
 ETAPAS_POR_GRUPO = {
-    "corte": {estados.CORTE},
-    "soldadura": {estados.ARMADO, estados.SOLDADURA, estados.PINTURA},
+    "corte": {estados.ESPERA_CORTE, estados.CORTE},
+    "soldadura": {
+        estados.ESPERA_ARMADO,
+        estados.ARMADO,
+        estados.ESPERA_SOLDADURA,
+        estados.SOLDADURA,
+        estados.ESPERA_PINTURA,
+        estados.PINTURA,
+    },
 }
 
 
@@ -112,6 +143,195 @@ def etapas_que_puede_mover(usuario):
 TOPE = 40
 
 
+def _texto_del_boton(etapa, siguiente):
+    """Lo que dice el botón. En el piso, esa palabra es la instrucción.
+
+    Una pieza en espera se **toma**; una que ya está en curso se **termina**.
+    Es la misma acción para el servidor —un cambio de etapa— pero no es la
+    misma para quien la pulsa, y llamar «Terminé corte» a empezar a cortar es
+    pedir que se registre una mentira.
+    """
+    if not siguiente:
+        return ""
+    if etapa in ETAPAS_EN_CURSO:
+        return f"Terminé {etapa.lower()}"
+    return f"Empezar {siguiente.lower()}"
+
+
+# --------------------------------------------------------------- las líneas
+#
+# Estructuras metálicas, Herrería y Corta.mx. Hasta ahora esta pantalla sólo
+# cubría la primera, así que la gente de Herrería y de Corta entraba y leía
+# «tu cuenta no tiene un área de producción». Media planta sin pantalla de
+# celular, que es justo la mitad que más órdenes mueve al día.
+#
+# Las tres son la misma máquina de estados con distinta tabla —es la
+# duplicación de la que vive todo este sistema— así que aquí se recorren con
+# un solo bloque de código en vez de copiarlo tres veces. Lo único que
+# cambia por línea está en esta tabla.
+
+
+class Linea:
+    def __init__(self, clave, titulo, grupos, ruta_avance, ruta_control):
+        self.clave = clave
+        self.titulo = titulo
+        self.grupos = set(grupos)
+        self.ruta_avance = ruta_avance
+        self.ruta_control = ruta_control
+
+    def la_ve(self, grupos_del_usuario, es_admin):
+        return bool(es_admin or (self.grupos & grupos_del_usuario))
+
+
+LINEAS = [
+    Linea(
+        "herreria",
+        "Herrería",
+        {"herreria", "herreria_supervision"},
+        "catalogos:herreria_change_status_json",
+        "catalogos:herreria_control",
+    ),
+    Linea(
+        "corta",
+        "Corta.mx",
+        {"corte_laser", "corte_laser_supervision"},
+        "catalogos:corte_laser_change_status_json",
+        "catalogos:corte_laser_control",
+    ),
+]
+
+#: Las etapas a las que el servidor deja pasar una orden grande. Una orden de
+#: varias piezas no avanza por etapas después de soldadura: se lleva por
+#: contadores y se cierra. Está copiado de `herreria_change_status_json`
+#: a propósito —enseñar un botón que el servidor va a rechazar con un 409 es
+#: peor que no enseñarlo— y por eso hay una prueba que compara las dos.
+ETAPAS_QUE_ACEPTA_UNA_ORDEN_GRANDE = {
+    estados.ESPERA_CORTE,
+    estados.CORTE,
+    estados.SOLDADURA,
+}
+
+
+def es_orden_grande(orden):
+    """La misma regla que aplica el servidor: dos piezas o más.
+
+    Se calcula, no se lee de la columna `es_op`. Las dos conviven en los
+    datos y no siempre coinciden; la que decide si el avance se acepta es
+    ésta.
+    """
+    return int(getattr(orden, "total_piezas", 0) or 0) >= 2
+
+
+def _siguiente_de_una_orden(orden, etapa):
+    """A qué etapa pasa, o cadena vacía si desde aquí ya no se avanza así."""
+    grande = es_orden_grande(orden)
+    secuencia = estados.SECUENCIA_ORDEN_GRANDE if grande else estados.SECUENCIA
+    posicion = estados.posicion(etapa, secuencia)
+    if posicion is None or posicion + 1 >= len(secuencia):
+        return ""
+    siguiente = secuencia[posicion + 1]
+    if grande and siguiente not in ETAPAS_QUE_ACEPTA_UNA_ORDEN_GRANDE:
+        return ""
+    if not grande and siguiente == estados.ENVIADO:
+        # Enviar es de logística, no del piso.
+        return ""
+    return siguiente
+
+
+def _cola_de_una_linea(linea, modelo, movibles):
+    """Órdenes abiertas de una línea, en etapa de trabajo."""
+    from django.urls import reverse
+
+    escrituras = []
+    for etapa in movibles:
+        escrituras.extend(estados.variantes(etapa))
+
+    consulta = (
+        modelo.objects.using(BASE)
+        .filter(estado="Abierta", estado_etapa__in=escrituras)
+        .order_by("prioridad", "fecha_compromiso", "codigo")
+    )
+    total = consulta.count()
+
+    trabajos = []
+    for orden in consulta[: TOPE * 2]:
+        etapa = estados.normalizar(orden.estado_etapa)
+        if etapa not in ETAPAS_DE_TRABAJO:
+            continue
+        siguiente = _siguiente_de_una_orden(orden, etapa)
+        trabajos.append(
+            {
+                "id": orden.pk,
+                "linea": linea.clave,
+                "linea_titulo": linea.titulo,
+                "codigo": orden.codigo,
+                "detalle": f"{orden.total_piezas} pza{'s' if orden.total_piezas != 1 else ''} · {orden.proyecto or ''}".strip(" ·"),
+                "descripcion": orden.descripcion or orden.nombre or "",
+                "etapa": etapa,
+                "clase_etapa": estados.clase(etapa),
+                "en_curso": etapa in ETAPAS_EN_CURSO,
+                "accion": _texto_del_boton(etapa, siguiente),
+                "siguiente": siguiente,
+                "puede_mover": bool(siguiente),
+                "por_cantidades": es_orden_grande(orden) and not siguiente,
+                "url_avance": reverse(linea.ruta_avance, args=[orden.pk]),
+                "url_control": reverse(linea.ruta_control),
+                "peso_kg": orden.peso_kg,
+                "prioridad": orden.prioridad,
+                "fecha_compromiso": orden.fecha_compromiso,
+                "mia": False,
+            }
+        )
+    return trabajos, total
+
+
+def _colas_de_las_otras_lineas(usuario):
+    """Herrería y Corta.mx, según los grupos de la cuenta.
+
+    Aquí no se reparte por etapa como en Estructuras. El permiso de estas dos
+    líneas es de línea entera —`_can_herreria`, `_can_corte_laser`— y no mira
+    la etapa, así que restringirla en la pantalla escondería trabajo que el
+    servidor sí deja registrar.
+    """
+    from catalogos.models import HerrOrdenProduccion, LaserOrdenProduccion
+
+    modelos = {"herreria": HerrOrdenProduccion, "corta": LaserOrdenProduccion}
+    grupos = set(usuario.groups.values_list("name", flat=True))
+    es_admin = bool(
+        getattr(usuario, "is_superuser", False)
+        or grupos & {"admin_general", "ingenieria_civil"}
+    )
+
+    trabajos = []
+    total = 0
+    for linea in LINEAS:
+        if not linea.la_ve(grupos, es_admin):
+            continue
+        de_la_linea, cuantas = _cola_de_una_linea(
+            linea, modelos[linea.clave], ETAPAS_DE_TRABAJO
+        )
+        trabajos.extend(de_la_linea)
+        total += cuantas
+    return trabajos, total
+
+
+def puede_ver_alguna_linea(usuario):
+    """Si la cuenta tiene área en alguna de las tres líneas.
+
+    Es lo que decide entre enseñar «no hay nada pendiente» y «tu cuenta no
+    tiene área». Son mensajes distintos y confundirlos manda a la persona a
+    pedir un permiso que ya tiene, o al revés.
+    """
+    if etapas_que_puede_mover(usuario):
+        return True
+    grupos = set(usuario.groups.values_list("name", flat=True))
+    es_admin = bool(
+        getattr(usuario, "is_superuser", False)
+        or grupos & {"admin_general", "ingenieria_civil"}
+    )
+    return any(linea.la_ve(grupos, es_admin) for linea in LINEAS)
+
+
 def _cola_de_mi_area(movibles, asignadas):
     """Lo pendiente en las etapas que esta persona puede mover.
 
@@ -122,6 +342,8 @@ def _cola_de_mi_area(movibles, asignadas):
     Lo asignado a esa persona sube arriba del todo. Sigue siendo su trabajo
     de forma explícita; lo que cambia es que ya no es lo *único* que ve.
     """
+    from django.urls import reverse
+
     from produccion.models import Viga
 
     if not movibles:
@@ -143,8 +365,7 @@ def _cola_de_mi_area(movibles, asignadas):
     for pieza in piezas:
         etapa = estados.normalizar(pieza.estado)
         if etapa not in ETAPAS_DE_TRABAJO:
-            # `variantes` puede traer una escritura que normaliza a una etapa
-            # de espera. No es trabajo de nadie: es la orden esperando.
+            # Terminada, enviada o en cierre pendiente: ya no es de piso.
             continue
         posicion = estados.posicion(etapa)
         siguiente = (
@@ -152,16 +373,28 @@ def _cola_de_mi_area(movibles, asignadas):
             if posicion is not None and posicion + 1 < len(estados.SECUENCIA)
             else ""
         )
+        if siguiente == estados.ENVIADO:
+            # Enviar a obra es de logística, no del piso.
+            siguiente = ""
         trabajos.append(
             {
                 "id": pieza.internal_id,
+                "linea": "estructuras",
+                "linea_titulo": "Estructuras",
                 "codigo": pieza.codigo_viga,
                 "detalle": f"{pieza.pieza_no}/{pieza.total_piezas} · {pieza.proyecto}",
                 "descripcion": pieza.descripcion,
                 "etapa": etapa,
                 "clase_etapa": estados.clase(etapa),
-                "siguiente": siguiente if etapa in movibles else "",
-                "puede_mover": etapa in movibles,
+                "en_curso": etapa in ETAPAS_EN_CURSO,
+                "accion": _texto_del_boton(etapa, siguiente),
+                "siguiente": siguiente,
+                "puede_mover": bool(siguiente),
+                "por_cantidades": False,
+                "url_avance": reverse(
+                    "produccion:viga_change_status_json", args=[pieza.internal_id]
+                ),
+                "url_control": reverse("produccion:viga_list"),
                 "peso_kg": pieza.peso_kg,
                 "prioridad": pieza.prioridad,
                 "fecha_compromiso": pieza.fecha_compromiso,
@@ -169,10 +402,7 @@ def _cola_de_mi_area(movibles, asignadas):
             }
         )
 
-    # Lo asignado a esta persona, primero. `sort` de Python es estable, así
-    # que dentro de cada bloque se respeta el orden por prioridad y fecha.
-    trabajos.sort(key=lambda t: not t["mia"])
-    return trabajos[:TOPE], max(0, total - len(trabajos[:TOPE]))
+    return trabajos, total
 
 
 def _asignadas_a(colaborador):
@@ -197,16 +427,26 @@ def mi_trabajo(request):
     # Sin ficha también se ve la cola: el área la da el grupo de la cuenta,
     # no la ficha. Lo que falta sin ficha es la firma del apunte, y de eso
     # avisa la propia pantalla.
-    trabajos, de_mas = _cola_de_mi_area(movibles, _asignadas_a(colaborador))
+    trabajos, total = _cola_de_mi_area(movibles, _asignadas_a(colaborador))
+    otras, total_otras = _colas_de_las_otras_lineas(request.user)
+    trabajos.extend(otras)
+    total += total_otras
+
+    # Lo asignado a esta persona, primero; después lo urgente. `sort` de
+    # Python es estable, así que el orden por prioridad y fecha que trae cada
+    # cola se respeta dentro de cada bloque.
+    trabajos.sort(key=lambda t: (not t["mia"], t["prioridad"], t["fecha_compromiso"]))
+    visibles = trabajos[:TOPE]
 
     return render(
         request,
         "produccion/movil.html",
         {
             "colaborador": colaborador,
-            "trabajos": trabajos,
-            "de_mas": de_mas,
-            "puede_mover_algo": bool(movibles),
+            "trabajos": visibles,
+            "de_mas": max(0, total - len(visibles)),
+            "varias_lineas": len({t["linea"] for t in visibles}) > 1,
+            "puede_mover_algo": puede_ver_alguna_linea(request.user),
             "motivos_de_paro": list(
                 MaquinaParoMotivo.objects.using(BASE).filter(activo=True).order_by("nombre")
             ),
