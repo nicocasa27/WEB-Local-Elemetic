@@ -193,6 +193,28 @@
     </div>
   {% endif %}
 
+  {% if request.session.entro_con_pin %}
+    {% comment %}
+      El botón de terminar, y sólo cuando se entró por el teclado de la
+      tableta. La tableta es de todos: quien acaba tiene que poder cerrar de un
+      toque, sin buscarlo en un menú, o el siguiente apuntará su trabajo a
+      nombre del anterior.
+
+      En la PC de oficina no sale. Ahí la sesión es de una persona y de un
+      sitio, y un botón de salir del tamaño de una tarjeta sería ruido.
+    {% endcomment %}
+    <form method="post" action="{% url 'acceso:salir' %}">
+      {% csrf_token %}
+      <button type="submit" class="mov-salir">
+        <i class="bi bi-box-arrow-right"></i> Terminé · dejar libre la tableta
+      </button>
+    </form>
+    <p class="mov-salir-nota">
+      Si se te olvida, se cierra sola a los {{ minutos_de_pin }} minutos sin usarse.
+    </p>
+    <link href="{% static 'css/acceso.css' %}" rel="stylesheet">
+  {% endif %}
+
 </div>
 
 {# La hoja de motivos, para reportar un problema sin salir de la pantalla. #}

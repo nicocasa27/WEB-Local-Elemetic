@@ -25,6 +25,10 @@ MODULOS_VIGILADOS = ["catalogos/views.py", "produccion/views.py"]
 EXENTAS_DE_SESION = {
     "login",
     "logout",
+    # El teclado del PIN es la otra puerta de entrada: exigir sesión para
+    # llegar a él sería exigir sesión para iniciar sesión.
+    "teclado",
+    "entrar",
     "password_reset",
     "password_reset_done",
     "password_reset_confirm",
@@ -54,7 +58,7 @@ def rutas_propias():
             if callback is None:
                 continue
             if not getattr(callback, "__module__", "").startswith(
-                ("catalogos.", "produccion.", "mes_vigas_web.")
+                ("catalogos.", "produccion.", "mes_vigas_web.", "acceso.")
             ):
                 continue
 

@@ -1,0 +1,218 @@
+/* El teclado del PIN.
+ *
+ * Esta pantalla no se parece al resto del sistema a propósito, y conviene
+ * saber por qué antes de «unificarla»: no es una pantalla, es un aparato. Está
+ * atornillada a la pared de la nave, se usa de pie, a un brazo de distancia,
+ * con guantes y con la luz que entra por la puerta del taller. Las reglas de
+ * una lista de oficina —densidad, muchas columnas, filetes finos— aquí son
+ * justo lo contrario de lo que hace falta.
+ *
+ * De ahí las tres decisiones:
+ *
+ * 1. **Fondo oscuro.** Contra el reflejo, y porque es lo único encendido en
+ *    una nave con poca luz: se ve desde lejos que la tableta está lista.
+ *
+ * 2. **Teclas de 5 rem.** Muy por encima de los 44px táctiles del resto del
+ *    sistema. Con guante de soldador el dedo no apunta: apoya. La tecla tiene
+ *    que ser más grande que el error.
+ *
+ * 3. **Los dígitos en monoespaciada y enormes.** Es el único dato de la
+ *    pantalla. Se tiene que poder contar cuántos van sin acercarse.
+ */
+
+.pin {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #1c2836 0%, #0b1118 60%, #070b10 100%);
+  color: #eef3f8;
+  overflow-y: auto;
+}
+
+.pin-caja {
+  width: 100%;
+  max-width: 24rem;
+  text-align: center;
+}
+
+.pin-marca {
+  font-family: var(--fuente-etiq, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  font-size: .8rem;
+  font-weight: 600;
+  color: #6f8296;
+}
+
+.pin-titulo {
+  font-family: var(--fuente-ui, sans-serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: .35rem 0 1.25rem;
+  color: #eef3f8;
+}
+
+/* El error se queda escrito hasta el siguiente intento. No es un aviso
+ * flotante: es lo único que esta pantalla tiene que decir. */
+.pin-error {
+  font-size: 1rem;
+  line-height: 1.35;
+  margin: -.5rem 0 1rem;
+  padding: .75rem .9rem;
+  border-radius: .5rem;
+  border: 1px solid rgba(245, 54, 92, .45);
+  background: rgba(245, 54, 92, .14);
+  color: #ffc2ce;
+}
+
+.pin-form { margin: 0; }
+
+/* ------------------------------------------------------------- la pantalla */
+
+.pin-pantalla {
+  display: block;
+  width: 100%;
+  margin: 0 0 1.1rem;
+  padding: .55rem 0 .75rem;
+  border: 0;
+  border-bottom: 2px solid #33475c;
+  border-radius: 0;
+  background: transparent;
+  color: #eef3f8;
+  font-family: var(--fuente-dato, monospace);
+  font-size: 2.75rem;
+  font-weight: 600;
+  line-height: 1;
+  /* El espaciado separa los dígitos lo bastante para contarlos de un vistazo.
+   * El margen izquierdo lo compensa para que el conjunto quede centrado: sin
+   * él, el hueco que sigue al último dígito lo empuja todo a la izquierda. */
+  letter-spacing: .5em;
+  text-indent: .5em;
+  text-align: center;
+}
+
+.pin-pantalla:focus {
+  outline: none;
+  border-bottom-color: var(--argon-primary, #5e72e4);
+}
+
+/* La caja tiene la altura de una línea aunque esté vacía, para que la
+ * pantalla no salte al teclear el primer dígito. */
+.pin-pantalla::placeholder { color: #2c3d4f; }
+
+/* --------------------------------------------------------------- las teclas */
+
+.pin-teclas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .6rem;
+}
+
+.pin-tecla {
+  appearance: none;
+  min-height: 5rem;
+  border: 1px solid #2b3b4d;
+  border-radius: .75rem;
+  background: #16212d;
+  color: #eef3f8;
+  font-family: var(--fuente-dato, monospace);
+  font-size: 1.9rem;
+  font-weight: 600;
+  line-height: 1;
+  /* Sin esto, mantener el dedo apoyado en una tecla selecciona el número y
+   * abre el menú de copiar, que en el piso parece que la tableta se colgó. */
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: background-color .08s linear, transform .08s linear;
+}
+
+/* Sólo la pulsación da respuesta, y es inmediata. En una tableta el `:hover`
+ * se queda pegado después de tocar, así que la tecla anterior se quedaría
+ * encendida y parecería la elegida. */
+.pin-tecla:active {
+  background: #24344a;
+  transform: translateY(1px);
+}
+
+.pin-tecla:focus-visible {
+  outline: 3px solid var(--argon-primary, #5e72e4);
+  outline-offset: 2px;
+}
+
+.pin-tecla[disabled] { opacity: .35; }
+
+.pin-tecla-borrar,
+.pin-tecla-entrar {
+  font-size: 1.5rem;
+  background: #101a24;
+}
+
+.pin-tecla-entrar {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(87deg, var(--argon-primary, #5e72e4) 0, var(--argon-primary-2, #825ee4) 100%);
+}
+
+/* ------------------------------------------------------------- la otra puerta */
+
+.pin-otra-puerta {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: .5rem;
+  color: #6f8296;
+  font-size: .9rem;
+  text-decoration: underline;
+}
+
+.pin-otra-puerta:hover,
+.pin-otra-puerta:focus { color: #a8bccf; }
+
+/* En una pantalla baja —una tableta apaisada en la pared— las teclas de 5rem
+ * no caben con todo lo demás. Se recortan antes que quitar nada: la altura de
+ * la tecla es lo que sobra, el mensaje de error no. */
+@media (max-height: 640px) {
+  .pin-titulo { margin-bottom: .75rem; font-size: 1.2rem; }
+  .pin-pantalla { font-size: 2rem; margin-bottom: .6rem; }
+  .pin-tecla { min-height: 3.25rem; font-size: 1.5rem; }
+  .pin-otra-puerta { margin-top: .75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-tecla { transition: none; }
+  .pin-tecla:active { transform: none; }
+}
+
+/* --------------------------------------------- el botón de salir, en «Mi trabajo» */
+
+/* Sale sólo cuando se entró por el teclado. En la PC de oficina no hace falta:
+ * ahí la sesión es de una persona y de un sitio. */
+.mov-salir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  width: 100%;
+  min-height: 3.5rem;
+  margin: 1.25rem 0 .5rem;
+  border: 1px solid var(--mes-hairline, #dde3ea);
+  border-radius: .75rem;
+  background: #fff;
+  color: var(--acero-700, #26313f);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.mov-salir:active { background: var(--acero-050, #f2f5f8); }
+
+.mov-salir-nota {
+  margin: 0 0 1rem;
+  color: var(--argon-muted, #5b6b7f);
+  font-size: .85rem;
+  text-align: center;
+}

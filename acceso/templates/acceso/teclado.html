@@ -1,0 +1,66 @@
+{% extends "produccion/base.html" %}
+{% load static %}
+{% block title %}Teclea tu PIN{% endblock %}
+
+{# Sin barra de navegación: quien está delante todavía no es nadie. #}
+{% block navbar %}{% endblock %}
+
+{% block content %}
+<div class="pin">
+  <div class="pin-caja">
+
+    <div class="pin-marca">Taller Elemetic</div>
+    <h1 class="pin-titulo">Teclea tu PIN</h1>
+
+    {% if error %}
+      <p class="pin-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    {% comment %}
+      `data-espera` son los segundos que faltan del castigo por intentos
+      fallidos. El JavaScript apaga las teclas mientras corre y las enciende
+      al llegar a cero, para que nadie siga tecleando contra una pantalla que
+      no le va a contestar.
+    {% endcomment %}
+    <form method="post" action="{% url 'acceso:entrar' %}" class="pin-form" novalidate
+          data-espera="{{ segundos_de_espera }}">
+      {% csrf_token %}
+
+      {% comment %}
+        El campo es la pantalla. Sin JavaScript se teclea aquí directamente con
+        el teclado numérico del aparato y se envía con el botón de abajo; con
+        JavaScript se pone en sólo lectura —para que no salte el teclado del
+        sistema encima de las teclas grandes— y lo llenan las teclas.
+      {% endcomment %}
+      <input class="pin-pantalla js-pin-campo"
+             type="password"
+             name="pin"
+             inputmode="numeric"
+             autocomplete="off"
+             maxlength="{{ largo }}"
+             aria-label="PIN de {{ largo }} dígitos"
+             autofocus>
+
+      <div class="pin-teclas">
+        {% for n in "123456789"|make_list %}
+          <button type="button" class="pin-tecla js-pin-tecla" data-digito="{{ n }}">{{ n }}</button>
+        {% endfor %}
+        <button type="button" class="pin-tecla pin-tecla-borrar js-pin-borrar" aria-label="Borrar">
+          <i class="bi bi-backspace"></i>
+        </button>
+        <button type="button" class="pin-tecla js-pin-tecla" data-digito="0">0</button>
+        <button type="submit" class="pin-tecla pin-tecla-entrar" aria-label="Entrar">
+          <i class="bi bi-arrow-right-circle-fill"></i>
+        </button>
+      </div>
+    </form>
+
+    <a class="pin-otra-puerta" href="{% url 'login' %}">
+      Entrar con usuario y contraseña
+    </a>
+  </div>
+</div>
+
+<link href="{% static 'css/acceso.css' %}" rel="stylesheet">
+<script src="{% static 'js/acceso.js' %}"></script>
+{% endblock %}

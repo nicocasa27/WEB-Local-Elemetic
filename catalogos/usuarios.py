@@ -25,6 +25,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from acceso import servicios as pines
 from catalogos.models import Colaborador
 from catalogos.management.commands.crear_admin import (
     CONTRASENA_DE_FABRICA,
@@ -58,7 +59,24 @@ class UsuarioForm(forms.ModelForm):
         label="Qué puede hacer",
         choices=[],
         required=False,
-        widget=forms.CheckboxSelectMultiple,
+        # `form` engancha cada casilla al formulario de la cuenta aunque en la
+        # pantalla estén en otra columna. Sin esto quedaban dentro de un
+        # segundo `<form>` sin botón: al guardar no llegaba ninguna, y
+        # `_aplicar_grupos` le quitaba **todos** los permisos a la persona sin
+        # decir nada. El síntoma aparecía al día siguiente, cuando esa cuenta
+        # entraba y no veía nada, y no se parecía en nada a su causa.
+        widget=forms.CheckboxSelectMultiple(attrs={"form": "form-cuenta"}),
+    )
+    pin = forms.CharField(
+        label="PIN de la tableta",
+        required=False,
+        max_length=pines.LARGO,
+        help_text=(
+            f"{pines.LARGO} dígitos con los que entra desde la tableta del "
+            "piso, sin teclear usuario ni contraseña. Sólo para el piso: las "
+            "cuentas que administran entran con contraseña. Déjalo vacío para "
+            "quitárselo."
+        ),
     )
     colaborador = forms.ModelChoiceField(
         label="Ficha de la persona",
@@ -99,10 +117,20 @@ class UsuarioForm(forms.ModelForm):
         self.fields["is_active"].widget.attrs.setdefault("class", "form-check-input")
         self.fields["is_active"].widget.attrs.setdefault("id", "campo-is_active")
 
+        # El teclado numérico del celular en vez del alfabético, y sin que el
+        # navegador se ofrezca a recordarlo: el PIN lo pone quien administra,
+        # en un equipo que no es el de su dueño.
+        self.fields["pin"].widget.attrs.update({
+            "inputmode": "numeric",
+            "autocomplete": "off",
+            "placeholder": "· · · ·",
+        })
+
         if self.instance.pk:
             self.fields["grupos"].initial = list(
                 self.instance.groups.values_list("name", flat=True)
             )
+            self.fields["pin"].initial = pines.de(self.instance)
             enlazado = (
                 Colaborador.objects.using(BASE)
                 .filter(usuario=self.instance.username)
@@ -158,6 +186,41 @@ def _guardar_enlace(usuario, colaborador):
         colaborador.save(using=BASE, update_fields=["usuario"])
 
 
+def _guardar_pin(request, usuario, tecleado):
+    """Pone, cambia o quita el PIN de la tableta.
+
+    Va **después** de aplicar los grupos, y el orden importa: quién puede tener
+    PIN depende del rol, y el rol se elige en este mismo formulario. Al revés,
+    darle de alta a un soldador con su PIN en un solo paso fallaría siempre,
+    porque en el momento de comprobarlo la cuenta todavía no sería de nadie.
+
+    Si el PIN falla, el resto de la cuenta ya quedó guardado y se dice qué pasó.
+    Perder el alta entera por un PIN repetido sería peor: lo importante de la
+    pantalla es la cuenta, y el PIN se arregla en diez segundos.
+    """
+    tecleado = pines.normalizar(tecleado)
+    anterior = pines.de(usuario)
+
+    if not tecleado:
+        if anterior:
+            pines.quitar(usuario)
+            messages.info(
+                request,
+                f"{usuario.get_username()} se queda sin PIN: ya no puede entrar "
+                "desde la tableta.",
+            )
+        return
+
+    if tecleado == anterior:
+        return
+
+    _, error = pines.asignar(usuario, tecleado, quien=request.user.get_username())
+    if error:
+        messages.error(request, f"El PIN no se guardó. {error}")
+    else:
+        messages.success(request, f"PIN {tecleado} para {usuario.get_username()}.")
+
+
 def _aplicar_grupos(usuario, claves):
     """Pone los roles marcados, creando los que falten en la base.
 
@@ -189,14 +252,28 @@ def lista(request):
         for c in Colaborador.objects.using(BASE).exclude(usuario="")
     }
 
+    # Los PINes, de una vez. Se enseñan a la vista: quien administra tiene que
+    # poder contestar «se me olvidó el mío» sin resetear nada, y el PIN no es un
+    # secreto (ver acceso/models.py). Sólo lo ve quien administra usuarios,
+    # que es quien lo pone.
+    from acceso.models import Pin
+
+    pin_de = dict(Pin.objects.values_list("usuario__username", "digitos"))
+
     filas = []
+    sin_pin = 0
     for cuenta in cuentas:
         grupos = list(cuenta.groups.values_list("name", flat=True))
+        de_piso = bool(set(grupos) & roles.DE_PISO)
+        pin = pin_de.get(cuenta.username, "")
+        if de_piso and cuenta.is_active and not pin:
+            sin_pin += 1
         filas.append({
             "cuenta": cuenta,
             "papeles": [roles.por_clave(g) or {"nombre": g} for g in grupos],
             "colaborador": enlaces.get(cuenta.username),
-            "es_de_piso": bool(set(grupos) & roles.DE_PISO),
+            "es_de_piso": de_piso,
+            "pin": pin,
             "administra": bool(set(grupos) & roles.QUE_ADMINISTRAN) or cuenta.is_superuser,
         })
 
@@ -209,6 +286,7 @@ def lista(request):
     return render(request, "catalogos/usuarios.html", {
         "filas": filas,
         "sin_cuenta": sin_cuenta,
+        "sin_pin": sin_pin,
         "roles": roles.ROLES,
         "aviso_contrasena": usa_la_de_fabrica(),
         "usuario_admin": USUARIO_ADMIN,
@@ -229,10 +307,14 @@ def crear(request):
             usuario.save()
             _aplicar_grupos(usuario, form.cleaned_data["grupos"])
             _guardar_enlace(usuario, form.cleaned_data["colaborador"])
+            _guardar_pin(request, usuario, form.cleaned_data["pin"])
             messages.success(request, f"Cuenta de {usuario.username} creada.")
             return redirect("catalogos:usuarios")
     else:
-        form = UsuarioForm(initial={"is_active": True})
+        # Con un PIN libre ya propuesto. «¿Cuál le pongo?» es la pregunta que
+        # detiene el alta, y es una que el sistema puede contestar solo: sabe
+        # cuáles están tomados. Quien prefiera otro lo escribe encima.
+        form = UsuarioForm(initial={"is_active": True, "pin": pines.libre()})
         clave = ContrasenaForm()
 
     return render(request, "catalogos/usuario_editar.html", {
@@ -254,6 +336,7 @@ def editar(request, pk: int):
             form.save()
             _aplicar_grupos(usuario, form.cleaned_data["grupos"])
             _guardar_enlace(usuario, form.cleaned_data["colaborador"])
+            _guardar_pin(request, usuario, form.cleaned_data["pin"])
             messages.success(request, f"Cuenta de {usuario.username} actualizada.")
             return redirect("catalogos:usuarios")
     else:

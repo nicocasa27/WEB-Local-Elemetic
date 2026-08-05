@@ -48,6 +48,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import render
 
+from acceso.servicios import minutos_de_inactividad as minutos_de_pin
 from core import estados
 from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio_ruta
@@ -620,5 +621,10 @@ def mi_trabajo(request):
             "motivos_de_paro": list(
                 MaquinaParoMotivo.objects.using(BASE).filter(activo=True).order_by("nombre")
             ),
+            # Para decir en la pantalla a los cuántos minutos se cierra sola la
+            # sesión de la tableta. Se lee de la configuración y no se escribe
+            # a mano en la plantilla: si un día se cambia el plazo y el texto
+            # sigue diciendo quince, la pantalla miente.
+            "minutos_de_pin": minutos_de_pin(),
         },
     )

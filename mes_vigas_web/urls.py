@@ -21,6 +21,8 @@ from mes_vigas_web.media_views import servir_media
 
 urlpatterns = [
     path('accounts/', include('django.contrib.auth.urls')),
+    # El teclado de la tableta del piso: cuatro dígitos y a trabajar.
+    path('pin/', include('acceso.urls')),
     path('', include('produccion.urls')),
     path('catalogos/', include('catalogos.urls')),
     path('configuracion/', include('nucleo.urls')),

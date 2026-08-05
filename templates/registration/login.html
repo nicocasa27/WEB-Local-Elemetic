@@ -48,6 +48,19 @@
             </button>
           </div>
         </form>
+
+        {% comment %}
+          La otra puerta. Quien trabaja en el piso no teclea un usuario y una
+          contraseña de ocho caracteres con guantes: entra con cuatro dígitos.
+          Se dice aquí porque ésta es la pantalla a la que llega cualquiera que
+          abra el sistema sin sesión, incluida la tableta de la nave.
+        {% endcomment %}
+        <div class="text-center mt-3 pt-3 border-top">
+          <a class="btn btn-outline-secondary w-100" href="{% url 'acceso:teclado' %}">
+            <i class="bi bi-123 me-1"></i> Entrar con PIN
+          </a>
+          <div class="text-muted small mt-2">Para el piso. Cuatro dígitos.</div>
+        </div>
       </div>
     </div>
   </div>

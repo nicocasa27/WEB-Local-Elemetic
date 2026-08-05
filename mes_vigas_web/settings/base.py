@@ -38,6 +38,9 @@ INSTALLED_APPS = [
     "nucleo",
     "inventario",
     "costeo",
+    # Entrar con cuatro dígitos desde la tableta del piso. Va en la base
+    # `default`, junto a `auth`, porque apunta a `User` con una clave foránea.
+    "acceso",
 ]
 
 MIDDLEWARE = [
@@ -51,6 +54,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "mes_vigas_web.middleware.NoStoreAuthenticatedMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # Cierra sola la sesión de la tableta del piso tras un rato sin usarse.
+    # Va después de la de mensajes porque avisa con un mensaje.
+    "acceso.middleware.CierreDePinPorInactividad",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

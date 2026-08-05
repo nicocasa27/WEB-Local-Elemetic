@@ -16,7 +16,12 @@
 
   <div class="row g-3">
     <div class="col-lg-7">
-      <form method="post" class="card">
+      {% comment %}
+        El `id` no es decorativo: las casillas de «Qué puede hacer» están en la
+        otra columna y se enganchan a este formulario por él. Ver el comentario
+        de allá.
+      {% endcomment %}
+      <form method="post" class="card" id="form-cuenta">
         {% csrf_token %}
         <div class="card-header fw-semibold">Datos de la cuenta</div>
         <div class="card-body vstack gap-3">
@@ -76,14 +81,25 @@
     </div>
 
     <div class="col-lg-5">
-      <form method="post" class="card">
-        {% csrf_token %}
+      <div class="card">
         <div class="card-header fw-semibold">Qué puede hacer</div>
         <div class="card-body">
           {% comment %}
             Los permisos van con su explicación al lado. Antes esto se hacía en
             el admin de Django, eligiendo entre once grupos con nombre técnico
             —«corte_laser_supervision»— sin ninguna pista de qué abría cada uno.
+
+            Cada casilla lleva `form="form-cuenta"`, que es lo que la mete en el
+            formulario de la izquierda aunque esté en otra columna. Sin eso —y
+            así estaba— las casillas quedaban en un formulario aparte y sin
+            botón: al guardar, el servidor no recibía ninguna y le quitaba
+            **todos** los permisos a la persona. Sin error y sin aviso; el único
+            síntoma era que al día siguiente esa cuenta entraba y no veía nada.
+
+            La otra salida sería mover la tarjeta dentro del `<form>`, pero eso
+            obliga a poner las dos columnas en el mismo elemento y deshace la
+            rejilla. El atributo `form` es HTML de siempre y lo entienden todos
+            los navegadores.
           {% endcomment %}
           {% for opcion in form.grupos %}
             <div class="form-check mb-2">
@@ -102,7 +118,7 @@
             Se guardan con el botón de la izquierda, junto con el resto.
           </div>
         </div>
-      </form>
+      </div>
 
       {% if not es_nuevo %}
         <form method="post" action="{% url 'catalogos:usuario_contrasena' usuario.pk %}" class="card mt-3">

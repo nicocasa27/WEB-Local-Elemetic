@@ -46,6 +46,20 @@
     </div>
   {% endif %}
 
+  {% if sin_pin %}
+    <div class="alert alert-info d-flex gap-2 align-items-start">
+      <i class="bi bi-123 fs-5"></i>
+      <div>
+        <strong>{{ sin_pin }} cuenta{{ sin_pin|pluralize:"s" }} del piso sin PIN.</strong>
+        <div class="small mt-1">
+          Sin PIN tienen que teclear usuario y contraseña en la tableta de la
+          nave, con guantes. Se pone al editar la cuenta; el sistema propone uno
+          libre.
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <div class="card">
     <div class="mes-barra-contexto">
       <span class="mes-conteo">
@@ -59,6 +73,14 @@
           <tr>
             <th>Usuario</th>
             <th>Nombre</th>
+            {% comment %}
+              El PIN se enseña a la vista. No es un secreto —ver
+              acceso/models.py— y la pregunta que llega de verdad es «se me
+              olvidó el mío». Si estuviera escondido habría que ponerle uno
+              nuevo cada vez, y a mitad de turno eso es dejar a alguien fuera.
+              Esta pantalla ya la ve sólo quien administra usuarios.
+            {% endcomment %}
+            <th>PIN</th>
             <th>Ficha del taller</th>
             <th>Qué puede hacer</th>
             <th class="text-end">Acciones</th>
@@ -77,6 +99,17 @@
                 {% endif %}
               </td>
               <td>{{ fila.cuenta.get_full_name|default:"—" }}</td>
+              <td>
+                {% if fila.pin %}
+                  <span class="mes-dato fw-semibold">{{ fila.pin }}</span>
+                {% elif fila.es_de_piso and fila.cuenta.is_active %}
+                  <span class="text-warning" title="Tiene que teclear usuario y contraseña">
+                    <i class="bi bi-exclamation-triangle"></i>
+                  </span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
               <td>
                 {% if fila.colaborador %}
                   {{ fila.colaborador.nombre }}
