@@ -6217,6 +6217,29 @@ def corte_laser_change_status_json(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
+
+    # Una orden de Corta de una sola pieza da de alta su existencia al
+    # terminarse, igual que la de Herrería.
+    #
+    # Sin esto la orden quedaba colgada para siempre: terminada, sin
+    # existencia, y por tanto imposible de apartar y de enviar. Herrería hacía
+    # exactamente esto desde el principio; a Corta se le olvidó. No es una
+    # decisión de negocio distinta entre las dos líneas, es la mitad de un
+    # arreglo que se hizo de un lado y no del otro — que es de lo que vive
+    # este sistema.
+    #
+    # Las órdenes de varias piezas no pasan por aquí: ésas se llevan por
+    # contadores y dan de alta su existencia al cerrarse.
+    if (
+        int(getattr(orden, "total_piezas", 0) or 0) < 2
+        and estado_prev != CIERRE_FINAL_LABEL
+        and estado_nuevo == CIERRE_FINAL_LABEL
+    ):
+        producto = _corta_producto_from_orden(orden)
+        cantidad = max(0, int(getattr(orden, "total_piezas", 0) or 0))
+        if producto and cantidad > 0:
+            servicio_almacen.registrar_entrada_corta(producto, cantidad, actor, orden=orden)
+
     LaserEstadoCambio.objects.create(
         orden=orden,
         estado_anterior=estado_prev,

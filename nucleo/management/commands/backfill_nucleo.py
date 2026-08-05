@@ -281,11 +281,26 @@ class Command(BaseCommand):
     # ------------------------------------------------------------ catálogo
 
     def _volcar_piezas(self, linea, modelo, etiqueta, con_archivos=False):
+        """Vuelca un catálogo de piezas, adoptando lo que ya esté puesto.
+
+        La búsqueda es por el enlace al legado, y si no lo encuentra, **por el
+        nombre dentro de la línea**. Esa segunda pasada es lo que faltaba: en
+        el núcleo puede haber piezas que nadie volcó —las que sembró la
+        configuración, o las que alguien dio de alta a mano en la pantalla— y
+        que no llevan enlace. Sin adoptarlas, el volcado intentaba insertar
+        una segunda pieza con el mismo nombre y moría contra
+        `pieza_unica_por_linea`, con un mensaje que no explicaba nada.
+
+        Adoptar significa ponerle el enlace a la que ya existe, no crear otra.
+        Duplicar el catálogo sería peor que fallar: las órdenes quedarían
+        repartidas entre dos piezas que son la misma.
+        """
         for fila in modelo.objects.using(BASE).all():
+            nombre_normalizado = (fila.nombre or "").upper()
             defaults = {
                 "linea": linea,
                 "nombre": fila.nombre,
-                "nombre_normalizado": (fila.nombre or "").upper(),
+                "nombre_normalizado": nombre_normalizado,
                 "activo": fila.activo,
             }
             if con_archivos:
@@ -293,10 +308,33 @@ class Command(BaseCommand):
                 defaults["dxf"] = fila.dxf
             else:
                 defaults["peso_kg"] = a_decimal(getattr(fila, "peso_kg", 0))
-            _, creada = PiezaCatalogo.objects.using(BASE).update_or_create(
-                legacy_modelo=etiqueta, legacy_id=fila.pk, defaults=defaults
+
+            pieza = (
+                PiezaCatalogo.objects.using(BASE)
+                .filter(legacy_modelo=etiqueta, legacy_id=fila.pk)
+                .first()
             )
-            self._contar("piezas", int(creada))
+            if pieza is None:
+                pieza = (
+                    PiezaCatalogo.objects.using(BASE)
+                    .filter(linea=linea, nombre_normalizado=nombre_normalizado)
+                    .first()
+                )
+                if pieza is not None:
+                    pieza.legacy_modelo = etiqueta
+                    pieza.legacy_id = fila.pk
+
+            if pieza is None:
+                PiezaCatalogo.objects.using(BASE).create(
+                    legacy_modelo=etiqueta, legacy_id=fila.pk, **defaults
+                )
+                self._contar("piezas", 1)
+                continue
+
+            for campo, valor in defaults.items():
+                setattr(pieza, campo, valor)
+            pieza.save(using=BASE)
+            self._contar("piezas", 0)
 
     def _pieza_de(self, etiqueta, legacy_id):
         if not legacy_id:

@@ -152,6 +152,65 @@ Mientras la tarea no esté configurada, la pantalla de control sigue
 consolidando los cierres al cargarse, igual que antes: no se rompe nada por
 no hacerlo, sólo se mantiene el retraso.
 
+## Motor unificado: encenderlo por primera vez
+
+Las cuatro líneas —vigas, herrería, corta y robótica— son hoy la misma máquina
+de estados copiada cuatro veces, cada una con su tabla. El motor unificado es
+una sola, y encima de ella funcionan cosas que en lo heredado no se pueden
+arreglar: revertir un cierre deshace también la entrada en almacén y anula el
+acuse, dos avances iguales no cuentan doble, y no se puede declarar terminado
+lo que nunca se soldó.
+
+El cambio no es de golpe. Son cuatro cambios pequeños, uno por línea, y cada
+uno se deshace poniendo una variable de vuelta y reiniciando. **En ningún paso
+se toca ni se borra una fila de las tablas de siempre.**
+
+### Una vez, en este orden
+
+```bat
+.venv\Scripts\python.exe manage.py sembrar_nucleo
+.venv\Scripts\python.exe manage.py backfill_nucleo --simular
+.venv\Scripts\python.exe manage.py backfill_nucleo
+.venv\Scripts\python.exe manage.py verificar_backfill
+```
+
+`backfill_nucleo` **sólo lee** lo heredado, y se puede repetir tantas veces
+como haga falta: reconoce lo que ya volcó. `verificar_backfill` tiene que
+terminar con «Sin diferencias»; compara órdenes, kilos y el reparto por etapa
+de los dos lados. **Si no sale limpio, no seguir**: significa que hay datos que
+no sabíamos que existían.
+
+Es normal que informe de movimientos «sin historial que reconstruir». El
+sistema heredado lleva el avance por contadores y no guardó el paso a paso, así
+que esos quedan como un ajuste declarado, marcado como tal. Inventarles una
+fecha sería más cómodo y destruiría lo único que da valor al historial.
+
+### Después: escritura doble
+
+En `.env`, poner las cuatro en `doble` y reiniciar. Las pantallas siguen
+escribiendo donde siempre y además en el núcleo, en la misma transacción. La
+verdad sigue estando en lo heredado, así que si el núcleo se equivoca no pasa
+nada todavía.
+
+Programar cada noche:
+
+```bat
+.venv\Scripts\python.exe manage.py reconciliar_nucleo
+```
+
+Compara los dos lados campo por campo y anota lo que no cuadre. Mientras
+imprima «Sin divergencias», el núcleo está diciendo lo mismo.
+
+### El corte, más adelante
+
+Pasar una línea a `corte` **sólo tras siete días seguidos sin divergencias**, y
+de una en una, de menos a más riesgo: robótica → corta → herrería → vigas. Ese
+plazo es lo que convierte la migración en algo aburrido en vez de heroico.
+
+Si algo va mal, se pone `doble` otra vez y se reinicia. Se vuelve al estado
+anterior sin perder nada, porque durante el corte se sigue escribiendo también
+en lo heredado.
+
 ## Registro de actividad
 
 Los registros van a `logs/`, con rotación a los 10 MB y cinco archivos de

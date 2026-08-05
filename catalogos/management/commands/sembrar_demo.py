@@ -295,6 +295,7 @@ class Command(BaseCommand):
         self._reservas(materiales)
         self._cuadrillas(equipos, personal)
         self._apuntes_de_trabajo()
+        self._asignaciones(personal)
         self._producto_terminado()
         self._paros()
 
@@ -862,6 +863,59 @@ class Command(BaseCommand):
                     integrantes += 1
             dia -= timedelta(days=1)
         self.stdout.write(f"  {armadas} cuadrillas · {integrantes} participaciones")
+
+    #: Qué área hace cada etapa y con qué papel se apunta a la gente.
+    AREA_DE_ETAPA = {
+        est.CORTE: ("Corte", "Operador"),
+        est.ARMADO: ("Soldadura", "Soldador"),
+        est.SOLDADURA: ("Soldadura", "Soldador"),
+        est.PINTURA: ("Pintura", "Pintor"),
+    }
+
+    def _asignaciones(self, personal):
+        """Quién está trabajando ahora mismo en cada pieza en curso.
+
+        Sin esto, las tres tablas de «Detalle por persona» del tablero salen
+        vacías, y una tabla vacía se lee como «nadie hizo nada» en vez de
+        «esto no se sembró». Es el mismo problema que ya tenían trazabilidad y
+        «Por surtir».
+
+        Se asigna entre una y tres personas del área que corresponde, para que
+        se vea que **el peso se reparte**: tres personas en una viga de cien
+        kilos son treinta y tres kilos cada una, no cien cada una. Con una
+        sola persona por pieza ese reparto no se distinguiría de no hacerlo.
+        """
+        from catalogos.models import VigaAsignacion
+        from produccion.models import Viga
+
+        por_area = {}
+        for colaborador in personal:
+            por_area.setdefault(colaborador.equipo.area, []).append(colaborador)
+
+        hechas = 0
+        piezas = Viga.objects.using(BASE).filter(
+            estado__in=[est.CORTE, est.ARMADO, est.SOLDADURA, est.PINTURA]
+        )
+        for pieza in piezas:
+            area, papel = self.AREA_DE_ETAPA[est.normalizar(pieza.estado)]
+            candidatos = [c for c in por_area.get(area, []) if c.rol == papel]
+            if not candidatos:
+                candidatos = por_area.get(area, [])
+            if not candidatos:
+                continue
+            cuantos = min(len(candidatos), self.azar.randint(1, 3))
+            for colaborador in self.azar.sample(candidatos, cuantos):
+                VigaAsignacion.objects.using(BASE).create(
+                    viga_internal_id=pieza.internal_id,
+                    etapa=est.normalizar(pieza.estado),
+                    rol=colaborador.rol,
+                    colaborador=colaborador,
+                    vigente=True,
+                    asignado_por="sembrar_demo",
+                )
+                hechas += 1
+
+        self.stdout.write(f"  {hechas} asignaciones sobre las piezas en curso")
 
     def _apuntes_de_trabajo(self):
         """Con qué equipo y con qué cuadrilla se hizo cada avance.

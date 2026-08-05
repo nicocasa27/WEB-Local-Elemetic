@@ -213,16 +213,20 @@ class TestDefectosConocidos:
 
 
 class TestAlmacenDeCorta:
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "Una orden de Corta de una sola pieza nunca da de alta material en "
-            "almacén, mientras que la de herrería sí. La orden queda sin poder "
-            "apartarse ni enviarse: colgada para siempre. Pendiente de decidir con "
-            "el taller si esas piezas pasan por almacén o se entregan directas."
-        ),
-    )
-    def test_una_orden_de_corta_individual_deberia_generar_existencia(self, cliente_como):
+    """Una orden de Corta de una pieza sí da de alta existencia.
+
+    Durante mucho tiempo no lo hacía, mientras que la de Herrería sí: la orden
+    terminaba y quedaba colgada para siempre, sin existencia que apartar ni
+    que enviar. Estuvo marcada como defecto conocido a la espera de decidir
+    con el taller si esas piezas pasan por almacén o se entregan directas.
+
+    No hacía falta decidir nada: **Herrería ya hacía lo uno**. La diferencia
+    no era una regla de negocio distinta entre las dos líneas, era la mitad de
+    un arreglo hecho de un lado y no del otro, que es de lo que vive este
+    sistema. Corta hace ahora lo mismo.
+    """
+
+    def test_una_orden_de_corta_individual_genera_existencia(self, cliente_como):
         from catalogos.models import LaserOrdenProduccion, LogisticaStockCorta
 
         cliente = cliente_como("admin")
@@ -240,13 +244,117 @@ class TestAlmacenDeCorta:
             estado_etapa=estados.PINTURA,
             estado="Abierta",
         )
-        cliente.post(
+        # El campo se llama `estado_nuevo`. Mientras la prueba mandaba
+        # `estado`, el servidor contestaba «Estado inválido» con un 400 y la
+        # prueba fallaba por la razón equivocada: parecía confirmar el defecto
+        # y en realidad no llegaba a probarlo.
+        respuesta = cliente.post(
             reverse("catalogos:corte_laser_change_status_json", args=[orden.id]),
-            {"estado": estados.TERMINADO, "fecha_operacion": timezone.localdate().isoformat()},
+            {
+                "estado_nuevo": estados.TERMINADO,
+                "fecha_operacion": timezone.localdate().isoformat(),
+            },
         )
+
+        assert respuesta.status_code == 200, respuesta.content
         assert LogisticaStockCorta.objects.filter(stock__gt=0).exists(), (
             "la orden terminó pero no hay existencia que apartar ni enviar"
         )
+
+    def test_y_queda_el_movimiento_que_lo_explica(self, cliente_como):
+        """Existencia sin movimiento detrás es un número que nadie puede
+        comprobar. `auditar_stock` la reportaría como descuadre."""
+        from catalogos.models import (
+            LaserOrdenProduccion,
+            LogisticaMovimientoCorta,
+        )
+
+        cliente = cliente_como("admin")
+        orden = LaserOrdenProduccion.objects.create(
+            codigo="L-90002",
+            pieza_no=1,
+            total_piezas=1,
+            cantidad_objetivo=1,
+            nombre="pieza suelta",
+            descripcion="Tapa registro",
+            fecha_compromiso=timezone.localdate(),
+            prioridad=3,
+            peso_kg=5.0,
+            ultimo_cambio=timezone.now(),
+            estado_etapa=estados.PINTURA,
+            estado="Abierta",
+        )
+        cliente.post(
+            reverse("catalogos:corte_laser_change_status_json", args=[orden.id]),
+            {
+                "estado_nuevo": estados.TERMINADO,
+                "fecha_operacion": timezone.localdate().isoformat(),
+            },
+        )
+
+        movimientos = LogisticaMovimientoCorta.objects.filter(orden=orden)
+        assert movimientos.count() == 1
+        assert movimientos.first().cantidad == 1
+
+    def test_terminarla_dos_veces_no_da_de_alta_el_doble(self, cliente_como):
+        """Pasa cuando alguien corrige un movimiento o el celular reintenta."""
+        from catalogos.models import LaserOrdenProduccion, LogisticaStockCorta
+
+        cliente = cliente_como("admin")
+        orden = LaserOrdenProduccion.objects.create(
+            codigo="L-90003",
+            pieza_no=1,
+            total_piezas=1,
+            cantidad_objetivo=1,
+            nombre="pieza suelta",
+            descripcion="Tapa registro",
+            fecha_compromiso=timezone.localdate(),
+            prioridad=3,
+            peso_kg=5.0,
+            ultimo_cambio=timezone.now(),
+            estado_etapa=estados.PINTURA,
+            estado="Abierta",
+        )
+        datos = {
+            "estado_nuevo": estados.TERMINADO,
+            "fecha_operacion": timezone.localdate().isoformat(),
+        }
+        ruta = reverse("catalogos:corte_laser_change_status_json", args=[orden.id])
+
+        cliente.post(ruta, datos)
+        cliente.post(ruta, datos)
+
+        assert LogisticaStockCorta.objects.get(producto_normalizado="TAPA REGISTRO").stock == 1
+
+    def test_una_orden_de_varias_piezas_no_pasa_por_aqui(self, cliente_como):
+        """Ésas se llevan por contadores y dan de alta su existencia al
+        cerrarse. Darla de alta también aquí la contaría dos veces."""
+        from catalogos.models import LaserOrdenProduccion, LogisticaStockCorta
+
+        cliente = cliente_como("admin")
+        orden = LaserOrdenProduccion.objects.create(
+            codigo="L-90004",
+            pieza_no=1,
+            total_piezas=8,
+            cantidad_objetivo=8,
+            nombre="lote",
+            descripcion="Placa base 250 x 250",
+            fecha_compromiso=timezone.localdate(),
+            prioridad=3,
+            peso_kg=40.0,
+            ultimo_cambio=timezone.now(),
+            estado_etapa=estados.CORTE,
+            estado="Abierta",
+        )
+        cliente.post(
+            reverse("catalogos:corte_laser_change_status_json", args=[orden.id]),
+            {
+                "estado_nuevo": estados.SOLDADURA,
+                "fecha_operacion": timezone.localdate().isoformat(),
+            },
+        )
+
+        assert not LogisticaStockCorta.objects.filter(stock__gt=0).exists()
 
 
 class TestApartarYEnviarPorLaPantalla:

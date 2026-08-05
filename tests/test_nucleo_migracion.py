@@ -22,6 +22,7 @@ from nucleo.models import (
     EventoProduccion,
     LineaNegocio,
     OrdenProduccion,
+    PiezaCatalogo,
     TransicionPermitida,
 )
 
@@ -128,6 +129,56 @@ class TestVolcado:
             .count()
             == 1
         )
+
+    def test_adopta_una_pieza_de_catalogo_que_ya_estaba_puesta(self):
+        """El volcado se caía con «clave duplicada» sobre una base normal.
+
+        En el núcleo puede haber piezas de catálogo que nadie volcó: las que
+        siembra la configuración inicial, o las que alguien dio de alta a mano
+        en la pantalla. No llevan enlace al legado, así que el volcado no las
+        encontraba, intentaba insertar una segunda con el mismo nombre y moría
+        contra `pieza_unica_por_linea` con un mensaje que no explicaba nada.
+
+        Adoptar es ponerle el enlace a la que ya existe. Crear otra sería
+        peor que fallar: las órdenes quedarían repartidas entre dos piezas que
+        son la misma.
+        """
+        heredada = HerrPiezaCatalogo.objects.create(
+            nombre="Barandal tipo A", nombre_normalizado="BARANDAL TIPO A", peso_kg=45.2
+        )
+        sembrar()
+        linea = LineaNegocio.objects.using("mes").get(codigo="herreria")
+        suelta = PiezaCatalogo.objects.using("mes").create(
+            linea=linea, nombre="Barandal tipo A", nombre_normalizado="BARANDAL TIPO A"
+        )
+
+        call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
+
+        piezas = PiezaCatalogo.objects.using("mes").filter(
+            linea=linea, nombre_normalizado="BARANDAL TIPO A"
+        )
+        assert piezas.count() == 1, "duplicó el catálogo en vez de adoptarlo"
+        adoptada = piezas.get()
+        assert adoptada.pk == suelta.pk
+        assert adoptada.legacy_modelo == "HerrPiezaCatalogo"
+        assert adoptada.legacy_id == heredada.pk
+
+    def test_y_le_pone_los_datos_del_legado(self):
+        """Adoptar no es sólo enlazar: el peso viene del catálogo heredado,
+        que es el que la gente mantiene."""
+        HerrPiezaCatalogo.objects.create(
+            nombre="Ancla J de 3/4", nombre_normalizado="ANCLA J DE 3/4", peso_kg=2.4
+        )
+        sembrar()
+        linea = LineaNegocio.objects.using("mes").get(codigo="herreria")
+        PiezaCatalogo.objects.using("mes").create(
+            linea=linea, nombre="Ancla J de 3/4", nombre_normalizado="ANCLA J DE 3/4"
+        )
+
+        call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
+
+        pieza = PiezaCatalogo.objects.using("mes").get(nombre_normalizado="ANCLA J DE 3/4")
+        assert float(pieza.peso_kg) == pytest.approx(2.4)
 
     def test_no_toca_las_tablas_heredadas(self):
         heredada = orden_heredada()

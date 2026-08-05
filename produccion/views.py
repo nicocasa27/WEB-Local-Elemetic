@@ -306,7 +306,7 @@ def _inline_html_assets(html: str) -> str:
 
 def _dashboard_quien_detalle_payload(colab_id: int, etapa: str) -> dict:
     etapa = (etapa or "").strip()
-    if etapa not in {"Corte", "Soldadura", "Pintura"}:
+    if etapa not in {"Corte", "Armado", "Soldadura", "Pintura"}:
         return {"ok": False, "error": "Etapa inválida."}
 
     viga_ids = list(
@@ -4135,10 +4135,19 @@ def dashboard(request):
 
     weekly_equipo_participacion = []
 
+    # Armado entraba a trabajar y no salía en ninguna tabla.
+    #
+    # Las tres consultas de «Detalle por persona» miraban Corte, Soldadura y
+    # Pintura, y Armado es una etapa como las otras: gente asignada, horas
+    # hechas y kilos movidos. Con los datos de hoy son 0.3 toneladas de
+    # trabajo que la pantalla atribuía a nadie, y nadie que mirara la tabla
+    # tenía forma de notar que faltaba una columna.
+    etapas_del_detalle = ["Corte", "Armado", "Soldadura", "Pintura"]
+
     agg = {}
 
     asigns_vig = list(
-        VigaAsignacion.objects.filter(vigente=True, etapa__in=["Corte", "Soldadura", "Pintura"], colaborador__isnull=False)
+        VigaAsignacion.objects.filter(vigente=True, etapa__in=etapas_del_detalle, colaborador__isnull=False)
         .values_list("viga_internal_id", "etapa", "colaborador_id")
     )
     asig_viga_ids = list(dict.fromkeys([int(a[0]) for a in asigns_vig if a and a[0]]))
@@ -4147,25 +4156,42 @@ def dashboard(request):
         .exclude(estado__in=["Enviado", "Terminado"])
         .values_list("internal_id", "peso_kg")
     )
+    # El peso se reparte entre quienes hicieron la etapa, no se le da entero a
+    # cada uno.
+    #
+    # Antes, tres personas que armaron una viga de cien kilos salían con cien
+    # kilos cada una: el tablero decía que el taller había producido
+    # trescientos. Robótica y Herrería, dos bloques más abajo, siempre lo
+    # repartieron; Estructuras no, así que las tres tablas de «Detalle por
+    # persona» de la misma pantalla no eran comparables entre sí.
+    #
+    # A partes iguales, que es lo único defendible sin medir el tiempo de cada
+    # quien. Cuando la línea corra sobre el motor unificado, la fracción será
+    # un campo de la asignación y se podrá poner a mano cuando no sea mitad y
+    # mitad.
+    por_pieza_etapa = {}
     for vid, etapa, cid in asigns_vig:
-        vid = int(vid)
-        cid = int(cid)
+        por_pieza_etapa.setdefault((int(vid), str(etapa)), set()).add(int(cid))
+
+    for (vid, etapa), cids in por_pieza_etapa.items():
         kg = wip_peso_map.get(vid)
-        if kg is None:
+        if kg is None or not cids:
             continue
-        key = (str(etapa), cid)
-        row = agg.get(key)
-        if not row:
-            row = {"items": set(), "kg": 0.0}
-            agg[key] = row
-        token = ("P", vid)
-        if token in row["items"]:
-            continue
-        row["items"].add(token)
-        row["kg"] += float(kg or 0.0)
+        parte = float(kg or 0.0) / float(len(cids))
+        for cid in cids:
+            key = (etapa, cid)
+            row = agg.get(key)
+            if not row:
+                row = {"items": set(), "kg": 0.0}
+                agg[key] = row
+            token = ("P", vid)
+            if token in row["items"]:
+                continue
+            row["items"].add(token)
+            row["kg"] += parte
 
     r_asigs = list(
-        RobotOrdenAsignacion.objects.filter(etapa__in=["Corte", "Soldadura", "Pintura"]).values_list("orden_id", "etapa", "colaborador_id")
+        RobotOrdenAsignacion.objects.filter(etapa__in=etapas_del_detalle).values_list("orden_id", "etapa", "colaborador_id")
     )
     r_ids = list(dict.fromkeys([int(a[0]) for a in r_asigs if a and a[0]]))
     if r_ids:
@@ -4212,12 +4238,12 @@ def dashboard(request):
                 row["kg"] += share
 
     h_asigs_old = list(
-        HerrOrdenAsignacion.objects.filter(etapa__in=["Corte", "Soldadura", "Pintura"]).values_list("orden_id", "etapa", "colaborador_id")
+        HerrOrdenAsignacion.objects.filter(etapa__in=etapas_del_detalle).values_list("orden_id", "etapa", "colaborador_id")
     )
     h_asigs_new = list(
         HerrAsignacion.objects.filter(
             vigente=True,
-            etapa__in=["Corte", "Soldadura", "Pintura"],
+            etapa__in=etapas_del_detalle,
             colaborador_id__isnull=False,
         ).values_list("orden_id", "etapa", "colaborador_id")
     )
@@ -4272,7 +4298,7 @@ def dashboard(request):
     colabs = Colaborador.objects.filter(id__in=colab_ids).select_related("equipo")
     colab_map = {c.id: c for c in colabs}
 
-    quien_hace_que = {"Corte": [], "Soldadura": [], "Pintura": []}
+    quien_hace_que = {etapa: [] for etapa in etapas_del_detalle}
     for (etapa, cid), row in agg.items():
         c = colab_map.get(cid)
         if not c:

@@ -442,103 +442,50 @@
       <span class="badge badge-soft">Asignaciones</span>
     </div>
     <div class="card-body">
+      {% comment %}
+        Una columna por etapa, en un bucle.
+
+        Estaban escritas tres veces, casi idénticas, y por eso Armado no
+        estaba: añadir una etapa significaba copiar treinta líneas y acordarse
+        de cambiar el nombre en los tres sitios donde aparece. La lista la
+        pone la vista, así que la pantalla no puede quedarse corta respecto a
+        lo que se calcula.
+      {% endcomment %}
       <div class="row g-3">
-        <div class="col-12 col-xl-4">
-          <div class="fw-semibold mb-2">Corte</div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Persona</th>
-                  <th>Equipo</th>
-                  <th class="text-end">Piezas</th>
-                  <th class="text-end">Ton</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for r in quien_hace_que.Corte %}
+        {% for etapa, filas in quien_hace_que.items %}
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="fw-semibold mb-2">{{ etapa }}</div>
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead>
                   <tr>
-                    <td>
-                      <div class="d-flex align-items-center justify-content-between gap-2">
-                        <div class="fw-semibold">{{ r.nombre }}</div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Corte">Ver</button>
-                      </div>
-                    </td>
-                    <td class="text-muted">{{ r.equipo }}</td>
-                    <td class="text-end">{{ r.piezas }}</td>
-                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                    <th>Persona</th>
+                    <th>Equipo</th>
+                    <th class="text-end">Piezas</th>
+                    <th class="text-end">Ton</th>
                   </tr>
-                {% empty %}
-                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for r in filas %}
+                    <tr>
+                      <td>
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                          <div class="fw-semibold">{{ r.nombre }}</div>
+                          <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="{{ etapa }}">Ver</button>
+                        </div>
+                      </td>
+                      <td class="text-muted">{{ r.equipo }}</td>
+                      <td class="text-end">{{ r.piezas }}</td>
+                      <td class="text-end">{{ r.ton|floatformat:3 }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="col-12 col-xl-4">
-          <div class="fw-semibold mb-2">Soldadura</div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Persona</th>
-                  <th>Equipo</th>
-                  <th class="text-end">Piezas</th>
-                  <th class="text-end">Ton</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for r in quien_hace_que.Soldadura %}
-                  <tr>
-                    <td>
-                      <div class="d-flex align-items-center justify-content-between gap-2">
-                        <div class="fw-semibold">{{ r.nombre }}</div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Soldadura">Ver</button>
-                      </div>
-                    </td>
-                    <td class="text-muted">{{ r.equipo }}</td>
-                    <td class="text-end">{{ r.piezas }}</td>
-                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
-                  </tr>
-                {% empty %}
-                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="col-12 col-xl-4">
-          <div class="fw-semibold mb-2">Pintura</div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Persona</th>
-                  <th>Equipo</th>
-                  <th class="text-end">Piezas</th>
-                  <th class="text-end">Ton</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for r in quien_hace_que.Pintura %}
-                  <tr>
-                    <td>
-                      <div class="d-flex align-items-center justify-content-between gap-2">
-                        <div class="fw-semibold">{{ r.nombre }}</div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary js-quien-detalle" data-colab="{{ r.colaborador_id }}" data-etapa="Pintura">Ver</button>
-                      </div>
-                    </td>
-                    <td class="text-muted">{{ r.equipo }}</td>
-                    <td class="text-end">{{ r.piezas }}</td>
-                    <td class="text-end">{{ r.ton|floatformat:3 }}</td>
-                  </tr>
-                {% empty %}
-                  <tr><td colspan="4" class="text-center text-muted py-4">Sin asignaciones.</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {% endfor %}
       </div>
     </div>
   </div>

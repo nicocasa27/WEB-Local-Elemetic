@@ -41,8 +41,9 @@ def produccion_de_herreria(desde: date, hasta: date):
     """Piezas terminadas y kilos por día, en el rango `[desde, hasta)`.
 
     Se cuentan las **terminadas**, que es lo que sale del taller. Contar
-    también soldadas y pintadas mediría la misma pieza tres veces: es el mismo
-    error de doble conteo que tiene el tablero en Estructuras.
+    también soldadas y pintadas mediría la misma pieza tres veces. Es la misma
+    regla que sigue `toneladas_terminadas` para Estructuras: una pieza cuenta
+    el día que se termina y no vuelve a contar nunca más.
 
     Se usa la diferencia entre el valor nuevo y el anterior, no el valor
     absoluto. Un cambio de 15 a 22 son siete piezas, no veintidós.
