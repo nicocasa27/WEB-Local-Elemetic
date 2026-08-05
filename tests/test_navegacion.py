@@ -66,7 +66,7 @@ class TestMigasDePan:
         barra no dice, que es en qué parte del área estás.
         """
         migas = navegacion(self.Peticion("herreria_ordenes"))["migas"]
-        assert [m["texto"] for m in migas] == ["Control de producción"]
+        assert [m["texto"] for m in migas] == ["Órdenes en serie"]
         assert migas[0]["url"] == reverse("catalogos:herreria_control")
 
     #: Las dos pantallas que el taller renombró. La barra lateral y las migas
@@ -82,7 +82,7 @@ class TestMigasDePan:
     #: portada de su sección, que son las que tienen que coincidir.
     RENOMBRADAS = [
         ("produccion:area_soldadura", "Herrería"),
-        ("catalogos:herreria_control", "Control de producción"),
+        ("catalogos:herreria_control", "Órdenes en serie"),
     ]
 
     @pytest.mark.parametrize("ruta,esperado", RENOMBRADAS)
@@ -115,6 +115,7 @@ class TestMigasDePan:
         produccion = next(g for g in grupos if g["titulo"] == "Producción")
 
         assert produccion["items"][0].nombre == "Control de producción"
+        assert produccion["items"][0].url == "produccion:control"
 
     def test_la_portada_de_un_area_no_se_repite_a_si_misma(self):
         """«Corte» encima de «Área Corte» es la misma palabra dos veces, dos

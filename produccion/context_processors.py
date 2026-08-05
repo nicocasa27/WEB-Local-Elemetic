@@ -80,7 +80,7 @@ INICIO_DE_SECCION = {
     "corte": ("Corte", "produccion:area_corte"),
     "soldadura": ("Herrería", "produccion:area_soldadura"),
     "robotica": ("Robótica", "catalogos:robotica"),
-    "herreria": ("Control de producción", "catalogos:herreria_control"),
+    "herreria": ("Órdenes en serie", "catalogos:herreria_control"),
     "pedidos": ("Pedidos", "catalogos:pedidos_ordenes"),
     "paros": ("Paros", "catalogos:paros"),
     "reportes": ("Reportes", "produccion:dashboard"),

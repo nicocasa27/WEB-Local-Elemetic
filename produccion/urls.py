@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import movil, views
+from . import movil, panorama, views
 
 app_name = "produccion"
 
@@ -8,6 +8,9 @@ urlpatterns = [
     path("", views.home, name="home"),
     # La pantalla del operador: sólo su trabajo, y un toque por pieza.
     path("movil/", movil.mi_trabajo, name="movil"),
+    # Las cuatro líneas en una sola lista. La pregunta «¿qué se está
+    # produciendo?» no tenía pantalla: había que abrir cuatro y sumar.
+    path("control/", panorama.control, name="control"),
     path("menu/", views.home, name="menu"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("dashboard/export/", views.dashboard_export_html, name="dashboard_export_html"),

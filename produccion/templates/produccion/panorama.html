@@ -1,0 +1,160 @@
+{% extends "produccion/base.html" %}
+{% load produccion_extras %}
+{% load l10n %}
+
+{% block title %}Taller Elemetic - Control de producción{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Producción</div>
+      <div class="h3 mb-0">Control de producción</div>
+    </div>
+  </div>
+
+  {% comment %}
+    Los totales de arriba se calculan sobre lo que se está viendo, no con
+    consultas aparte. Un contador que dice diez sobre una lista de ocho es
+    peor que no tener contador.
+  {% endcomment %}
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">En producción</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.renglones }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Piezas</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.piezas|cantidad }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Toneladas</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.toneladas|cantidad }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Fuera de fecha</div>
+        <div class="h3 mb-0 mes-dato {% if resumen.vencidas %}text-danger{% endif %}">{{ resumen.vencidas }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="mes-filtro-lineas">
+        <a class="mes-linea-pestana {% if not linea %}activa{% endif %}"
+           href="?{% if busqueda %}q={{ busqueda|urlencode }}{% endif %}">
+          Todo <span class="mes-linea-cuenta">{{ total_sin_filtrar }}</span>
+        </a>
+        {% for clave, datos in lineas.items %}
+          <a class="mes-linea-pestana {% if linea == clave %}activa{% endif %}"
+             href="?linea={{ clave }}{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}">
+            {{ datos.0 }} <span class="mes-linea-cuenta">{{ conteo_por_linea|get_item:clave }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      <form method="get" class="d-flex gap-2">
+        {% if linea %}<input type="hidden" name="linea" value="{{ linea }}">{% endif %}
+        <label class="mes-oculto-visualmente" for="q">Buscar por código</label>
+        <input id="q" name="q" value="{{ busqueda }}" class="form-control form-control-sm"
+               style="max-width: 14rem;" placeholder="Código">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+      </form>
+    </div>
+
+    <div class="mes-scroll-x">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Qué</th>
+            <th>Línea</th>
+            <th>Cliente u obra</th>
+            <th>Etapa</th>
+            <th>Avance</th>
+            <th class="text-end">Piezas</th>
+            <th class="text-end">Kg</th>
+            <th>Compromiso</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in renglones %}
+            <tr>
+              <td>
+                <div class="fw-semibold mes-dato">{{ r.codigo }}</div>
+                {% if r.descripcion %}
+                  <div class="text-muted small mes-truncar" title="{{ r.descripcion }}">{{ r.descripcion }}</div>
+                {% endif %}
+              </td>
+              <td>
+                <a class="mes-linea-enlace" href="{% url r.url_linea %}">{{ r.linea_nombre }}</a>
+              </td>
+              <td class="small">{{ r.cliente|default:"—" }}</td>
+              <td>
+                {% if r.etapa %}
+                  <span class="badge {{ r.clase_etapa }}">{{ r.etapa }}</span>
+                {% else %}
+                  {% comment %}
+                    Robótica no tiene máquina de estados. Se dice, en vez de
+                    inventarle una etapa para que la columna no quede vacía.
+                  {% endcomment %}
+                  <span class="text-muted small">sin etapas</span>
+                {% endif %}
+              </td>
+              <td style="min-width: 9rem;">
+                {% if r.en_serie %}
+                  <div class="progress" style="height: .5rem;">
+                    <div class="progress-bar bg-success" role="progressbar"
+                         style="width: {{ r.avance|unlocalize }}%;"
+                         aria-label="Terminadas" aria-valuenow="{{ r.avance }}"
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                  <div class="text-muted small mt-1 mes-dato">{{ r.hechas }}/{{ r.piezas }} terminadas</div>
+                {% else %}
+                  <div class="progress" style="height: .5rem;">
+                    <div class="progress-bar bg-primary" role="progressbar"
+                         style="width: {{ r.avance|unlocalize }}%;"
+                         aria-label="Recorrido" aria-valuenow="{{ r.avance }}"
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                  <div class="text-muted small mt-1">{{ r.avance }}% del proceso</div>
+                {% endif %}
+              </td>
+              <td class="text-end mes-dato">{{ r.piezas|cantidad }}</td>
+              <td class="text-end mes-dato">{{ r.peso_kg|cantidad }}</td>
+              <td class="small">
+                {% if r.fecha_compromiso %}
+                  <span class="mes-dato">{{ r.fecha_compromiso|date:"Y-m-d" }}</span>
+                  <div class="mes-relativo">{{ r.fecha_compromiso|desde_hoy }}</div>
+                {% else %}
+                  <span class="text-muted">sin fecha</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" class="p-4 text-center">
+                <div class="fw-semibold">
+                  {% if busqueda or linea %}Nada con ese filtro{% else %}El taller no tiene nada en producción{% endif %}
+                </div>
+                <div class="text-muted small mt-1">
+                  {% if busqueda or linea %}
+                    Quita el filtro para ver las cuatro líneas.
+                  {% else %}
+                    Aquí sale todo lo que esté entre «espera de corte» y
+                    «pintura». Lo terminado se ve en Almacén; lo despachado,
+                    en Pedidos.
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}
