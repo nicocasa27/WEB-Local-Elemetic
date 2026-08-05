@@ -51,6 +51,7 @@ from django.shortcuts import render
 from core import estados
 from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio_ruta
+from core.servicios import trabajo as servicio_trabajo
 
 BASE = "mes"
 
@@ -533,6 +534,43 @@ def _poner_las_especificaciones(trabajos):
     return trabajos
 
 
+def _poner_los_equipos(trabajos):
+    """Cuelga de cada tarjeta los equipos entre los que puede elegir.
+
+    Sólo donde hace falta: hoy, las etapas de corte. El servidor ya exigía
+    decir en qué equipo se trabaja —sin eso la producción de los seis se
+    queda en un montón y no se sabe cuál va saturado— pero la pantalla del
+    piso no ofrecía ninguno, así que el cortador recibía un «elige en qué
+    equipo» sin nada que elegir.
+
+    **Lo elige él, no la oficina.** La asignación de escritorio se queda vieja
+    en cuanto la máquina está ocupada por otro o el ayudante se pasa a la de
+    al lado, y entonces el apunte dice que la pieza se cortó donde no se
+    cortó. Quien está delante sabe cuál está libre.
+
+    Se consultan una vez por etapa y no una por tarjeta: con quince piezas
+    esperando corte, lo segundo son quince consultas para pintar la misma
+    lista.
+    """
+    por_etapa = {}
+    for trabajo in trabajos:
+        siguiente = trabajo.get("siguiente") or ""
+        # Sólo en Estructuras: es la única línea cuyo servidor exige el
+        # equipo. Poner el selector en las otras dos ofrecería un campo
+        # obligatorio que nadie va a leer del otro lado.
+        exige = trabajo.get("linea") == "estructuras" and servicio_trabajo.exige_maquina(
+            siguiente
+        )
+        trabajo["exige_equipo"] = exige
+        if not exige:
+            trabajo["equipos"] = []
+            continue
+        if siguiente not in por_etapa:
+            por_etapa[siguiente] = servicio_trabajo.maquinas_disponibles(siguiente)
+        trabajo["equipos"] = por_etapa[siguiente]
+    return trabajos
+
+
 def _asignadas_a(colaborador):
     """Identificadores de las piezas asignadas nominalmente a esta persona."""
     if colaborador is None:
@@ -564,7 +602,7 @@ def mi_trabajo(request):
     # Python es estable, así que el orden por prioridad y fecha que trae cada
     # cola se respeta dentro de cada bloque.
     trabajos.sort(key=lambda t: (not t["mia"], t["prioridad"], t["fecha_compromiso"]))
-    visibles = _poner_las_especificaciones(trabajos[:TOPE])
+    visibles = _poner_los_equipos(_poner_las_especificaciones(trabajos[:TOPE]))
     # Se cuentan **piezas**, no tarjetas: una tarjeta puede llevar cincuenta.
     # Decir «hay 3 piezas más» cuando en realidad hay ciento cincuenta sería
     # peor que no decir nada.

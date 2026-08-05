@@ -316,3 +316,53 @@ class TestLaPantalla:
         )
 
         assert respuesta.status_code == 200
+
+
+class TestElCruceAguantaComoSeTeclea:
+    """En el taller el mismo perfil se escribe de tres formas.
+
+    `V-118`, `V118` y `v 118` según quién lo teclee. Con la comparación
+    literal, un requerimiento de veintisiete vigas `V-118` no encontraba las
+    veintisiete piezas `V118` y el proyecto decía que no se había hecho nada.
+    """
+
+    def test_el_guion_no_separa_el_requerimiento_de_su_produccion(self):
+        el_proyecto = proyecto()
+        requerimiento(el_proyecto, codigo="V-118", cantidad=27)
+        vigas(9, codigo="V118", estado="Terminado")
+
+        lista = servicio.conceptos(el_proyecto)
+
+        assert len(lista) == 1
+        assert lista[0].requerido == 27
+        assert lista[0].hechas == 9
+
+    def test_ni_los_espacios_ni_las_minusculas(self):
+        el_proyecto = proyecto()
+        requerimiento(el_proyecto, codigo="v 118", cantidad=10)
+        vigas(4, codigo="V-118", estado="Terminado")
+
+        assert servicio.conceptos(el_proyecto)[0].hechas == 4
+
+    def test_pero_los_acentos_si_distinguen(self):
+        """En este catálogo la letra distingue piezas de verdad: juntar
+        «Ángulo-D» con «Angulo-D» sería peor que separarlas."""
+        el_proyecto = proyecto()
+        vigas(2, codigo="Ángulo-D")
+        vigas(3, codigo="Angulo-D")
+
+        assert len(servicio.conceptos(el_proyecto)) == 2
+
+    def test_dos_formas_del_mismo_codigo_se_rechazan_al_apuntar(
+        self, django_user_model
+    ):
+        el_proyecto = proyecto()
+        requerimiento(el_proyecto, codigo="V-118", cantidad=27)
+
+        respuesta = navegador(django_user_model).post(
+            reverse("catalogos:proyecto_requerimiento_crear", args=[el_proyecto.pk]),
+            {"descripcion": "La misma", "codigo": "V118", "cantidad": "5"},
+            follow=True,
+        )
+
+        assert "ya lleva un renglón" in respuesta.content.decode()

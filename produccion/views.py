@@ -829,6 +829,43 @@ def _save_corte_asignaciones_for_vigas(internal_ids, corte_operadores_ids, corte
             )
 
 
+def _fijar_maquina_de_corte(internal_id, maquina, actor=""):
+    """Deja apuntado en la pieza el equipo que eligió quien la va a cortar.
+
+    Hasta ahora el equipo lo asignaba un supervisor desde la PC, y en el piso
+    esa asignación se quedaba vieja en cuanto la máquina estaba ocupada por
+    otro o el ayudante se pasaba a la de al lado. Quien está delante sabe cuál
+    está libre, así que elige él; esto es lo que hace que su elección se vea
+    también en Asignaciones, donde quien administra la puede cambiar después.
+
+    Sustituye sólo las filas de máquina. Los operadores asignados se quedan
+    como estaban: elegir en qué equipo se trabaja no es decidir quién trabaja.
+    """
+    if maquina is None:
+        return
+    ya_puesta = VigaAsignacion.objects.using("mes").filter(
+        viga_internal_id=int(internal_id),
+        etapa="Corte",
+        rol="Maquina",
+        maquina_id=int(maquina.id),
+        vigente=True,
+    )
+    if ya_puesta.exists():
+        return
+    VigaAsignacion.objects.using("mes").filter(
+        viga_internal_id=int(internal_id), etapa="Corte", rol="Maquina", vigente=True
+    ).update(vigente=False)
+    VigaAsignacion.objects.using("mes").create(
+        viga_internal_id=int(internal_id),
+        etapa="Corte",
+        rol="Maquina",
+        colaborador=None,
+        maquina_id=int(maquina.id),
+        vigente=True,
+        asignado_por=(actor or "")[:120],
+    )
+
+
 def _save_plano_for_vigas(internal_ids, uploaded_file):
     if not uploaded_file:
         return
@@ -2990,6 +3027,11 @@ def viga_change_status_json(request, pk: int):
     # El equipo con el que se hace la etapa. Puede venir en la petición —el
     # selector de la pantalla— o estar ya asignado a la pieza.
     maquina_apunte = None
+    #: La que eligió quien está delante de la máquina, si eligió alguna. Se
+    #: distingue de la que ya estaba asignada porque sólo la elegida se
+    #: guarda: si no lo hiciera, el apunte diría un equipo y la ficha de la
+    #: pieza seguiría diciendo otro.
+    maquina_elegida = None
     if servicio_trabajo.exige_maquina(new_estado):
         pedida = request.POST.get("maquina_id")
         if pedida:
@@ -2998,6 +3040,7 @@ def viga_change_status_json(request, pk: int):
             )
             if error_maquina:
                 return JsonResponse({"ok": False, "error": error_maquina}, status=400)
+            maquina_elegida = maquina_apunte
         else:
             maquina_apunte = _maquina_asignada(viga.internal_id, new_estado)
         # Si el taller todavía no ha dado de alta ningún equipo de corte, no se
@@ -3106,6 +3149,8 @@ def viga_change_status_json(request, pk: int):
                 comentario=comentario,
                 timestamp=now,
             )
+            if maquina_elegida is not None:
+                _fijar_maquina_de_corte(viga.internal_id, maquina_elegida, actor)
             # En la misma transacción: un apunte de trabajo sin su cambio de
             # estado mediría trabajo que no ocurrió.
             servicio_trabajo.anotar(

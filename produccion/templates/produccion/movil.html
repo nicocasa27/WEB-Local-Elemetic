@@ -122,6 +122,46 @@
               <span class="mov-cuantas-total">de {{ t.cuantas }}</span>
             </div>
           {% endif %}
+          {% if t.equipos %}
+            {% comment %}
+              En qué equipo se va a trabajar. **Lo elige quien está delante.**
+
+              La asignación se hacía desde la PC, y en el piso se quedaba
+              vieja en cuanto la máquina estaba ocupada por otro o el ayudante
+              se pasaba a la de al lado: el apunte decía que la pieza se cortó
+              en un equipo en el que no se cortó, y el rendimiento por máquina
+              —que es para lo que se pide— quedaba apoyado en un dato falso.
+
+              La lista trae sólo las que se pueden usar ahora: las que están
+              en paro o con falla no salen. No aparecen apagadas, se quitan;
+              una lista donde la mitad no se puede elegir hay que leerla
+              entera para descartar, y esto se usa con guantes.
+
+              Quien administra puede cambiarlo después desde Asignaciones.
+            {% endcomment %}
+            <div class="mov-equipos">
+              <label for="equipo-{{ forloop.counter }}">¿En qué equipo?</label>
+              <select id="equipo-{{ forloop.counter }}" name="maquina_id" required>
+                <option value="">Elige…</option>
+                {% for m in t.equipos %}
+                  <option value="{{ m.id }}">
+                    {{ m.nombre }}{% if m.funcion %} · {{ m.funcion }}{% endif %}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+          {% elif t.exige_equipo %}
+            {% comment %}
+              Exige equipo y no hay ninguno libre: están todas en paro o con
+              falla. Se dice, en vez de enseñar un botón que el servidor va a
+              rechazar con un mensaje que en el piso no explica nada.
+            {% endcomment %}
+            <div class="mov-sin-equipos">
+              No hay ningún equipo de corte disponible: están todos en paro o
+              con falla. Se reanudan en Paros.
+            </div>
+          {% endif %}
+
           {% comment %}
             La fecha va siempre con la de hoy y no se pregunta. Era un campo
             obligatorio que el operador no tiene por qué pensar, y el que

@@ -74,3 +74,20 @@ LINEAS = (LINEA_VIGAS, LINEA_HERRERIA, LINEA_CORTA, LINEA_ROBOTICA)
 #: A partir de cuántas piezas una orden deja de llevarse por etapas y pasa a
 #: llevarse por contadores.
 PIEZAS_MINIMAS_ORDEN_GRANDE = 2
+
+
+def clave_de_codigo(valor):
+    """La forma comparable de un código de pieza.
+
+    En el taller el mismo perfil se escribe `V-118`, `V118` y `v 118` según
+    quién lo teclee, y para el sistema eran tres cosas distintas. Eso importa
+    cuando hay que cruzar lo que se vendió con lo que se fabricó: un
+    requerimiento de veintisiete vigas `V-118` no encontraba las veintisiete
+    piezas `V118` y el proyecto decía que no se había hecho nada.
+
+    Se quita todo lo que no sea letra o número y se pasa a mayúsculas. Los
+    acentos se conservan: `Ángulo-D` y `Angulo-D` **no** son lo mismo a
+    propósito, porque en este catálogo la letra distingue piezas de verdad y
+    juntarlas sería peor que separarlas.
+    """
+    return "".join(c for c in (valor or "") if c.isalnum()).upper()

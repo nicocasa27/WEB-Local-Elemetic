@@ -1007,9 +1007,14 @@ class RequerimientoProyecto(models.Model):
         verbose_name_plural = "requerimientos del proyecto"
 
     def save(self, *args, **kwargs):
+        from core.constantes import clave_de_codigo
+
         self.descripcion = (self.descripcion or "").strip()
         self.codigo = (self.codigo or "").strip()
-        self.codigo_normalizado = self.codigo.upper()
+        # Sin guiones ni espacios: en el taller el mismo perfil se escribe
+        # «V-118», «V118» y «v 118» según quién lo teclee, y con la
+        # comparación literal el requerimiento no encontraba su producción.
+        self.codigo_normalizado = clave_de_codigo(self.codigo)
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

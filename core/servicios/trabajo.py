@@ -98,6 +98,42 @@ def integrantes_de(cuadrilla):
     return ",".join(str(int(i)) for i in sorted(ids))
 
 
+def maquinas_disponibles(etapa):
+    """Los equipos del área en los que se puede trabajar ahora mismo.
+
+    Las elige el propio operador, no un supervisor desde la oficina. En el
+    piso la asignación de escritorio se quedaba vieja en cuanto la máquina
+    estaba ocupada por otro, o el ayudante iba a la de al lado, y entonces el
+    apunte decía que la pieza se cortó en un equipo en el que no se cortó.
+
+    Fuera quedan las que están en paro o con falla abierta. No se enseñan
+    apagadas: se quitan. Una lista donde la mitad de las opciones no se pueden
+    elegir es una lista que hay que leer entera para descartar, y esto se usa
+    con guantes.
+    """
+    from catalogos.models import MaquinaFalla, MaquinaParo
+
+    centro = centro_de(etapa)
+    if not centro:
+        return []
+
+    detenidas = set(
+        MaquinaParo.objects.using(BASE)
+        .filter(fin__isnull=True)
+        .values_list("maquina_id", flat=True)
+    ) | set(
+        MaquinaFalla.objects.using(BASE)
+        .filter(fin__isnull=True)
+        .values_list("maquina_id", flat=True)
+    )
+    return list(
+        Maquina.objects.using(BASE)
+        .filter(activo=True, tipo=centro, es_robot=False)
+        .exclude(id__in=detenidas)
+        .order_by("nombre")
+    )
+
+
 def maquina_valida(identificador, *, etapa):
     """La máquina que se pidió, si existe, está activa y es del área.
 

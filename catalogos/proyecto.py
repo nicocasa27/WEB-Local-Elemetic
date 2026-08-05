@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from catalogos.models import Proyecto
+from core.constantes import clave_de_codigo
 from core.servicios import proyecto as servicio
 
 BASE = "mes"
@@ -75,7 +76,7 @@ def requerimiento_crear(request, pk: int):
     elif (
         codigo
         and RequerimientoProyecto.objects.using(BASE)
-        .filter(proyecto=el_proyecto, codigo_normalizado=codigo.upper())
+        .filter(proyecto=el_proyecto, codigo_normalizado=clave_de_codigo(codigo))
         .exists()
     ):
         # Dos renglones con el mismo código se cruzarían los dos con la misma

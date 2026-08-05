@@ -554,3 +554,197 @@ class TestLaTarjetaDiceComoSeHaceLaPieza:
 
         assert cuerpo.count("Instrucciones ajenas.") == 1
         assert "Las mías." in cuerpo
+
+
+class TestElCortadorEligeSuMaquina:
+    """La asignación se hacía desde la PC y en el piso se quedaba vieja.
+
+    En cuanto la máquina estaba ocupada por otro, o el ayudante se pasaba a la
+    de al lado, el apunte decía que la pieza se cortó en un equipo en el que
+    no se cortó, y el rendimiento por máquina —que es para lo que se pide—
+    quedaba apoyado en un dato falso. Quien está delante sabe cuál está libre.
+    """
+
+    def _maquina(self, nombre="Plasma 1", tipo="Corte", activa=True):
+        from catalogos.models import Maquina
+
+        return Maquina.objects.create(
+            nombre=nombre, tipo=tipo, activo=activa, funcion="Placa hasta 25 mm"
+        )
+
+    def _parar(self, maquina):
+        from catalogos.models import MaquinaParo
+
+        return MaquinaParo.objects.create(maquina=maquina, inicio=timezone.now())
+
+    def _cortador(self, django_user_model):
+        return navegador(django_user_model, nombre="cortador", grupo="corte")
+
+    def test_la_tarjeta_ofrece_los_equipos_del_area(self, django_user_model):
+        pieza(estado="Espera de corte")
+        self._maquina("Plasma 1")
+        self._maquina("Sierra cinta")
+
+        cuerpo = (
+            self._cortador(django_user_model)
+            .get(reverse("produccion:movil"))
+            .content.decode()
+        )
+
+        assert 'name="maquina_id"' in cuerpo
+        assert "Plasma 1" in cuerpo and "Sierra cinta" in cuerpo
+
+    def test_una_maquina_en_paro_no_se_ofrece(self, django_user_model):
+        """No se enseña apagada: se quita. Una lista donde la mitad no se
+        puede elegir hay que leerla entera para descartar."""
+        pieza(estado="Espera de corte")
+        self._parar(self._maquina("Plasma 1"))
+        self._maquina("Sierra cinta")
+
+        cuerpo = (
+            self._cortador(django_user_model)
+            .get(reverse("produccion:movil"))
+            .content.decode()
+        )
+
+        assert "Plasma 1" not in cuerpo
+        assert "Sierra cinta" in cuerpo
+
+    def test_ni_una_de_otra_area(self, django_user_model):
+        pieza(estado="Espera de corte")
+        self._maquina("Cabina de pintura", tipo="Pintura")
+        self._maquina("Plasma 1")
+
+        cuerpo = (
+            self._cortador(django_user_model)
+            .get(reverse("produccion:movil"))
+            .content.decode()
+        )
+
+        assert "Cabina de pintura" not in cuerpo
+
+    def test_si_no_queda_ninguna_libre_se_dice(self, django_user_model):
+        """En vez de enseñar un botón que el servidor va a rechazar con un
+        mensaje que en el piso no explica nada."""
+        pieza(estado="Espera de corte")
+        self._parar(self._maquina("Plasma 1"))
+
+        cuerpo = (
+            self._cortador(django_user_model)
+            .get(reverse("produccion:movil"))
+            .content.decode()
+        )
+
+        assert "No hay ningún equipo de corte disponible" in cuerpo
+        assert 'name="maquina_id"' not in cuerpo
+
+    def test_soldadura_no_lleva_selector(self, django_user_model):
+        """Sólo corte lo exige. Un campo obligatorio que nadie lee del otro
+        lado es fricción por nada."""
+        pieza(estado="Espera de soldadura")
+        self._maquina("Plasma 1")
+
+        cuerpo = (
+            navegador(django_user_model).get(reverse("produccion:movil")).content.decode()
+        )
+
+        assert 'name="maquina_id"' not in cuerpo
+
+    def test_lo_que_elige_queda_como_asignacion_de_la_pieza(self, django_user_model):
+        """Es lo que hace que su elección se vea también en Asignaciones,
+        donde quien administra la puede cambiar después."""
+        from catalogos.models import VigaAsignacion
+
+        la_pieza = pieza(estado="Espera de corte")
+        maquina = self._maquina("Plasma 1")
+
+        respuesta = self._cortador(django_user_model).post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": "Corte",
+                "maquina_id": str(maquina.id),
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        assert respuesta.status_code == 200, respuesta.content
+        assert VigaAsignacion.objects.filter(
+            viga_internal_id=la_pieza.internal_id,
+            etapa="Corte",
+            rol="Maquina",
+            maquina=maquina,
+            vigente=True,
+        ).exists()
+
+    def test_y_queda_apuntado_con_qué_se_trabajo(self, django_user_model):
+        from catalogos.models import ApunteDeTrabajo
+
+        la_pieza = pieza(estado="Espera de corte")
+        maquina = self._maquina("Plasma 1")
+
+        self._cortador(django_user_model).post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": "Corte",
+                "maquina_id": str(maquina.id),
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        apunte = ApunteDeTrabajo.objects.filter(referencia=la_pieza.internal_id).first()
+        assert apunte is not None
+        assert apunte.maquina_id == maquina.id
+
+    def test_cambiar_de_equipo_sustituye_al_anterior(self, django_user_model):
+        """Dos máquinas vigentes a la vez harían que el bloqueo por paro
+        mirara una que ya no se está usando."""
+        from catalogos.models import VigaAsignacion
+
+        la_pieza = pieza(estado="Espera de corte")
+        primera = self._maquina("Plasma 1")
+        segunda = self._maquina("Sierra cinta")
+        cliente = self._cortador(django_user_model)
+
+        for maquina, estado in ((primera, "Corte"), (segunda, "Corte")):
+            VigaAsignacion.objects.filter(
+                viga_internal_id=la_pieza.internal_id
+            ).update(vigente=True)
+            la_pieza.estado = "Espera de corte"
+            la_pieza.save(update_fields=["estado"])
+            cliente.post(
+                reverse(
+                    "produccion:viga_change_status_json", args=[la_pieza.internal_id]
+                ),
+                {
+                    "estado_nuevo": estado,
+                    "maquina_id": str(maquina.id),
+                    "fecha_operacion": timezone.localdate().isoformat(),
+                    "comentario": "",
+                },
+            )
+
+        vigentes = VigaAsignacion.objects.filter(
+            viga_internal_id=la_pieza.internal_id, rol="Maquina", vigente=True
+        )
+        assert vigentes.count() == 1
+        assert vigentes.first().maquina_id == segunda.id
+
+    def test_un_equipo_de_otra_area_se_rechaza(self, django_user_model):
+        """Sin comprobarlo se podría anotar que una viga se cortó en la cabina
+        de pintura."""
+        la_pieza = pieza(estado="Espera de corte")
+        pintura = self._maquina("Cabina de pintura", tipo="Pintura")
+
+        respuesta = self._cortador(django_user_model).post(
+            reverse("produccion:viga_change_status_json", args=[la_pieza.internal_id]),
+            {
+                "estado_nuevo": "Corte",
+                "maquina_id": str(pintura.id),
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        assert respuesta.status_code == 400

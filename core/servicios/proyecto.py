@@ -19,10 +19,15 @@ las cuatro líneas, en una lista de conceptos.
 Cómo se cruzan
 --------------
 
-Por el código. Un requerimiento que dice `V-118` se cruza con las piezas de
-ese proyecto cuyo código es `V-118`. Lo que se produce sin requerimiento
-aparece igual, con lo requerido igualado a lo que hay: es trabajo real y
-esconderlo sería peor que no cuadrar.
+Por el código, **sin guiones ni espacios y en mayúsculas**. En el taller el
+mismo perfil se escribe `V-118`, `V118` y `v 118` según quién lo teclee; con
+la comparación literal, un requerimiento de veintisiete vigas `V-118` no
+encontraba las veintisiete piezas `V118` y el proyecto decía que no se había
+hecho nada. Los acentos sí se conservan: en este catálogo la letra distingue
+piezas de verdad y juntar `Ángulo-D` con `Angulo-D` sería peor que separarlas.
+
+Lo que se produce sin requerimiento aparece igual, con lo requerido igualado a
+lo que hay: es trabajo real y esconderlo sería peor que no cuadrar.
 
 Robótica se lista aparte y sin avance. Esa línea no registra producción por
 orden —`RobotProduccion` no apunta a ninguna—, así que cualquier porcentaje
@@ -35,6 +40,7 @@ from django.db.models import Count, Sum
 from django.db.models.functions import Upper
 
 from core import estados
+from core.constantes import clave_de_codigo
 
 BASE = "mes"
 
@@ -102,9 +108,10 @@ def _de_estructuras(proyecto):
     )
     for fila in consulta:
         codigo = (fila["codigo_viga"] or "").strip()
-        concepto = filas.get(codigo.upper())
+        clave = clave_de_codigo(codigo)
+        concepto = filas.get(clave)
         if concepto is None:
-            filas[codigo.upper()] = concepto = Concepto(
+            filas[clave] = concepto = Concepto(
                 codigo=codigo,
                 descripcion=fila["descripcion"] or "",
                 linea="Estructuras",
@@ -146,7 +153,7 @@ def _de_las_ordenes(proyecto):
                 continue
             objetivo = int(fila["objetivo"] or 0)
             terminadas = min(int(fila["terminadas"] or 0), objetivo)
-            clave = codigo.upper()
+            clave = clave_de_codigo(codigo)
             concepto = filas.get(clave)
             if concepto is None:
                 filas[clave] = concepto = Concepto(
