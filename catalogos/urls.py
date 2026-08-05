@@ -1,12 +1,33 @@
 from django.urls import path
 
-from . import cuadrillas, despacho, terminado, trazabilidad, usuarios, views
+from . import (
+    cuadrillas,
+    despacho,
+    proyecto,
+    terminado,
+    trazabilidad,
+    usuarios,
+    views,
+)
 
 app_name = "catalogos"
 
 urlpatterns = [
     path("proyectos/", views.proyectos, name="proyectos"),
-    path("proyectos/<int:pk>/", views.proyecto_detalle, name="proyecto_detalle"),
+    # Qué lleva el proyecto y cómo va, de las cuatro líneas. Lo requerido se
+    # apunta aquí porque no se puede deducir de ningún lado: sin ello, «faltan
+    # dieciocho» no es una resta, es una adivinanza.
+    path("proyectos/<int:pk>/", proyecto.detalle, name="proyecto_detalle"),
+    path(
+        "proyectos/<int:pk>/requerimiento/",
+        proyecto.requerimiento_crear,
+        name="proyecto_requerimiento_crear",
+    ),
+    path(
+        "proyectos/<int:pk>/requerimiento/<int:requerimiento>/borrar/",
+        proyecto.requerimiento_borrar,
+        name="proyecto_requerimiento_borrar",
+    ),
     path("equipos/", views.equipos, name="equipos"),
     path("equipos/<int:pk>/toggle/", views.equipo_toggle, name="equipo_toggle"),
     path("equipos/<int:pk>/eliminar/", views.equipo_delete, name="equipo_delete"),

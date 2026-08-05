@@ -950,3 +950,67 @@ class NivelMinimo(models.Model):
 
     def __str__(self) -> str:
         return f"{self.producto}: mínimo {self.minimo}"
+
+
+class RequerimientoProyecto(models.Model):
+    """Qué lleva un proyecto, dicho antes de que exista ninguna orden.
+
+    Hoy un proyecto es un nombre y nada más. Lo que se sabe de él se deduce de
+    las órdenes que alguien escribió con ese nombre encima, así que la
+    pregunta que se hace en la obra —«¿cómo va Matilda?»— sólo se puede
+    contestar a medias: se ve lo que se está fabricando, pero no lo que falta,
+    porque nadie apuntó nunca cuánto había que fabricar.
+
+    Aquí se apunta. «Matilda lleva 27 vigas IPR y 40 placas base.» A partir de
+    eso, el avance es una resta: lo requerido menos lo terminado.
+
+    **Lo requerido no se convierte en órdenes.** Es a propósito: quien recibe
+    el proyecto sabe qué se vendió, y quien programa la producción decide
+    cuándo y en qué lotes se hace. Convertirlo automáticamente pondría en el
+    piso trabajo que nadie ha planeado.
+
+    El cruce con la producción se hace por el código. Si el requerimiento dice
+    `V-118` y en el proyecto hay veintisiete vigas con ese código, ésas son
+    las suyas. Sin código, el renglón se queda solo y sirve de recordatorio:
+    es mejor que fingir un avance que nadie ha comprobado.
+    """
+
+    proyecto = models.ForeignKey(
+        "catalogos.Proyecto", on_delete=models.CASCADE, related_name="requerimientos"
+    )
+    #: Qué es, en las palabras de quien lo vendió.
+    descripcion = models.CharField(max_length=180)
+    #: Con qué se cruza contra la producción. Vacío significa que todavía no
+    #: se sabe cómo se va a codificar, y entonces no se cruza con nada.
+    codigo = models.CharField(max_length=60, blank=True, default="")
+    codigo_normalizado = models.CharField(max_length=60, blank=True, default="", db_index=True)
+    cantidad = models.PositiveIntegerField(default=1)
+    fecha_compromiso = models.DateField(null=True, blank=True)
+    nota = models.CharField(max_length=255, blank=True, default="")
+    creado_por = models.CharField(max_length=120, blank=True, default="")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["proyecto", "descripcion"]
+        constraints = [
+            #: Dos renglones con el mismo código en el mismo proyecto se
+            #: cruzarían los dos con la misma producción y el avance saldría
+            #: contado por duplicado.
+            models.UniqueConstraint(
+                fields=["proyecto", "codigo_normalizado"],
+                condition=~Q(codigo_normalizado=""),
+                name="requerimiento_codigo_unico_por_proyecto",
+            ),
+        ]
+        verbose_name = "requerimiento del proyecto"
+        verbose_name_plural = "requerimientos del proyecto"
+
+    def save(self, *args, **kwargs):
+        self.descripcion = (self.descripcion or "").strip()
+        self.codigo = (self.codigo or "").strip()
+        self.codigo_normalizado = self.codigo.upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.proyecto}: {self.descripcion} x{self.cantidad}"

@@ -7154,35 +7154,13 @@ def equipo_editar(request, pk: int):
     return render(request, "catalogos/equipo_editar.html", {"form": form, "equipo": equipo})
 
 
-@admin_required
-@require_http_methods(["GET"])
-def proyecto_detalle(request, pk: int):
-    proyecto = get_object_or_404(Proyecto, pk=pk)
-
-    estados_index = {s: i for i, s in enumerate(ESTADOS)}
-    total_steps = max(len(ESTADOS) - 1, 1)
-
-    qs = (
-        Viga.objects.annotate(proyecto_norm=Upper("proyecto"))
-        .filter(proyecto_norm=proyecto.nombre_normalizado)
-        .order_by("estado", "prioridad", "fecha_compromiso", "codigo_viga", "pieza_no")
-    )
-    vigas = list(qs[:2000])
-    for v in vigas:
-        idx = estados_index.get(v.estado, 0)
-        v.avance_pct = round(idx / total_steps * 100.0, 1)
-        v.avance_css = f"{v.avance_pct:.1f}"
-        v.estado_color = STATUS_COLORS.get(v.estado, "#8898aa")
-
-    return render(
-        request,
-        "catalogos/proyecto_detalle.html",
-        {
-            "proyecto": proyecto,
-            "vigas": vigas,
-            "total": qs.count(),
-        },
-    )
+# La pantalla del proyecto se mudó a catalogos/proyecto.py.
+#
+# Enseñaba hasta dos mil vigas con una barrita por pieza, y sólo de
+# Estructuras: un proyecto con herrería o corte láser se veía a un tercio, y
+# para saber cuánto faltaba había que contar las barritas. Ahora enseña
+# conceptos —«viga IPR: 27 pedidas, 9 hechas, faltan 18»— de las cuatro
+# líneas.
 
 
 @login_required

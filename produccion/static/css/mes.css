@@ -1481,3 +1481,23 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
   font-weight: 700;
   color: #8a1c1c;
 }
+
+/* ---------------------------------------------------------- proyecto */
+.mes-proyecto { max-width: 78rem; }
+
+/* Un concepto que apareció en la producción y que nadie apuntó como parte
+ * del proyecto. Discreto: no es un error, es una pista de que el alcance no
+ * está escrito y de que el «faltan» de arriba mide contra menos de lo que
+ * de verdad se vendió. */
+.mes-marca-suelta {
+  display: inline-block;
+  margin-top: .2rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: .1rem .35rem;
+  border-radius: .3rem;
+  color: #6b4b17;
+  background: #fdf0d5;
+}
