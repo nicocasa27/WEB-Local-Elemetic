@@ -1453,3 +1453,31 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
   color: #6b4b17;
   background: #fdf0d5;
 }
+
+/* ------------------------------------------------ almacén de terminado */
+.mes-almacen { max-width: 78rem; }
+
+/* Un producto por debajo de su mínimo. Fondo tenue y no rojo entero: si la
+ * mitad de la tabla grita, la tabla deja de leerse y la alerta deja de
+ * significar algo. */
+.mes-bajo-minimo > td { background: #fff6f5; }
+
+.mes-marca-alerta {
+  display: inline-block;
+  margin-top: .2rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: .1rem .35rem;
+  border-radius: .3rem;
+  color: #8a1c1c;
+  background: #fbdcd8;
+}
+
+/* Cuántas piezas hay que fabricar para cubrir lo pedido y el mínimo. Es la
+ * única columna sobre la que se actúa, así que es la única que pesa. */
+.mes-falta {
+  font-weight: 700;
+  color: #8a1c1c;
+}

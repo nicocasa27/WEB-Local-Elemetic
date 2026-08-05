@@ -311,7 +311,7 @@ class TestProductoTerminado:
 
         filas = disponible_para_entrega()
 
-        assert {f["linea_nombre"] for f in filas} == {"Herrería", "Corta.mx"}
+        assert {f.linea_nombre for f in filas} == {"Herrería", "Corta.mx"}
 
     def test_lo_agotado_no_se_ofrece(self):
         pieza = HerrPiezaCatalogo.objects.using(BASE).create(
@@ -326,7 +326,7 @@ class TestProductoTerminado:
         leería como «no pesa»; vacío dice que no se sabe."""
         LogisticaStockCorta.objects.using(BASE).create(producto="Tapa", stock=5)
 
-        assert disponible_para_entrega()[0]["peso_kg"] is None
+        assert disponible_para_entrega()[0].peso_kg is None
 
     def test_la_suma_de_kilos_avisa_de_lo_que_no_cuenta(self, client):
         persona = Usuario.objects.create_user("ana", password="x")
@@ -336,7 +336,7 @@ class TestProductoTerminado:
 
         respuesta = cliente.get(reverse("catalogos:producto_terminado"))
 
-        assert respuesta.context["sin_peso"] == 1
+        assert respuesta.context["resumen"]["sin_peso"] == 1
 
     def test_se_puede_buscar(self):
         for nombre in ("Andamio chico", "Ancla J"):

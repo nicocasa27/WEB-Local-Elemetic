@@ -893,3 +893,60 @@ class EspecificacionOrden(models.Model):
 
     def __str__(self) -> str:
         return f"{self.legacy_modelo}#{self.legacy_id}"
+
+
+class NivelMinimo(models.Model):
+    """Cuánto hay que tener siempre de un producto terminado.
+
+    El taller vende de almacén: un cliente pide cuarenta andamios, hay
+    treinta, y la respuesta tiene que darse en el momento. Hasta ahora nadie
+    podía saber que quedaban pocos hasta que se acababan, porque el almacén de
+    producto terminado guarda un solo número por producto y ese número no se
+    compara con nada.
+
+    Aquí se guarda con qué compararlo. Debajo del mínimo, el producto sale
+    marcado en la lista y en el aviso de la portada.
+
+    **Tabla propia y no una columna del catálogo de piezas.** El almacén de
+    Corta guarda el producto como texto libre y no siempre tiene ficha de
+    catálogo; el de herrería sí. Colgar el mínimo del catálogo dejaría media
+    planta sin poder fijarlo. La clave es la que las dos líneas comparten de
+    verdad: la línea y el nombre normalizado del producto.
+    """
+
+    #: `herreria` o `corta`. Cadena y no clave foránea a `LineaNegocio` para
+    #: que esto funcione en un servidor donde el motor unificado todavía no se
+    #: ha sembrado: un mínimo de almacén no tiene por qué esperar a eso.
+    linea = models.SlugField(max_length=30)
+    producto = models.CharField(max_length=180)
+    #: En mayúsculas y sin espacios de sobra, igual que en los dos almacenes.
+    producto_normalizado = models.CharField(max_length=180, db_index=True)
+    #: Por debajo de esto, el producto se marca. Cero significa «no avisar»,
+    #: que es distinto de no tener fila: una fila en cero es alguien que lo
+    #: pensó y decidió que no hace falta.
+    minimo = models.PositiveIntegerField(default=0)
+    #: Cuánto conviene tener cuando se manda a fabricar. Vacío significa que
+    #: nadie lo dijo y la sugerencia se limita a reponer hasta el mínimo.
+    objetivo = models.PositiveIntegerField(null=True, blank=True)
+    nota = models.CharField(max_length=200, blank=True, default="")
+    actualizado_por = models.CharField(max_length=120, blank=True, default="")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["linea", "producto"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["linea", "producto_normalizado"],
+                name="minimo_unico_por_producto",
+            ),
+        ]
+        verbose_name = "nivel mínimo de almacén"
+        verbose_name_plural = "niveles mínimos de almacén"
+
+    def save(self, *args, **kwargs):
+        self.producto = (self.producto or "").strip()
+        self.producto_normalizado = self.producto.upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.producto}: mínimo {self.minimo}"

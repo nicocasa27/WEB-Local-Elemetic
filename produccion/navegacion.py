@@ -110,6 +110,12 @@ MENU = [
         Item("Por proyecto", "inventario:por_proyecto", "bi-buildings"),
         Item("Por comprar", "inventario:compras", "bi-cart-plus"),
         Item("Producto terminado", "catalogos:producto_terminado", "bi-box2-heart"),
+        # Los mínimos van al lado de lo que vigilan. Es la pantalla desde la
+        # que se decide qué conviene tener siempre, y sin ella el almacén no
+        # avisa de nada: nadie se entera de que algo se acaba hasta que se
+        # acabó.
+        Item("Mínimos de almacén", "catalogos:producto_terminado_minimos", "bi-sliders",
+             visible=_cualquiera("is_admin", "can_pedidos")),
     ]),
 
     Grupo("Pedidos", [

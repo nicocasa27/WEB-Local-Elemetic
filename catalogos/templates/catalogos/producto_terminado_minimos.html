@@ -1,0 +1,133 @@
+{% extends "produccion/base.html" %}
+{% load produccion_extras %}
+
+{% block title %}Taller Elemetic - Mínimos de almacén{% endblock %}
+
+{% block content %}
+<div class="mes-almacen">
+
+  <div class="mb-3">
+    <div class="kpi-label">Almacén</div>
+    <div class="h3 mb-0">Cuánto hay que tener siempre</div>
+    <p class="text-muted mb-0 mt-1">
+      Por debajo del mínimo, el producto sale marcado en Producto terminado.
+      Sin mínimo, nadie se entera de que se está acabando hasta que se acaba.
+    </p>
+  </div>
+
+  {% if sin_decidir %}
+    {% comment %}
+      Lo que falta por decidir va arriba y se dice en voz alta. Una lista de
+      lo ya decidido no contesta la pregunta útil, que es qué queda por mirar.
+    {% endcomment %}
+    <div class="alert alert-secondary">
+      <strong>{{ sin_decidir }} producto{{ sin_decidir|pluralize }}</strong>
+      sin mínimo. Aparecen abajo del todo: mientras no tengan uno, no avisan
+      de nada.
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalogos:producto_terminado' %}">
+        <i class="bi bi-arrow-left me-1"></i> Volver al almacén
+      </a>
+      <form method="get" class="d-flex gap-2">
+        <label class="mes-oculto-visualmente" for="q">Buscar producto</label>
+        <input id="q" name="q" value="{{ busqueda }}" class="form-control form-control-sm"
+               style="max-width: 14rem;" placeholder="Andamio, ancla, placa…">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+      </form>
+    </div>
+
+    <div class="mes-scroll-x">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="text-end">Disponible hoy</th>
+            <th style="min-width: 7rem;">Mínimo</th>
+            <th style="min-width: 7rem;">Reponer hasta</th>
+            <th>Nota</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% comment %}
+            Un formulario por renglón, pero **fuera de la tabla**: un `<form>`
+            metido entre `<tr>` y `<td>` es HTML inválido y el navegador lo
+            saca de ahí al construir la página, con lo que los campos se
+            quedan sin formulario y el botón no manda nada. El atributo
+            `form=` de cada campo lo ata al suyo sin romper la tabla.
+          {% endcomment %}
+          {% for f in filas %}
+            <tr {% if f.bajo_minimo %}class="mes-bajo-minimo"{% endif %}>
+              <td>
+                <div class="fw-semibold">{{ f.producto }}</div>
+                <div class="text-muted small">{{ f.linea_nombre }}</div>
+              </td>
+              <td class="text-end mes-dato">{{ f.disponible|cantidad }}</td>
+              <td>
+                <label class="mes-oculto-visualmente" for="min-{{ forloop.counter }}">
+                  Mínimo de {{ f.producto }}
+                </label>
+                <input id="min-{{ forloop.counter }}" form="minimo-{{ forloop.counter }}"
+                       class="form-control form-control-sm"
+                       type="number" inputmode="numeric" min="0" name="minimo"
+                       value="{{ f.minimo }}">
+              </td>
+              <td>
+                {% comment %}
+                  Cuánto conviene tener cuando ya se manda a fabricar.
+                  Reponer justo hasta el mínimo deja el producto en alerta al
+                  día siguiente, así que casi siempre es un poco más. Vacío
+                  significa «hasta el mínimo y ya».
+                {% endcomment %}
+                <label class="mes-oculto-visualmente" for="obj-{{ forloop.counter }}">
+                  Reponer {{ f.producto }} hasta
+                </label>
+                <input id="obj-{{ forloop.counter }}" form="minimo-{{ forloop.counter }}"
+                       class="form-control form-control-sm"
+                       type="number" inputmode="numeric" min="0" name="objetivo"
+                       value="{{ f.objetivo|default_if_none:'' }}" placeholder="—">
+              </td>
+              <td>
+                <label class="mes-oculto-visualmente" for="nota-{{ forloop.counter }}">
+                  Nota sobre {{ f.producto }}
+                </label>
+                <input id="nota-{{ forloop.counter }}" form="minimo-{{ forloop.counter }}"
+                       class="form-control form-control-sm"
+                       type="text" name="nota" maxlength="200" value="{{ f.nota }}"
+                       placeholder="Por qué este número">
+              </td>
+              <td class="text-end">
+                <button type="submit" form="minimo-{{ forloop.counter }}"
+                        class="btn btn-sm btn-argon text-white">Guardar</button>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="p-4 text-center">
+                <div class="fw-semibold">
+                  {% if busqueda %}Nada que se llame «{{ busqueda }}»{% else %}Todavía no hay productos{% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% for f in filas %}
+    <form id="minimo-{{ forloop.counter }}" method="post" class="d-none"
+          action="{% url 'catalogos:producto_terminado_minimo_guardar' %}">
+      {% csrf_token %}
+      <input type="hidden" name="linea" value="{{ f.linea }}">
+      <input type="hidden" name="producto" value="{{ f.producto }}">
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    </form>
+  {% endfor %}
+
+</div>
+{% endblock %}

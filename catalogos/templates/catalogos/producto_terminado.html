@@ -1,99 +1,189 @@
 {% extends "produccion/base.html" %}
+{% load produccion_extras %}
 
-{% block title %}Producto terminado{% endblock %}
+{% block title %}Taller Elemetic - Producto terminado{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
+<div class="mes-almacen">
 
-  <h1 class="h4 mb-1">Producto terminado</h1>
-  <p class="text-muted small mb-4">
-    Lo que se puede entregar hoy mismo, de herrería y de Corta juntas. Sale de
-    los almacenes de cada línea: no hay un tercer número que pueda
-    desincronizarse.
-  </p>
-
-  <form method="get" class="row g-2 align-items-end mb-4">
-    <div class="col-12 col-md-6 col-lg-4">
-      <label for="campo-q" class="form-label">Buscar</label>
-      <input id="campo-q" class="form-control" type="search" name="q"
-             value="{{ busqueda }}" placeholder="Ej.: andamio, ancla, placa">
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="kpi-label">Almacén</div>
+      <div class="h3 mb-0">Producto terminado</div>
+      <p class="text-muted mb-0 mt-1">
+        Qué hay de cada producto, de quién es y qué falta hacer. Sale de los
+        almacenes, los pedidos y las órdenes abiertas: no hay un número
+        copiado que pueda desincronizarse.
+      </p>
     </div>
-    <div class="col-6 col-md-3 col-lg-2">
-      <button type="submit" class="btn btn-argon text-white w-100">Buscar</button>
-    </div>
-    {% if busqueda %}
-      <div class="col-6 col-md-3 col-lg-2">
-        <a class="btn btn-outline-secondary w-100" href="{% url 'catalogos:producto_terminado' %}">Ver todo</a>
-      </div>
+    {% if puede_fijar_minimos %}
+      <a class="btn btn-outline-secondary" href="{% url 'catalogos:producto_terminado_minimos' %}">
+        <i class="bi bi-sliders me-1"></i> Mínimos
+      </a>
     {% endif %}
-  </form>
+  </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small">Productos</div>
-        <div class="h3 mb-0 mes-dato">{{ renglones }}</div>
+  {% comment %}
+    Los totales salen de lo que se está viendo, no de consultas aparte. Un
+    contador que dice diez sobre una lista de ocho es peor que no tenerlo.
+  {% endcomment %}
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Se puede prometer</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.disponible|cantidad }}</div>
+        <div class="text-muted small">{{ resumen.productos }} producto{{ resumen.productos|pluralize }}</div>
       </div></div>
     </div>
-    <div class="col-6 col-md-3">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small">Piezas listas</div>
-        <div class="h3 mb-0 mes-dato">{{ piezas }}</div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Apartado</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.apartado|cantidad }}</div>
+        <div class="text-muted small">en el estante, con dueño</div>
       </div></div>
     </div>
-    <div class="col-12 col-md-6">
-      <div class="card h-100"><div class="card-body">
-        <div class="text-muted small">Peso</div>
-        <div class="h3 mb-0 mes-dato">{{ kilos|floatformat:0 }} kg</div>
-        {% if sin_peso %}
-          <div class="text-muted small mt-1">
-            {{ sin_peso }} productos de Corta no tienen ficha con peso, así que
-            no entran en esta suma.
-          </div>
-        {% endif %}
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">En producción</div>
+        <div class="h3 mb-0 mes-dato">{{ resumen.en_produccion|cantidad }}</div>
+        <div class="text-muted small">todavía no en almacén</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="kpi-label">Bajo mínimo</div>
+        <div class="h3 mb-0 mes-dato {% if resumen.bajo_minimo %}text-danger{% endif %}">{{ resumen.bajo_minimo }}</div>
+        <div class="text-muted small">
+          {% if resumen.por_fabricar %}
+            faltan {{ resumen.por_fabricar|cantidad }} pieza{{ resumen.por_fabricar|pluralize }} por hacer
+          {% else %}
+            nada que reponer
+          {% endif %}
+        </div>
       </div></div>
     </div>
   </div>
 
-  {% if filas %}
-    <div class="table-responsive">
-      <table class="table align-middle mes-tabla">
+  <div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div class="mes-filtro-lineas">
+        <a class="mes-linea-pestana {% if not linea %}activa{% endif %}"
+           href="?{% if busqueda %}q={{ busqueda|urlencode }}&amp;{% endif %}{% if solo_alertas %}alertas=1{% endif %}">
+          Todo <span class="mes-linea-cuenta">{{ total_sin_filtrar }}</span>
+        </a>
+        {% for clave, nombre in lineas.items %}
+          <a class="mes-linea-pestana {% if linea == clave %}activa{% endif %}"
+             href="?linea={{ clave }}{% if busqueda %}&amp;q={{ busqueda|urlencode }}{% endif %}{% if solo_alertas %}&amp;alertas=1{% endif %}">
+            {{ nombre }} <span class="mes-linea-cuenta">{{ conteo_por_linea|get_item:clave }}</span>
+          </a>
+        {% endfor %}
+        <a class="mes-linea-pestana {% if solo_alertas %}activa{% endif %}"
+           href="?{% if linea %}linea={{ linea }}&amp;{% endif %}{% if busqueda %}q={{ busqueda|urlencode }}&amp;{% endif %}{% if not solo_alertas %}alertas=1{% endif %}">
+          Sólo lo que falta
+        </a>
+      </div>
+      <form method="get" class="d-flex gap-2">
+        {% if linea %}<input type="hidden" name="linea" value="{{ linea }}">{% endif %}
+        {% if solo_alertas %}<input type="hidden" name="alertas" value="1">{% endif %}
+        <label class="mes-oculto-visualmente" for="q">Buscar producto</label>
+        <input id="q" name="q" value="{{ busqueda }}" class="form-control form-control-sm"
+               style="max-width: 14rem;" placeholder="Andamio, ancla, placa…">
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Buscar</button>
+      </form>
+    </div>
+
+    <div class="mes-scroll-x">
+      <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
-            <th scope="col">Producto</th>
-            <th scope="col">Línea</th>
-            <th scope="col" class="text-end">Disponible</th>
-            <th scope="col" class="text-end">Peso unitario</th>
-            <th scope="col">Actualizado</th>
+            <th>Producto</th>
+            <th>Línea</th>
+            {% comment %}
+              El orden de las columnas es el de la conversación por teléfono:
+              qué te puedo prometer, qué ya tiene dueño, cuánto hay en el
+              estante, qué viene en camino y qué falta hacer.
+            {% endcomment %}
+            <th class="text-end">Disponible</th>
+            <th class="text-end">Apartado</th>
+            <th class="text-end">En almacén</th>
+            <th class="text-end">En producción</th>
+            <th class="text-end">Pedido</th>
+            {% comment %}
+              Lo que ya salió al cliente. No es existencia y no entra en
+              ninguna cuenta: está para saber qué se mueve y qué lleva meses
+              parado, que es la otra mitad de decidir un mínimo.
+            {% endcomment %}
+            <th class="text-end">Ya enviado</th>
+            <th class="text-end">Falta hacer</th>
+            <th class="text-end">Mínimo</th>
           </tr>
         </thead>
         <tbody>
-          {% for fila in filas %}
-            <tr>
-              <td>{{ fila.producto }}</td>
-              <td><span class="text-muted small">{{ fila.linea_nombre }}</span></td>
-              <td class="text-end mes-dato">{{ fila.disponible }}</td>
-              <td class="text-end mes-dato text-muted">
-                {% if fila.peso_kg %}{{ fila.peso_kg|floatformat:1 }} kg{% else %}—{% endif %}
+          {% for f in filas %}
+            <tr {% if f.bajo_minimo %}class="mes-bajo-minimo"{% endif %}>
+              <td>
+                <div class="fw-semibold">{{ f.producto }}</div>
+                {% if f.bajo_minimo %}
+                  <span class="mes-marca-alerta">Bajo mínimo</span>
+                {% endif %}
+                {% if f.nota %}<div class="text-muted small">{{ f.nota }}</div>{% endif %}
               </td>
-              <td class="text-muted small">{{ fila.actualizado|date:"d/m/Y H:i" }}</td>
+              <td class="small text-muted">{{ f.linea_nombre }}</td>
+              <td class="text-end mes-dato fw-semibold">{{ f.disponible|cantidad }}</td>
+              <td class="text-end mes-dato {% if not f.apartado %}text-muted{% endif %}">{{ f.apartado|cantidad }}</td>
+              <td class="text-end mes-dato text-muted">{{ f.en_almacen|cantidad }}</td>
+              <td class="text-end mes-dato {% if not f.en_produccion %}text-muted{% endif %}">{{ f.en_produccion|cantidad }}</td>
+              <td class="text-end mes-dato {% if not f.pedido_pendiente %}text-muted{% endif %}">{{ f.pedido_pendiente|cantidad }}</td>
+              <td class="text-end mes-dato text-muted">{{ f.enviado|cantidad }}</td>
+              <td class="text-end mes-dato">
+                {% if f.falta_por_fabricar %}
+                  <span class="mes-falta">{{ f.falta_por_fabricar|cantidad }}</span>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end mes-dato text-muted">
+                {% if f.minimo %}{{ f.minimo|cantidad }}{% else %}—{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="10" class="p-4 text-center">
+                <div class="fw-semibold">
+                  {% if busqueda %}Nada que se llame «{{ busqueda }}»
+                  {% elif solo_alertas %}No falta nada por hacer
+                  {% else %}Todavía no hay producto terminado{% endif %}
+                </div>
+                <div class="text-muted small mt-1">
+                  {% if busqueda or linea or solo_alertas %}
+                    Quita el filtro para ver todo el almacén.
+                  {% else %}
+                    Aparece aquí en cuanto se cierra una orden en serie de
+                    herrería o de Corta.
+                  {% endif %}
+                </div>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  {% elif busqueda %}
-    <div class="alert alert-secondary">
-      No hay nada disponible que se llame «{{ busqueda }}».
-    </div>
-  {% else %}
-    <div class="text-center py-5">
-      <p class="text-muted mb-0">
-        No hay producto terminado en almacén. Aparece solo cuando se cierra
-        una orden de serie.
-      </p>
-    </div>
-  {% endif %}
+
+    {% if resumen.sin_peso %}
+      <div class="card-footer text-muted small">
+        {{ resumen.sin_peso }} producto{{ resumen.sin_peso|pluralize }} de Corta no
+        tiene{{ resumen.sin_peso|pluralize:",n" }} ficha con peso, así que no entra
+        en el total de kilos.
+      </div>
+    {% endif %}
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    <strong>Disponible</strong> es lo que se le puede prometer a un cliente
+    nuevo. <strong>Apartado</strong> sigue en el estante pero ya tiene dueño.
+    <strong>En almacén</strong> es la suma de los dos: es el número que tiene
+    que cuadrar cuando alguien cuenta el estante.
+  </p>
 
 </div>
 {% endblock %}

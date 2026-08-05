@@ -95,9 +95,21 @@ urlpatterns = [
     # Trazabilidad: qué se hizo, con qué equipo y con quién.
     path("trazabilidad/", trazabilidad.tablero, name="trazabilidad"),
 
-    # Producto terminado: qué se puede entregar hoy mismo. Se deduce de los
-    # almacenes de cada línea; no hay un tercer número que desincronizar.
+    # Producto terminado: qué hay, de quién es y qué falta hacer. Se deduce de
+    # los almacenes, los pedidos y las órdenes abiertas de cada línea; no hay
+    # un número copiado más que desincronizar. Lo único que se guarda es el
+    # mínimo de cada producto, porque eso es una decisión y no un cálculo.
     path("producto-terminado/", terminado.catalogo, name="producto_terminado"),
+    path(
+        "producto-terminado/minimos/",
+        terminado.minimos,
+        name="producto_terminado_minimos",
+    ),
+    path(
+        "producto-terminado/minimos/guardar/",
+        terminado.guardar_minimo,
+        name="producto_terminado_minimo_guardar",
+    ),
 
     # Usuarios. Hasta ahora sólo se podían crear desde el admin de Django.
     path("usuarios/", usuarios.lista, name="usuarios"),
