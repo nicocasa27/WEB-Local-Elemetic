@@ -308,3 +308,50 @@ class TestLosPapeles:
         casillero que nadie sabe si marcar."""
         sin_explicar = [r["clave"] for r in roles.ROLES if not r.get("descripcion")]
         assert not sin_explicar
+
+
+class TestUnRolNuevoNoSePierdeEnSilencio:
+    """`groups.set()` con un `filter` descarta lo que no existe, sin avisar.
+
+    Un rol nuevo no existe en la base del taller hasta que alguien corre un
+    comando. «Pintura» fue el último: un administrador lo marcaba, guardaba
+    sin ningún error, y el rol no se aplicaba. El único síntoma habría sido
+    que a esa persona el sistema no la deja trabajar, días después y sin
+    relación aparente con el formulario que se guardó.
+    """
+
+    def test_se_crea_el_grupo_que_falta_al_asignarlo(self, django_user_model):
+        from django.contrib.auth.models import Group
+
+        from catalogos.usuarios import _aplicar_grupos
+
+        Group.objects.filter(name="pintura").delete()
+        persona = django_user_model.objects.create_user("diana", password="x")
+
+        _aplicar_grupos(persona, ["pintura"])
+
+        assert set(persona.groups.values_list("name", flat=True)) == {"pintura"}
+
+    def test_no_borra_los_grupos_que_ya_estaban(self, django_user_model):
+        from django.contrib.auth.models import Group
+
+        from catalogos.usuarios import _aplicar_grupos
+
+        Group.objects.get_or_create(name="corte")
+        persona = django_user_model.objects.create_user("juan", password="x")
+
+        _aplicar_grupos(persona, ["corte"])
+
+        assert Group.objects.filter(name="corte").count() == 1
+
+    def test_todos_los_roles_de_la_lista_se_pueden_asignar(self, django_user_model):
+        """Si alguien añade un rol y olvida crearlo, esto lo detecta."""
+        from catalogos.usuarios import _aplicar_grupos
+        from core import roles
+
+        persona = django_user_model.objects.create_user("todos", password="x")
+        claves = [r["clave"] for r in roles.ROLES]
+
+        _aplicar_grupos(persona, claves)
+
+        assert set(persona.groups.values_list("name", flat=True)) == set(claves)

@@ -20,6 +20,60 @@ Lo que sí conviene es pasar a producción, porque en desarrollo:
   configuración dentro, **incluida la contraseña de PostgreSQL**;
 - la clave de firma de sesiones es pública (está en el repositorio).
 
+## Actualizar el servidor del taller
+
+Para traer una versión nueva desde el repositorio. Se puede hacer sin parar el
+sistema más de un minuto, pero conviene fuera de horario porque el servidor se
+reinicia y las sesiones abiertas pierden lo que estuvieran escribiendo.
+
+```bat
+cd /d "C:\Users\Usuario\Documents\trae_projects\DJANGO WEB"
+
+rem 1. Respaldo. Nunca se actualiza sin esto.
+pg_dump -Fc -h 127.0.0.1 -U postgres mes_vigas -f respaldo_antes_de_actualizar.dump
+copy db.sqlite3 db.sqlite3.respaldo
+
+rem 2. Traer el código. Cerrar antes la ventana del servidor.
+git pull
+
+rem 3. Dependencias, por si alguna cambió.
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+rem 4. Estructura de la base. No borra nada: sólo añade.
+.venv\Scripts\python.exe manage.py migrate --database=mes
+.venv\Scripts\python.exe manage.py migrate
+
+rem 5. Grupos de permisos que hayan aparecido. Es idempotente.
+.venv\Scripts\python.exe manage.py crear_admin
+
+rem 6. Sólo si el servidor ya está en producción (DJANGO_ENV=prod).
+.venv\Scripts\python.exe manage.py collectstatic --noinput
+
+rem 7. Arrancar como siempre.
+INICIAR_SERVIDOR.bat
+```
+
+**Nadie tiene que volver a iniciar sesión.** Las cuentas y las contraseñas
+viven en `db.sqlite3`, que no se versiona: `git pull` no lo toca. Lo mismo con
+`.env` y con los archivos subidos —planos, DXF, acuses—, que están en `media/`.
+
+Lo que sí conviene mirar después, en este orden:
+
+```bat
+.venv\Scripts\python.exe manage.py auditar_stock
+.venv\Scripts\python.exe manage.py verificar_inventario
+```
+
+Los dos tienen que salir sin descuadres. Si alguno se queja, el respaldo del
+paso 1 está a un `pg_restore` de distancia.
+
+### Si la versión nueva trae variables de entorno
+
+`.env.example` es la plantilla y sí se versiona; `.env` no. Después de un
+`git pull`, comparar los dos y añadir a `.env` lo que haya aparecido. Las
+variables que falten se comportan como apagadas, así que **no arranca mal por
+no hacerlo**: sólo se queda sin la función nueva.
+
 ## Pasar el servidor a producción
 
 Todo esto se hace **en la máquina del taller**. Conviene hacerlo fuera de
@@ -151,65 +205,6 @@ El comando no imprime nada cuando no hay trabajo, para no llenar el registro.
 Mientras la tarea no esté configurada, la pantalla de control sigue
 consolidando los cierres al cargarse, igual que antes: no se rompe nada por
 no hacerlo, sólo se mantiene el retraso.
-
-## Motor unificado: encenderlo por primera vez
-
-Las cuatro líneas —vigas, herrería, corta y robótica— son hoy la misma máquina
-de estados copiada cuatro veces, cada una con su tabla. El motor unificado es
-una sola, y encima de ella funcionan cosas que en lo heredado no se pueden
-arreglar: revertir un cierre deshace también la entrada en almacén y anula el
-acuse, dos avances iguales no cuentan doble, y no se puede declarar terminado
-lo que nunca se soldó.
-
-El cambio no es de golpe. Son cuatro cambios pequeños, uno por línea, y cada
-uno se deshace poniendo una variable de vuelta y reiniciando. **En ningún paso
-se toca ni se borra una fila de las tablas de siempre.**
-
-### Una vez, en este orden
-
-```bat
-.venv\Scripts\python.exe manage.py sembrar_nucleo
-.venv\Scripts\python.exe manage.py backfill_nucleo --simular
-.venv\Scripts\python.exe manage.py backfill_nucleo
-.venv\Scripts\python.exe manage.py verificar_backfill
-```
-
-`backfill_nucleo` **sólo lee** lo heredado, y se puede repetir tantas veces
-como haga falta: reconoce lo que ya volcó. `verificar_backfill` tiene que
-terminar con «Sin diferencias»; compara órdenes, kilos y el reparto por etapa
-de los dos lados. **Si no sale limpio, no seguir**: significa que hay datos que
-no sabíamos que existían.
-
-Es normal que informe de movimientos «sin historial que reconstruir». El
-sistema heredado lleva el avance por contadores y no guardó el paso a paso, así
-que esos quedan como un ajuste declarado, marcado como tal. Inventarles una
-fecha sería más cómodo y destruiría lo único que da valor al historial.
-
-### Después: escritura doble
-
-En `.env`, poner las cuatro en `doble` y reiniciar. Las pantallas siguen
-escribiendo donde siempre y además en el núcleo, en la misma transacción. La
-verdad sigue estando en lo heredado, así que si el núcleo se equivoca no pasa
-nada todavía.
-
-Programar cada noche:
-
-```bat
-.venv\Scripts\python.exe manage.py reconciliar_nucleo
-```
-
-Compara los dos lados campo por campo y anota lo que no cuadre. Mientras
-imprima «Sin divergencias», el núcleo está diciendo lo mismo.
-
-### El corte, más adelante
-
-Pasar una línea a `corte` **sólo tras siete días seguidos sin divergencias**, y
-de una en una, de menos a más riesgo: robótica → corta → herrería → vigas. Ese
-plazo es lo que convierte la migración en algo aburrido en vez de heroico.
-
-Si algo va mal, se pone `doble` otra vez y se reinicia. Se vuelve al estado
-anterior sin perder nada, porque durante el corte se sigue escribiendo también
-en lo heredado.
 
 ## Registro de actividad
 

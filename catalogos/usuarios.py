@@ -159,6 +159,18 @@ def _guardar_enlace(usuario, colaborador):
 
 
 def _aplicar_grupos(usuario, claves):
+    """Pone los roles marcados, creando los que falten en la base.
+
+    `groups.set()` con un `filter` descarta en silencio los grupos que no
+    existen. Un rol nuevo —«pintura» fue el último— no existe en la base del
+    taller hasta que alguien corre un comando, así que sin esto un
+    administrador lo marcaba en la pantalla, guardaba sin ningún error, y el
+    rol no se aplicaba. El único síntoma sería que a esa persona el sistema
+    no la deja hacer su trabajo, tres días después y sin relación aparente.
+
+    `asegurar_grupos` es idempotente y no borra ninguno.
+    """
+    roles.asegurar_grupos()
     usuario.groups.set(Group.objects.filter(name__in=claves))
     # `is_staff` abre el admin de Django, que enseña las tablas en crudo. Se
     # deja sólo a quien administra usuarios.
