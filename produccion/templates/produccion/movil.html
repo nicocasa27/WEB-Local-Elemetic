@@ -68,6 +68,33 @@
         · {{ t.peso_kg }} kg
       </div>
 
+      {% if t.entrega %}
+        {% comment %}
+          Lo primero que ve quien va a empezar: **qué le entregaron y quién
+          firmó que estaba bien**. Antes la pieza aparecía en su cola sin más;
+          si venía mal cortada, nadie lo miraba hasta llevar dos horas de
+          trabajo encima, y para entonces no había forma de saber quién la
+          había dado por buena.
+
+          Va arriba del todo, antes de las especificaciones y del botón, porque
+          es la decisión que hay que tomar antes de tocar la pieza.
+        {% endcomment %}
+        <div class="mov-entrega">
+          <div class="mov-entrega-titulo">
+            <i class="bi bi-box-arrow-in-down"></i>
+            {{ t.entrega.area_origen }} te entregó esto
+          </div>
+          <div class="mov-entrega-quien">
+            Lo revisó y firmó <strong>{{ t.entrega.entrega_por }}</strong>,
+            {{ t.entrega.entregado_en|date:"d/m H:i" }}.
+          </div>
+          <button type="button" class="mov-boton mov-devolver js-mov-devolver"
+                  data-pieza="{{ t.id }}" data-codigo="{{ t.codigo }}">
+            <i class="bi bi-arrow-return-left"></i> No está bien · devolver
+          </button>
+        </div>
+      {% endif %}
+
       {% if t.especificaciones %}
         {% comment %}
           Cómo se hace la pieza. Hasta ahora la tarjeta decía cuál era —código,
@@ -168,6 +195,26 @@
             hacía que la lista se comportara distinto según el ancho de la
             pantalla.
           {% endcomment %}
+          {% comment %}
+            Las dos firmas del traspaso. Van vacías y las llena el lienzo
+            (js/firma.js) justo antes de enviar: el botón de la tarjeta no
+            avanza la pieza, abre la pregunta.
+
+            Si el JavaScript no cargara, el formulario se envía tal cual y la
+            pieza avanza sin trazo. Es a propósito: el acta se levanta igual,
+            con quien la movió y a qué hora, porque lo que no puede perderse es
+            **quién fue**. El dibujo es la prueba de que lo revisó; la
+            responsabilidad la fija la sesión.
+          {% endcomment %}
+          {% if t.entrega %}
+            <input type="hidden" name="firma_recibo" value="" class="js-firma-recibo"
+                   data-texto="{{ t.entrega.area_origen }} te entrega {{ t.codigo }}. Lo revisó y firmó {{ t.entrega.entrega_por }}. Si lo aceptas queda a tu nombre: revísalo antes de firmar.">
+          {% endif %}
+          {% if t.entrega_a %}
+            <input type="hidden" name="firma_entrega" value="" class="js-firma-entrega"
+                   data-texto="Estás entregando {{ t.codigo }} a {{ t.entrega_a }}. Al firmar dices que revisaste que quedó como la pidieron.">
+          {% endif %}
+
           <input type="hidden" name="fecha_operacion" value="" class="js-hoy">
           <button type="submit" class="mov-boton mov-terminar {% if not t.en_curso %}mov-empezar{% endif %}">
             <i class="bi {% if t.en_curso %}bi-check2-circle{% else %}bi-play-circle{% endif %}"></i>
@@ -241,6 +288,59 @@
   </div>
 </div>
 
+{% comment %}
+  Firmar con el dedo. Una sola hoja para los dos momentos —recibir y
+  entregar— porque el gesto es el mismo y el texto lo pone quien la abre.
+{% endcomment %}
+<div class="offcanvas offcanvas-bottom mov-hoja mov-hoja-firma" tabindex="-1" id="movFirma"
+     aria-labelledby="movFirmaTitulo">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title js-firma-titulo" id="movFirmaTitulo">¿Está correcto?</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+  </div>
+  <div class="offcanvas-body">
+    <p class="mov-firma-texto js-firma-texto"></p>
+    {# El lienzo es grande porque se firma con un dedo, no con un ratón. #}
+    <canvas class="mov-firma-lienzo js-firma-lienzo" aria-label="Firma aquí con el dedo"></canvas>
+    <div class="mov-firma-pie">Firma aquí con el dedo</div>
+    <div class="d-grid gap-2 mt-2">
+      <button type="button" class="mov-boton mov-terminar js-firma-aceptar" disabled>Firmar</button>
+      <button type="button" class="mov-boton mov-problema js-firma-limpiar">Borrar y volver a firmar</button>
+    </div>
+  </div>
+</div>
+
+{% comment %}
+  Devolver. Se pide el motivo por escrito: sin él, quien tiene que corregir la
+  pieza acaba llamando por teléfono, que es lo que esto venía a ahorrar.
+{% endcomment %}
+<div class="offcanvas offcanvas-bottom mov-hoja" tabindex="-1" id="movDevolver"
+     aria-labelledby="movDevolverTitulo">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="movDevolverTitulo">¿Qué está mal?</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form method="post" action="{% url 'produccion:movil_devolver' %}">
+      {% csrf_token %}
+      <input type="hidden" name="pieza" class="js-devolver-pieza">
+      <div class="text-muted small mb-2 js-devolver-codigo"></div>
+      <textarea name="motivo" class="mov-motivo-texto" rows="3" required
+                placeholder="Ej.: las vigas miden 90 cm y debían ser de un metro"></textarea>
+      <div class="d-grid gap-2 mt-2">
+        <button type="submit" class="mov-boton mov-devolver">
+          <i class="bi bi-arrow-return-left"></i> Devolver a quien la entregó
+        </button>
+      </div>
+      <p class="mov-devolver-nota">
+        Devolver una pieza mala no cuenta en tu contra: cuenta a favor. Lo que
+        queda registrado es que te la entregaron así.
+      </p>
+    </form>
+  </div>
+</div>
+
 <link href="{% static 'css/movil.css' %}" rel="stylesheet">
 <script src="{% static 'js/movil.js' %}"></script>
+<script src="{% static 'js/firma.js' %}"></script>
 {% endblock %}

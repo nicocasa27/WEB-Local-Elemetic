@@ -1501,3 +1501,45 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
   color: #6b4b17;
   background: #fdf0d5;
 }
+
+/* ================================================ rendimiento por persona */
+
+/* Una mediana sobre cuatro muestras no es un indicador, es una anécdota con
+ * formato de tabla. Y esta pantalla se usa para juzgar a personas, así que el
+ * aviso va pegado al número y no en una nota al pie que nadie lee. */
+.mes-pocas-muestras {
+  font-family: var(--fuente-etiq, sans-serif);
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--mes-aviso, #fb6340);
+}
+
+/* Las dos cifras que importan de la hoja de calidad. En color y no en icono
+ * porque lo que se busca es recorrer la columna y ver dónde hay algo, no
+ * leerlas una por una. */
+.mes-cifra-mala { color: #8a1c1c; font-weight: 700; }
+.mes-cifra-buena { color: #1c6b45; font-weight: 700; }
+
+/* El paso de «cuánto se produjo» a «quién lo produjo». Ancho completo y con
+ * su explicación: es una pantalla nueva y sin una frase que diga qué contesta,
+ * nadie la abre. */
+.mes-enlace-rendimiento {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 1rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--mes-hairline);
+  border-left: 4px solid var(--section-accent);
+  border-radius: var(--mes-radius);
+  background: #fff;
+  color: var(--acero-700);
+  text-decoration: none;
+}
+
+.mes-enlace-rendimiento:hover { background: var(--acero-050); color: var(--acero-900); }
+.mes-enlace-rendimiento > .bi:first-child { font-size: 1.5rem; color: var(--section-accent); }
+.mes-enlace-rendimiento span { display: block; font-size: .875rem; color: var(--argon-muted); }
+.mes-enlace-rendimiento strong { display: block; color: var(--acero-900); font-size: 1rem; }

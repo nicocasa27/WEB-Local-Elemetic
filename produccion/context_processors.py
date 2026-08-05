@@ -46,6 +46,7 @@ SECCION_POR_PREFIJO = [
     ("export_vigas", "estructuras"),
     ("pedidos_", "pedidos"),
     ("dashboard", "reportes"),
+    ("rendimiento", "reportes"),
     ("paros", "paros"),
     ("equipo_", "configuracion"),
     ("colaborador_", "configuracion"),

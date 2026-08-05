@@ -30,6 +30,24 @@
     </div>
   </div>
 
+  {% comment %}
+    Esta pantalla contesta cuánto se produjo. La otra contesta quién lo produjo
+    y en cuánto tiempo, que es una pregunta distinta y son datos distintos: uno
+    sale de las piezas y el otro de la hora a la que cada quien abrió y cerró
+    su etapa. Van separadas para que ninguna de las dos se lea como la otra.
+  {% endcomment %}
+  {% if puede_ver_rendimiento %}
+    <a class="mes-enlace-rendimiento" href="{% url 'produccion:rendimiento' %}">
+      <i class="bi bi-stopwatch"></i>
+      <span>
+        <strong>Rendimiento por persona</strong>
+        Cuánto tarda cada quien, dónde se para el material entre áreas, y quién
+        entrega piezas que hay que rehacer.
+      </span>
+      <i class="bi bi-chevron-right ms-auto"></i>
+    </a>
+  {% endif %}
+
   <div class="card mb-3">
     <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
       <div>

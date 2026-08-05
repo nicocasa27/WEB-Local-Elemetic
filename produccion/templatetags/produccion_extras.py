@@ -160,3 +160,34 @@ def enlace_pagina(context, numero):
     if request is None:
         return "#"
     return enlace_de_pagina(request, numero)
+
+
+@register.filter
+def duracion(segundos):
+    """Un rato, en palabras del taller: «42 min», «3 h 10 min», «2 días».
+
+    La unidad cambia con la magnitud a propósito. Un corte se mide en minutos y
+    decir «0.7 h» obliga a traducir; una pieza que lleva parada tres días no se
+    lee como «74 h 20 min». Lo que se busca de un vistazo es el orden de
+    magnitud, no la precisión al segundo.
+    """
+    try:
+        total = float(segundos or 0)
+    except (TypeError, ValueError):
+        return ""
+    if total <= 0:
+        return "—"
+
+    minutos = int(round(total / 60.0))
+    if minutos < 1:
+        return "menos de 1 min"
+    if minutos < 90:
+        return f"{minutos} min"
+
+    horas, resto = divmod(minutos, 60)
+    if horas < 24:
+        return f"{horas} h" if resto == 0 else f"{horas} h {resto} min"
+
+    dias, horas_sueltas = divmod(horas, 24)
+    unidad = "día" if dias == 1 else "días"
+    return f"{dias} {unidad}" if horas_sueltas == 0 else f"{dias} {unidad} {horas_sueltas} h"

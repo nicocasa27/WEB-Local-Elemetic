@@ -1,0 +1,238 @@
+{% extends "produccion/base.html" %}
+{% load produccion_extras %}
+{% block title %}Taller Elemetic - Rendimiento{% endblock %}
+{% block content %}
+
+  <div class="d-flex align-items-start align-items-md-center justify-content-between gap-2 flex-column flex-md-row mb-3">
+    <div>
+      <div class="h3 mb-0">Rendimiento</div>
+      <div class="text-muted small">
+        Cuánto tarda cada quien, dónde se para el material, y quién entrega bien.
+      </div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label small mb-1" for="campo-desde">Desde</label>
+        <input id="campo-desde" class="form-control" type="date" name="desde" value="{{ desde|date:'Y-m-d' }}">
+      </div>
+      <div>
+        <label class="form-label small mb-1" for="campo-hasta">Hasta</label>
+        <input id="campo-hasta" class="form-control" type="date" name="hasta" value="{{ hasta|date:'Y-m-d' }}">
+      </div>
+      <button type="submit" class="btn btn-argon text-white">Ver</button>
+    </form>
+  </div>
+
+  {% if not hay_datos %}
+    {% comment %}
+      Una pantalla vacía se lee como «nadie trabajó». Aquí casi siempre
+      significa otra cosa: que en ese rango todavía no había apuntes, porque
+      la medición empezó el día que se instaló esto.
+    {% endcomment %}
+    <div class="alert alert-info">
+      <strong>Todavía no hay tiempos que medir en este rango.</strong>
+      <div class="small mt-1">
+        El tiempo se mide entre el momento en que alguien pulsa «Empezar corte»
+        y el momento en que pulsa «Terminé corte», desde el celular. Sólo hay
+        datos desde que el piso usa esa pantalla; lo anterior se registró sin
+        hora de inicio y no se puede reconstruir.
+      </div>
+    </div>
+  {% endif %}
+
+  {# ---------------------------------------------------------- por persona #}
+
+  <div class="card mb-3">
+    <div class="card-header fw-semibold">Cuánto tarda cada quien</div>
+    <div class="mes-scroll-x">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Persona</th>
+            <th>Etapa</th>
+            <th class="text-end">Piezas</th>
+            {% comment %}
+              La mediana manda y va primero. Un corte que se empezó un viernes
+              a las cuatro y se cerró el lunes a las ocho son 64 horas para el
+              promedio, y le hunde el número del mes a esa persona; para la
+              mediana es un dato más. Hasta que exista un calendario laboral
+              que descuente noches y fines de semana, el promedio se enseña al
+              lado pero no decide nada.
+            {% endcomment %}
+            <th class="text-end">Lo normal</th>
+            <th class="text-end">Promedio</th>
+            <th class="text-end">El peor</th>
+            <th class="text-end">kg/hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in personas %}
+            <tr>
+              <td>
+                <span class="fw-semibold">{{ fila.nombre }}</span>
+                {% if fila.nombre != fila.usuario %}
+                  <div class="text-muted small mes-dato">{{ fila.usuario }}</div>
+                {% endif %}
+              </td>
+              <td><span class="badge {{ fila.etapa|estado_clase }}">{{ fila.etapa }}</span></td>
+              <td class="text-end mes-dato">{{ fila.piezas }}</td>
+              <td class="text-end mes-dato fw-semibold">
+                {{ fila.tiempos.mediana|duracion }}
+                {% if fila.muestras < muestras_minimas %}
+                  {% comment %}
+                    Con cuatro muestras, una mediana no es un indicador: es una
+                    anécdota con formato de tabla. Y a partir de esta pantalla
+                    se juzga a personas, así que decirlo importa más que el
+                    número.
+                  {% endcomment %}
+                  <div class="mes-pocas-muestras">
+                    sólo {{ fila.muestras }} vez{{ fila.muestras|pluralize:"es" }}
+                  </div>
+                {% endif %}
+              </td>
+              <td class="text-end mes-dato text-muted">{{ fila.tiempos.promedio|duracion }}</td>
+              <td class="text-end mes-dato text-muted">{{ fila.tiempos.peor|duracion }}</td>
+              <td class="text-end mes-dato">{{ fila.kilos_por_hora }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="text-center text-muted py-4">Sin tiempos en este rango.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ------------------------------------------------------ entre las áreas #}
+
+  <div class="row g-3 mb-3">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Cuánto espera el material entre áreas</div>
+        <div class="card-body pb-0">
+          <p class="text-muted small">
+            Este tiempo no es trabajo de nadie: es material parado esperando a
+            que alguien lo tome. Suele ser la mitad de lo que tarda un pedido y
+            no aparece en ningún otro indicador.
+          </p>
+        </div>
+        <div class="mes-scroll-x">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Esperando en</th>
+                <th class="text-end">Veces</th>
+                <th class="text-end">Lo normal</th>
+                <th class="text-end">El peor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in esperas %}
+                <tr>
+                  <td>{{ fila.etapa }}</td>
+                  <td class="text-end mes-dato">{{ fila.muestras }}</td>
+                  <td class="text-end mes-dato fw-semibold">{{ fila.tiempos.mediana|duracion }}</td>
+                  <td class="text-end mes-dato text-muted">{{ fila.tiempos.peor|duracion }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">Sin datos en este rango.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header fw-semibold">Parado ahora mismo</div>
+        <div class="card-body pb-0">
+          <p class="text-muted small">
+            Lo de al lado dice dónde se atasca de costumbre. Esto dice qué está
+            atascado hoy, que es sobre lo que todavía se puede hacer algo.
+          </p>
+        </div>
+        <div class="mes-scroll-x">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Esperando en</th>
+                <th class="text-end">Piezas</th>
+                <th class="text-end">Lo normal</th>
+                <th class="text-end">La que más lleva</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fila in parado %}
+                <tr>
+                  <td>{{ fila.etapa }}</td>
+                  <td class="text-end mes-dato">{{ fila.piezas }}</td>
+                  <td class="text-end mes-dato">{{ fila.mediana|duracion }}</td>
+                  <td class="text-end mes-dato fw-semibold">{{ fila.la_que_mas|duracion }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4">No hay nada esperando.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --------------------------------------------------------------- calidad #}
+
+  <div class="card">
+    <div class="card-header fw-semibold">Quién entrega bien</div>
+    <div class="card-body pb-0">
+      <p class="text-muted small mb-0">
+        Cada vez que una pieza cambia de área, quien la entrega firma que la
+        revisó y quien la recibe firma que está correcta.
+        <strong>Devolver una pieza mala cuenta a favor</strong>: es la revisión
+        que se pide. Lo que cuenta en contra es entregar algo que hay que
+        rehacer, y darlo por bueno cuando no lo estaba.
+      </p>
+    </div>
+    <div class="mes-scroll-x">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Persona</th>
+            <th class="text-end">Entregas</th>
+            <th class="text-end">Bien a la primera</th>
+            <th class="text-end">Se las devolvieron</th>
+            <th class="text-end">Devoluciones que detectó</th>
+            <th class="text-end">Dio por buenas y salieron mal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fila in calidad %}
+            <tr>
+              <td><span class="fw-semibold">{{ fila.nombre }}</span></td>
+              <td class="text-end mes-dato">{{ fila.entregas }}</td>
+              <td class="text-end mes-dato">
+                {% if fila.porcentaje_bueno != None %}{{ fila.porcentaje_bueno }}%{% else %}—{% endif %}
+              </td>
+              <td class="text-end mes-dato {% if fila.devueltas %}mes-cifra-mala{% endif %}">
+                {{ fila.devueltas|default_if_none:0 }}
+              </td>
+              {# En verde: quien revisa y devuelve está haciendo su trabajo. #}
+              <td class="text-end mes-dato {% if fila.detectadas %}mes-cifra-buena{% endif %}">
+                {{ fila.detectadas }}
+              </td>
+              <td class="text-end mes-dato {% if fila.dio_por_buenas_y_salieron_mal %}mes-cifra-mala{% endif %}">
+                {{ fila.dio_por_buenas_y_salieron_mal }}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                Todavía no hay entregas firmadas en este rango.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endblock %}

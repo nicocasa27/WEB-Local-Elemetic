@@ -271,3 +271,90 @@
   font-size: .95rem;
   line-height: 1.45;
 }
+
+/* ======================================================= entrega entre áreas
+ *
+ * Lo primero que ve quien va a empezar: qué le entregaron y quién firmó que
+ * estaba bien. Va arriba de la tarjeta y con marco propio porque es una
+ * decisión, no un dato más: si la pieza viene mal, hay que verlo antes de
+ * ponerle dos horas de trabajo encima.
+ */
+
+.mov-entrega {
+  margin: .75rem 0;
+  padding: .75rem;
+  border: 1px solid #f5b98e;
+  border-left: 4px solid var(--mes-aviso, #fb6340);
+  border-radius: .5rem;
+  background: #fff6f0;
+}
+
+.mov-entrega-titulo {
+  font-family: var(--fuente-etiq, sans-serif);
+  font-weight: 700;
+  color: #9c4221;
+  margin-bottom: .2rem;
+}
+
+.mov-entrega-quien {
+  font-size: .95rem;
+  color: var(--acero-700, #26313f);
+  margin-bottom: .5rem;
+}
+
+/* Deliberadamente discreto al lado del botón de avanzar. Devolver tiene que
+ * estar a mano, no invitar: lo normal es que la pieza esté bien. */
+.mov-devolver {
+  border-color: #f5b98e;
+  color: #9c4221;
+  background: #fff;
+}
+
+.mov-devolver-nota {
+  margin: .75rem 0 0;
+  font-size: .85rem;
+  color: var(--argon-muted, #5b6b7f);
+}
+
+.mov-motivo-texto {
+  width: 100%;
+  padding: .6rem;
+  border: 1px solid var(--mes-hairline, #dde3ea);
+  border-radius: .5rem;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+/* ------------------------------------------------------------- la firma */
+
+.mov-hoja-firma .offcanvas-body { padding-top: .25rem; }
+
+.mov-firma-texto {
+  margin: 0 0 .75rem;
+  font-size: .95rem;
+  line-height: 1.35;
+  color: var(--acero-700, #26313f);
+}
+
+/* Alto fijo y ancho completo: se firma con el dedo, y un recuadro de dos
+ * centímetros embutido en la tarjeta no se puede firmar. `touch-action: none`
+ * es lo que impide que el gesto desplace la página en vez de dibujar. */
+.mov-firma-lienzo {
+  display: block;
+  width: 100%;
+  height: 170px;
+  border: 2px dashed var(--acero-300, #9aa8b8);
+  border-radius: .5rem;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.mov-firma-pie {
+  margin-top: .35rem;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--argon-muted, #5b6b7f);
+}
+
+.js-firma-aceptar[disabled] { opacity: .45; }

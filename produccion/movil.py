@@ -44,12 +44,17 @@ Dos cosas que hacen falta para que funcione y que antes no existían:
   la PC.
 """
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from acceso.servicios import minutos_de_inactividad as minutos_de_pin
 from core import estados
+from core.servicios import entrega as servicio_entrega
 from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio_ruta
 from core.servicios import trabajo as servicio_trabajo
@@ -572,6 +577,49 @@ def _poner_los_equipos(trabajos):
     return trabajos
 
 
+def _poner_las_entregas(trabajos):
+    """Cuelga de cada tarjeta la entrega que está esperando a que la reciban.
+
+    Es lo primero que tiene que ver quien va a empezar: **qué le entregaron y
+    quién firmó que estaba bien**. Hasta ahora una pieza aparecía en la cola de
+    soldadura sin más, y si venía mal cortada nadie lo miraba hasta que ya
+    llevaba dos horas de trabajo encima. Y cuando por fin se veía, no había
+    manera de saber quién la había dado por buena.
+
+    Sólo Estructuras, que es la línea que avanza pieza por pieza y por etapas.
+    Herrería y Corta.mx llevan una orden con contadores dentro: ahí no hay un
+    traspaso entre áreas que firmar, porque la orden entera es de una sola.
+    """
+    de_estructuras = [t for t in trabajos if t.get("linea") == "estructuras"]
+    actas = (
+        servicio_entrega.pendientes_de("Viga", [t.get("id") for t in de_estructuras])
+        if de_estructuras
+        else {}
+    )
+    ids_de_estructuras = {id(t) for t in de_estructuras}
+
+    for trabajo in trabajos:
+        trabajo["entrega"] = None
+        trabajo["entrega_a"] = ""
+        if id(trabajo) not in ids_de_estructuras:
+            continue
+
+        siguiente = trabajo.get("siguiente") or ""
+        acta = actas.get(int(trabajo.get("id") or 0))
+        # Sólo es «lo que me entregaron» si va dirigida a mi área. El acta de
+        # una pieza que yo mismo acabo de entregar también está pendiente, y
+        # enseñársela a quien la entregó sería pedirle que se reciba a sí mismo.
+        if acta is not None and servicio_entrega.area_de(siguiente) == acta.area_destino:
+            trabajo["entrega"] = acta
+
+        # Y si al avanzar la pieza sale de mi área, la tarjeta tiene que pedir
+        # la firma de entrega antes de soltarla.
+        _, destino = servicio_entrega.es_traspaso(trabajo.get("etapa"), siguiente)
+        trabajo["entrega_a"] = destino or ""
+
+    return trabajos
+
+
 def _asignadas_a(colaborador):
     """Identificadores de las piezas asignadas nominalmente a esta persona."""
     if colaborador is None:
@@ -603,7 +651,9 @@ def mi_trabajo(request):
     # Python es estable, así que el orden por prioridad y fecha que trae cada
     # cola se respeta dentro de cada bloque.
     trabajos.sort(key=lambda t: (not t["mia"], t["prioridad"], t["fecha_compromiso"]))
-    visibles = _poner_los_equipos(_poner_las_especificaciones(trabajos[:TOPE]))
+    visibles = _poner_las_entregas(
+        _poner_los_equipos(_poner_las_especificaciones(trabajos[:TOPE]))
+    )
     # Se cuentan **piezas**, no tarjetas: una tarjeta puede llevar cincuenta.
     # Decir «hay 3 piezas más» cuando en realidad hay ciento cincuenta sería
     # peor que no decir nada.
@@ -628,3 +678,128 @@ def mi_trabajo(request):
             "minutos_de_pin": minutos_de_pin(),
         },
     )
+
+
+# ============================================================ devolver una pieza
+
+
+def _a_dónde_vuelve(etapa_origen):
+    """La cola del área que la entregó, para que la vuelvan a trabajar.
+
+    La espera **anterior** a la etapa desde la que se entregó: una pieza mal
+    cortada vuelve a «Espera de corte», una mal soldada a «Espera de
+    soldadura». Devolverla a la etapa de trabajo a secas la dejaría marcada
+    como si alguien ya estuviera con ella.
+    """
+    posicion = estados.posicion(etapa_origen)
+    if posicion is None or posicion == 0:
+        return estados.ESPERA_CORTE
+    return estados.SECUENCIA[posicion - 1]
+
+
+@login_required
+@require_POST
+def devolver(request):
+    """«Esto no está bien»: quien recibe rechaza la entrega y la manda atrás.
+
+    Devolver **no es una falta de quien devuelve**, es su trabajo bien hecho, y
+    así lo cuenta el indicador. La falta es de quien entregó una pieza mala
+    diciendo que la había revisado, y de quien la aceptó antes sin mirarla.
+
+    Se devuelve el lote entero, no una pieza: si un cortador entregó doce
+    vigas de un metro y salieron de noventa centímetros, salieron las doce.
+    """
+    from catalogos.models import SeguimientoDespacho
+    from produccion.models import ProductionLog, Viga
+
+    pieza_id = request.POST.get("pieza") or ""
+    motivo = (request.POST.get("motivo") or "").strip()
+    actor = request.user.get_username() or ""
+
+    acta = servicio_entrega.pendiente("Viga", pieza_id) if pieza_id.isdigit() else None
+    if acta is None:
+        messages.error(request, "Esa entrega ya no está esperando: alguien la movió.")
+        return redirect("produccion:movil")
+
+    # Sólo la puede devolver el área a la que se la entregaron. Sin esto, quien
+    # la entregó podría rechazar su propia entrega y borrar el rastro.
+    mías = {servicio_entrega.area_de(e) for e in etapas_que_puede_mover(request.user)}
+    if acta.area_destino not in mías and not request.user.is_superuser:
+        messages.error(request, "Esta entrega no es de tu área.")
+        return redirect("produccion:movil")
+
+    vuelve_a = _a_dónde_vuelve(acta.etapa_origen)
+    ahora = timezone.now()
+
+    pieza = Viga.objects.using(BASE).filter(pk=acta.legacy_id).first()
+    if pieza is None:
+        messages.error(request, "Esa pieza ya no está en el sistema.")
+        return redirect("produccion:movil")
+
+    # El lote entero: las que comparten código, obra y la etapa en la que las
+    # dejó la entrega.
+    hermanas = list(
+        Viga.objects.using(BASE)
+        .filter(
+            codigo_viga=pieza.codigo_viga,
+            proyecto=pieza.proyecto,
+            estado__in=estados.variantes(acta.etapa_destino),
+        )
+        .order_by("pieza_no", "internal_id")
+    )
+    if not hermanas:
+        hermanas = [pieza]
+
+    with transaction.atomic(using=BASE):
+        _, error = servicio_entrega.rechazar(acta, quien=actor, motivo=motivo, momento=ahora)
+        if error:
+            messages.error(request, error)
+            return redirect("produccion:movil")
+
+        # El acta es de cada pieza, y aquí se devuelve el lote entero. Si sólo
+        # se cerrara la del botón que se pulsó, las otras once se quedarían
+        # esperando a que alguien las recibiera —a una pieza que ya no está
+        # ahí— y el indicador contaría una devolución donde hubo doce. Se
+        # cierran todas con el mismo motivo, que es lo que pasó.
+        pendientes = servicio_entrega.pendientes_de(
+            "Viga", [h.internal_id for h in hermanas]
+        )
+        for otra in pendientes.values():
+            if otra.pk != acta.pk:
+                servicio_entrega.rechazar(otra, quien=actor, motivo=motivo, momento=ahora)
+
+        for hermana in hermanas:
+            anterior = hermana.estado
+            hermana.estado = vuelve_a
+            hermana.ultimo_cambio = ahora
+            hermana.save(using=BASE, update_fields=["estado", "ultimo_cambio"])
+            ProductionLog.objects.using(BASE).create(
+                viga_internal=hermana,
+                fecha_operacion=timezone.localdate(ahora),
+                estado_anterior=anterior,
+                estado_nuevo=vuelve_a,
+                # La marca la lee el tablero de retrabajo, que hasta ahora
+                # tenía dos definiciones distintas de lo mismo. Ésta es una
+                # devolución declarada, no una adivinada por el comentario.
+                comentario=f"[DEVUELTA] {motivo}"[:2000],
+                timestamp=ahora,
+            )
+            servicio_trabajo.anotar(
+                linea=SeguimientoDespacho.Linea.VIGAS,
+                referencia=int(hermana.internal_id),
+                codigo=hermana.codigo_viga or "",
+                etapa=vuelve_a,
+                etapa_anterior=anterior,
+                maquina=None,
+                actor=actor,
+                ocurrido_en=ahora,
+            )
+
+    cuantas = len(hermanas)
+    messages.success(
+        request,
+        f"Devuelta{'s' if cuantas != 1 else ''} {cuantas} pieza"
+        f"{'s' if cuantas != 1 else ''} de {pieza.codigo_viga} a {vuelve_a.lower()}. "
+        f"Queda registrado que {acta.entrega_por or 'quien la entregó'} la entregó así.",
+    )
+    return redirect("produccion:movil")

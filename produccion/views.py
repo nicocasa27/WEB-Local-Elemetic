@@ -37,6 +37,8 @@ from core import estados as core_estados
 from core import metricas, paginacion, roles
 from core.estados import clase as clase_de_estado
 from core.servicios import inventario as servicio_inventario
+from core.servicios import entrega as servicio_entrega
+from produccion.rendimiento import puede_ver as puede_ver_rendimiento
 from core.servicios import ruta as servicio_ruta
 from core.servicios import trabajo as servicio_trabajo
 
@@ -2970,6 +2972,59 @@ def viga_avanzar_grupo(request):
     )
 
 
+def _firmar_el_traspaso(*, viga, etapa_anterior, etapa_nueva, actor, peticion, momento):
+    """Levanta o cierra el acta cuando la pieza cambia de área.
+
+    Dos momentos distintos y hay que mirar los dos en el mismo avance, porque
+    una pieza puede recibirse y entregarse en el mismo movimiento cuando un
+    área no tiene etapa de espera propia:
+
+    - **Recibir.** Si hay un acta esperando y este avance mete la pieza en el
+      área a la que iba dirigida, quien avanza es quien la recibe. Firma si
+      viene firma.
+    - **Entregar.** Si el avance saca la pieza de su área, se levanta un acta
+      nueva a nombre de quien avanza.
+
+    El servidor no exige la firma: la exige la pantalla del celular, que es
+    donde hay un dedo y un lienzo. Aquí se registra lo que llegue, porque de
+    lo contrario un avance desde la lista de la PC —o desde el lote— quedaría
+    sin acta y el rastro de responsabilidad tendría huecos justo en los
+    movimientos que hace la oficina.
+
+    Nunca lanza: un fallo del mecanismo de medición no puede dejar al taller
+    sin poder mover una pieza. Va en su propio punto de guardado dentro de la
+    transacción del avance, y no en un `try` a secas: tragarse un error de base
+    de datos sin deshacerlo deja la transacción marcada para descartar, y
+    entonces lo que falla es el avance entero unas líneas más abajo, que es
+    justo lo que se quería evitar.
+    """
+    try:
+        with transaction.atomic(using="mes"):
+            pendiente = servicio_entrega.pendiente("Viga", viga.internal_id)
+            if pendiente is not None and servicio_entrega.area_de(etapa_nueva) == (
+                pendiente.area_destino
+            ):
+                servicio_entrega.aceptar(
+                    pendiente,
+                    quien=actor,
+                    firma=peticion.POST.get("firma_recibo", ""),
+                    momento=momento,
+                )
+
+            servicio_entrega.registrar(
+                legacy_modelo="Viga",
+                legacy_id=int(viga.internal_id),
+                codigo=getattr(viga, "codigo_viga", "") or "",
+                etapa_anterior=etapa_anterior,
+                etapa_nueva=etapa_nueva,
+                quien=actor,
+                firma=peticion.POST.get("firma_entrega", ""),
+                momento=momento,
+            )
+    except Exception:
+        logger.exception("no se pudo firmar el traspaso de la viga %s", viga.pk)
+
+
 @login_required
 def viga_change_status_json(request, pk: int):
     if request.method != "POST":
@@ -3162,6 +3217,14 @@ def viga_change_status_json(request, pk: int):
                 maquina=maquina_apunte or _maquina_asignada(viga.internal_id, estado_nuevo),
                 actor=actor,
                 ocurrido_en=now,
+            )
+            _firmar_el_traspaso(
+                viga=viga,
+                etapa_anterior=_norm_estado(estado_anterior or ""),
+                etapa_nueva=estado_nuevo,
+                actor=actor,
+                peticion=request,
+                momento=now,
             )
     except Exception:
         logger.exception("no se pudo cambiar el estado de la viga %s", viga.pk)
@@ -4831,6 +4894,10 @@ def dashboard(request):
             },
             "export_mode": export_mode,
             "quien_detalle_cache": quien_detalle_cache,
+            # El rendimiento por persona enseña nombres con su tiempo al lado.
+            # El enlace sólo sale a quien puede abrirlo: ofrecerlo a todos y
+            # rebotarlos al llegar es peor que no ofrecerlo.
+            "puede_ver_rendimiento": puede_ver_rendimiento(request.user),
     }
 
     if bool(getattr(request, "_dashboard_context_only", False)):

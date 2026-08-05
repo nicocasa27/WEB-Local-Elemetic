@@ -1019,3 +1019,125 @@ class RequerimientoProyecto(models.Model):
 
     def __str__(self) -> str:
         return f"{self.proyecto}: {self.descripcion} x{self.cantidad}"
+
+
+# ======================================================== entrega entre áreas
+#
+# Quién entregó, quién recibió, y quién firmó que estaba bien.
+
+
+class ActaDeEntrega(models.Model):
+    """El traspaso de una pieza de un área a la siguiente, firmado por los dos.
+
+    El problema que resuelve es de responsabilidad, no de registro. Hoy, si
+    llegan a pintura dos vigas que debían medir un metro y miden noventa
+    centímetros, el sistema sabe que la pieza pasó por corte y por soldadura,
+    pero no sabe **quién dijo que estaba bien**. Y en un taller esa es la
+    pregunta que importa: no «dónde se rompió», sino «quién lo revisó y lo dio
+    por bueno».
+
+    Así que el traspaso deja de ser un cambio de estado y pasa a ser un acto
+    con dos partes:
+
+    - **Quien entrega** dice que revisó que la pieza quedó como se pidió, y lo
+      firma con el dedo.
+    - **Quien recibe** ve qué le entregan y quién lo firmó, y decide: la acepta
+      —y la firma, y entonces es suya— o la devuelve diciendo qué está mal.
+
+    De ahí salen las tres cosas que el taller pidió poder contestar:
+
+    1. Quién entregó mal: el `entrega_por` de las actas rechazadas.
+    2. Quién aceptó lo que estaba mal: el `recibe_por` del acta anterior de esa
+       misma pieza, que firmó que estaba bien y no lo estaba. Es el «que la
+       cobren entre los dos».
+    3. Quién revisa de verdad: el `rechazada_por`. **Devolver una pieza mala no
+       es una falta, es el trabajo bien hecho**, y el indicador lo cuenta a
+       favor. Si contara en contra, nadie devolvería nada y todo el mecanismo
+       se apagaría en una semana.
+
+    Sobre guardar la firma como texto
+    ---------------------------------
+
+    El trazo se guarda como imagen PNG en línea (`data:image/png;base64,...`)
+    dentro de una columna de texto, no como archivo en disco. Una firma de
+    dedo son unos pocos kilobytes; a este taller le salen del orden de dos por
+    pieza y etapa, que en un año no llegan a los cientos de megas. A cambio, la
+    firma viaja en el mismo respaldo que el resto —un acta cuya imagen se
+    quedó en un disco que nadie respaldó no prueba nada—, no hay archivos
+    huérfanos que limpiar, y no hay una URL adivinable con la firma de nadie.
+    """
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Esperando a que la reciban"
+        ACEPTADA = "aceptada", "Recibida y firmada"
+        RECHAZADA = "rechazada", "Devuelta"
+
+    #: A qué fila apunta, con el mismo par que usa el resto del núcleo.
+    legacy_modelo = models.CharField(max_length=40)
+    legacy_id = models.PositiveIntegerField()
+    #: El código visible, copiado. Un acta se lee años después, cuando la fila
+    #: de origen puede haberse renombrado.
+    codigo = models.CharField(max_length=120, blank=True, default="")
+
+    #: Las áreas, no las etapas: el traspaso es de corte a soldadura, y da
+    #: igual si por dentro se llamó «Espera de armado».
+    area_origen = models.CharField(max_length=40)
+    area_destino = models.CharField(max_length=40)
+    etapa_origen = models.CharField(max_length=40, blank=True, default="")
+    etapa_destino = models.CharField(max_length=40, blank=True, default="")
+
+    entrega_por = models.CharField(max_length=150, db_index=True)
+    entrega_firma = models.TextField(blank=True, default="")
+    entregado_en = models.DateTimeField(db_index=True)
+
+    recibe_por = models.CharField(max_length=150, blank=True, default="", db_index=True)
+    recibe_firma = models.TextField(blank=True, default="")
+    recibido_en = models.DateTimeField(null=True, blank=True)
+
+    estado = models.CharField(
+        max_length=12, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True
+    )
+    #: Qué está mal, en palabras de quien lo devolvió. Obligatorio al rechazar:
+    #: una devolución sin motivo no le sirve a quien tiene que corregirla.
+    motivo = models.TextField(blank=True, default="")
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-entregado_en"]
+        indexes = [
+            models.Index(fields=["legacy_modelo", "legacy_id", "entregado_en"]),
+            models.Index(fields=["estado", "entregado_en"]),
+        ]
+        constraints = [
+            # Una pieza no puede tener dos entregas esperando a la vez. Sin
+            # esto, dos avances seguidos dejarían dos actas abiertas y quien
+            # recibiera firmaría una cualquiera de las dos.
+            models.UniqueConstraint(
+                fields=["legacy_modelo", "legacy_id"],
+                condition=Q(estado="pendiente"),
+                name="una_entrega_pendiente_por_pieza",
+            ),
+        ]
+        verbose_name = "acta de entrega"
+        verbose_name_plural = "actas de entrega"
+
+    def __str__(self) -> str:
+        return f"{self.codigo or self.legacy_id}: {self.area_origen} → {self.area_destino}"
+
+    @property
+    def esta_pendiente(self):
+        return self.estado == self.Estado.PENDIENTE
+
+    @property
+    def fue_devuelta(self):
+        return self.estado == self.Estado.RECHAZADA
+
+    @property
+    def espera_desde_hace(self):
+        """Cuánto lleva esperando a que alguien la reciba, en segundos."""
+        if not self.esta_pendiente:
+            return None
+        from django.utils import timezone
+
+        return (timezone.now() - self.entregado_en).total_seconds()

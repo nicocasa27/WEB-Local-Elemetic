@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import movil, panorama, rutas, views
+from . import movil, panorama, rendimiento, rutas, views
 
 app_name = "produccion"
 
@@ -8,6 +8,8 @@ urlpatterns = [
     path("", views.home, name="home"),
     # La pantalla del operador: sólo su trabajo, y un toque por pieza.
     path("movil/", movil.mi_trabajo, name="movil"),
+    # «Esto no está bien»: quien recibe devuelve la entrega y dice qué falla.
+    path("movil/devolver/", movil.devolver, name="movil_devolver"),
     # Las cuatro líneas en una sola lista. La pregunta «¿qué se está
     # produciendo?» no tenía pantalla: había que abrir cuatro y sumar.
     path("control/", panorama.control, name="control"),
@@ -17,6 +19,9 @@ urlpatterns = [
     path("control/<str:linea>/<int:identificador>/ruta/guardar/", rutas.guardar, name="ruta_guardar"),
     path("menu/", views.home, name="menu"),
     path("dashboard/", views.dashboard, name="dashboard"),
+    # Cuánto tarda cada quien, dónde se para el material, y quién entrega
+    # bien. El tablero contestaba cuánto se produjo; nada de esto.
+    path("dashboard/rendimiento/", rendimiento.rendimiento, name="rendimiento"),
     path("dashboard/export/", views.dashboard_export_html, name="dashboard_export_html"),
     path("dashboard/export.xlsx", views.dashboard_export_xlsx, name="dashboard_export_xlsx"),
     path("dashboard/quien/<int:colab_id>/<str:etapa>/", views.dashboard_quien_detalle, name="dashboard_quien_detalle"),
