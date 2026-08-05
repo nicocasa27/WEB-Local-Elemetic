@@ -139,7 +139,7 @@
                 {% if r.id and r.linea != "robotica" %}
                   <a class="btn btn-sm btn-outline-secondary"
                      href="{% url 'produccion:ruta' r.linea r.id %}?next={{ request.get_full_path|urlencode }}"
-                     title="Por qué etapas pasa esta orden">Ruta</a>
+                     title="Por qué etapas pasa y qué hay que saber para hacerla">Cómo se hace</a>
                 {% endif %}
               </td>
               <td class="small">

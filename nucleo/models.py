@@ -335,6 +335,22 @@ class PiezaCatalogo(models.Model):
     pdf = models.FileField(upload_to="nucleo/catalogo/pdf/%Y/%m/", null=True, blank=True)
     dxf = models.FileField(upload_to="nucleo/catalogo/dxf/%Y/%m/", null=True, blank=True)
     activo = models.BooleanField(default=True)
+    #: Por qué etapas pasa esta pieza **siempre**. Lista de códigos de etapa,
+    #: igual que `OrdenProduccion.ruta`.
+    #:
+    #: Hay piezas que se hacen una vez y piezas que se hacen todas las
+    #: semanas. Un andamio tipo A no se pinta nunca: sin esto, alguien tiene
+    #: que acordarse de quitarle pintura a mano en cada pedido, y el día que
+    #: se le olvide, el andamio se forma en una cola de pintura por la que no
+    #: va a pasar. Con esto se dice una vez y las órdenes nuevas nacen bien.
+    #:
+    #: Vacía significa «nadie lo ha dicho»: la orden nace con la ruta
+    #: completa, que es lo que hacía el sistema.
+    ruta = models.JSONField(default=list, blank=True)
+    #: Cómo se hace esta pieza, para las órdenes nuevas. Mismo motivo que la
+    #: ruta: lo que se fabrica todas las semanas se describe una vez, no en
+    #: cada pedido. Ver `EspecificacionOrden`, que es donde acaba copiado.
+    especificaciones = models.TextField(blank=True, default="")
     legacy_modelo = models.CharField(max_length=40, blank=True, default="")
     legacy_id = models.PositiveIntegerField(null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -488,6 +504,21 @@ class OrdenProduccion(models.Model):
     #: fila a fila contra el original mientras convivan las dos.
     legacy_modelo = models.CharField(max_length=40, blank=True, default="", db_index=True)
     legacy_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
+
+    #: Cuándo se retiró, porque la fila heredada de la que salió ya no existe.
+    #:
+    #: En el sistema heredado una pieza se puede borrar, y cuando eso pasa su
+    #: copia aquí queda sin origen. La reconciliación lo notaba —«heredado
+    #: ausente, núcleo presente»— pero no tenía forma de arreglarlo: volver a
+    #: reflejar una fila que ya no está no hace nada, así que la diferencia se
+    #: repetía todos los días y la racha de siete jornadas limpias que exige
+    #: el corte no llegaba nunca.
+    #:
+    #: Se marca en vez de borrar. La orden ya no se compara ni sale en
+    #: producción, pero su historial se queda: para eso es un registro que
+    #: sólo crece. Si la fila heredada reaparece, el reflejo vuelve a poner
+    #: esto en nulo y la orden revive.
+    retirada_en = models.DateTimeField(null=True, blank=True, db_index=True)
 
     creado_por = models.CharField(max_length=150, blank=True, default="")
     ultimo_cambio = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -816,3 +847,49 @@ class DivergenciaReconciliacion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.legacy_modelo}#{self.legacy_id}.{self.campo}"
+
+
+class EspecificacionOrden(models.Model):
+    """Cómo se hace esta orden, escrito para quien la va a hacer.
+
+    En el celular, un soldador veía «V-118 · 3/50 · Obra Norte». Eso dice
+    cuál es la pieza, no cómo es. Lo que hace falta en la mano es el detalle:
+    «vigas de 70 cm con un corte a los 30 cm a noventa grados». Hoy eso viaja
+    en un plano impreso, o de boca en boca, y por eso se rehacen piezas.
+
+    Va en una tabla aparte y no como columna de la orden por dos razones:
+
+    - `vigas` es una tabla heredada declarada `managed = False`. Este sistema
+      no le añade columnas a las tablas del legado: la regla es que revertir
+      el código deje la base en pie sin tocarla.
+    - La única columna larga que existe en el legado es `descripcion`, que ya
+      se usa para otra cosa —el nombre de la pieza— y en herrería son 255
+      caracteres. No caben unas instrucciones.
+
+    Y no cuelga de `OrdenProduccion` a propósito, aunque la ruta sí lo haga.
+    La ruta es configuración: si el motor unificado todavía no está encendido
+    en ese servidor, la orden recorre las etapas de siempre y no se pierde
+    nada. Esto es contenido que alguien escribió, y tiene que poder
+    escribirse y leerse desde el primer día, con el motor encendido o
+    apagado. Por eso se apunta a la fila heredada directamente.
+    """
+
+    legacy_modelo = models.CharField(max_length=40)
+    legacy_id = models.PositiveIntegerField()
+    texto = models.TextField(blank=True, default="")
+    actualizado_por = models.CharField(max_length=120, blank=True, default="")
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["legacy_modelo", "legacy_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["legacy_modelo", "legacy_id"],
+                name="especificacion_unica_por_orden",
+            ),
+        ]
+        verbose_name = "especificación de la orden"
+        verbose_name_plural = "especificaciones de las órdenes"
+
+    def __str__(self) -> str:
+        return f"{self.legacy_modelo}#{self.legacy_id}"

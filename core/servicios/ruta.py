@@ -25,6 +25,8 @@ es exactamente el comportamiento de antes. La función nueva sólo puede quitar
 etapas, nunca añadirlas.
 """
 
+from django.utils import timezone
+
 from core import estados
 
 BASE = "mes"
@@ -120,6 +122,16 @@ def de(legacy_modelo, legacy_id):
     return guardada or secuencia_completa()
 
 
+def _para_guardar(etapas_de_trabajo_marcadas):
+    """La ruta tal y como se almacena.
+
+    La ruta completa se guarda vacía, para que se distinga lo que alguien
+    decidió de lo que nadie tocó.
+    """
+    ruta = armar(etapas_de_trabajo_marcadas)
+    return [] if ruta == secuencia_completa() else ruta
+
+
 def guardar(legacy_modelo, legacy_id, etapas_de_trabajo_marcadas):
     """Fija la ruta de una orden. Devuelve la ruta guardada, o `None`.
 
@@ -131,14 +143,168 @@ def guardar(legacy_modelo, legacy_id, etapas_de_trabajo_marcadas):
     orden = _orden_del_nucleo(legacy_modelo, legacy_id)
     if orden is None:
         return None
-    ruta = armar(etapas_de_trabajo_marcadas)
-    if ruta == secuencia_completa():
-        # Guardar la ruta completa es guardar «lo de siempre». Se deja vacía
-        # para que se distinga lo que alguien decidió de lo que nadie tocó.
-        ruta = []
+    ruta = _para_guardar(etapas_de_trabajo_marcadas)
     orden.ruta = ruta
     orden.save(using=BASE, update_fields=["ruta", "actualizado_en"])
     return ruta or secuencia_completa()
+
+
+# ----------------------------------------------------------------- el lote
+#
+# En Estructuras metálicas, una orden de cincuenta vigas son cincuenta filas,
+# una por pieza. La ruta, en cambio, es del pedido: si esas vigas no se
+# pintan, no se pinta ninguna. Recortarle la ruta a una sola dejaba a las
+# cuarenta y nueve restantes formadas en una cola de pintura por la que no
+# iban a pasar, y quien la configuró creía haberlo dicho.
+#
+# Las otras tres líneas llevan una fila por orden, así que su lote es ella
+# misma y estas funciones se comportan como las de arriba.
+
+
+def hermanas(legacy_modelo, legacy_id):
+    """Las filas heredadas que forman el mismo lote que ésta, ella incluida.
+
+    Se agrupa por código y obra, que es como se identifica un pedido en el
+    piso. La etapa **no** entra: que media orden vaya por soldadura y la otra
+    media siga en corte no la convierte en dos pedidos.
+    """
+    if legacy_modelo != "Viga":
+        return [int(legacy_id)] if legacy_id else []
+
+    from produccion.models import Viga
+
+    pieza = Viga.objects.using(BASE).filter(pk=legacy_id).only(
+        "internal_id", "codigo_viga", "proyecto"
+    ).first()
+    if pieza is None:
+        return []
+    return list(
+        Viga.objects.using(BASE)
+        .filter(codigo_viga=pieza.codigo_viga, proyecto=pieza.proyecto)
+        .order_by("pieza_no", "internal_id")
+        .values_list("internal_id", flat=True)
+    )
+
+
+def guardar_en_el_lote(legacy_modelo, legacy_id, etapas_de_trabajo_marcadas):
+    """Fija la ruta de todas las piezas del lote. Devuelve `(ruta, cuántas)`.
+
+    `(None, 0)` si ninguna de ellas tiene fila en el núcleo: no hay dónde
+    guardarla y se dice, igual que en `guardar`.
+    """
+    from nucleo.models import OrdenProduccion
+
+    ruta = _para_guardar(etapas_de_trabajo_marcadas)
+    identificadores = hermanas(legacy_modelo, legacy_id)
+    if not identificadores:
+        return None, 0
+
+    cuantas = (
+        OrdenProduccion.objects.using(BASE)
+        .filter(legacy_modelo=legacy_modelo, legacy_id__in=identificadores)
+        .update(ruta=ruta, actualizado_en=timezone.now())
+    )
+    if not cuantas:
+        return None, 0
+    return (ruta or secuencia_completa()), cuantas
+
+
+# --------------------------------------------------- las que se hacen siempre
+#
+# Hay piezas que se fabrican una vez y piezas que salen todas las semanas. Un
+# andamio tipo A no se pinta nunca. Sin memoria, alguien tiene que acordarse
+# de quitarle la pintura en cada pedido; el día que se le olvide, el andamio
+# se forma en una cola por la que no va a pasar y nadie se entera hasta que
+# el pintor pregunta.
+#
+# Así que la ruta se puede recordar en la pieza del catálogo, y las órdenes
+# nuevas de esa pieza nacen ya con ella puesta.
+
+
+def pieza_de_catalogo(legacy_modelo, legacy_id):
+    """La pieza de catálogo de una orden heredada, o `None`.
+
+    Es lo que decide si la pantalla puede ofrecer «recordar esto para todas
+    las piezas iguales». Estructuras no tiene catálogo, así que ahí no se
+    ofrece: no habría dónde recordarlo.
+    """
+    from nucleo.models import OrdenProduccion
+
+    if not legacy_modelo or not legacy_id:
+        return None
+    orden = (
+        OrdenProduccion.objects.using(BASE)
+        .filter(legacy_modelo=legacy_modelo, legacy_id=int(legacy_id))
+        .select_related("pieza")
+        .only("pieza")
+        .first()
+    )
+    return orden.pieza if orden else None
+
+
+def de_la_pieza(pieza):
+    """La ruta recordada de una pieza de catálogo, o `[]` si no hay ninguna."""
+    guardada = [estados.normalizar(e) for e in (getattr(pieza, "ruta", None) or [])]
+    return [e for e in guardada if e]
+
+
+def recordar_en_la_pieza(pieza, etapas_de_trabajo_marcadas):
+    """Deja fijada la ruta por omisión de una pieza de catálogo.
+
+    No toca las órdenes que ya existen. Cambiar cómo se hace algo de aquí en
+    adelante no puede reescribir lo que ya se acordó con un cliente ni lo que
+    ya va por medio taller.
+    """
+    if pieza is None:
+        return None
+    pieza.ruta = _para_guardar(etapas_de_trabajo_marcadas)
+    pieza.save(using=BASE, update_fields=["ruta", "actualizado_en"])
+    return pieza.ruta or secuencia_completa()
+
+
+def olvidar_en_la_pieza(pieza):
+    """Quita la ruta recordada: sus órdenes nuevas vuelven a pasar por todo."""
+    if pieza is None or not (pieza.ruta or []):
+        return
+    pieza.ruta = []
+    pieza.save(using=BASE, update_fields=["ruta", "actualizado_en"])
+
+
+def heredada(orden):
+    """La ruta que le toca a una orden recién creada, o `[]`.
+
+    Dos fuentes, en este orden:
+
+    1. **Su pieza de catálogo**, si alguien recordó una ruta ahí. Es el caso
+       de lo que se fabrica siempre.
+    2. **Sus hermanas de lote**, para Estructuras, que no tiene catálogo. Las
+       piezas de un pedido de cincuenta vigas se dan de alta una por una: sin
+       esto, la ruta que se configuró al dar de alta la primera no la
+       heredarían las otras cuarenta y nueve.
+
+    Devuelve la lista tal y como se almacena: vacía significa «la de siempre».
+    """
+    from nucleo.models import OrdenProduccion
+
+    if orden.pieza_id:
+        recordada = de_la_pieza(orden.pieza)
+        if recordada:
+            return recordada
+
+    if orden.legacy_modelo != "Viga":
+        return []
+
+    del_lote = [i for i in hermanas("Viga", orden.legacy_id) if i != orden.legacy_id]
+    if not del_lote:
+        return []
+    hermana = (
+        OrdenProduccion.objects.using(BASE)
+        .filter(legacy_modelo="Viga", legacy_id__in=del_lote)
+        .exclude(ruta=[])
+        .only("ruta")
+        .first()
+    )
+    return list(hermana.ruta) if hermana else []
 
 
 def siguiente(legacy_modelo, legacy_id, etapa_actual):

@@ -90,6 +90,36 @@
           <span class="mes-avanzar-corto">{{ v.next_estado }}</span>
         </button>
       </form>
+
+      {% if v.iguales > 1 %}
+        {% comment %}
+          «De estas cincuenta, hice treinta y dos.»
+
+          El avance por cantidades existía sólo en el celular; aquí un pedido
+          de cincuenta vigas eran cincuenta clics. Va como formulario normal y
+          no por AJAX: no hace falta interactividad para esto, y así funciona
+          aunque el JavaScript falle, que en el taller pasa.
+
+          Viene con el lote entero puesto porque terminarlo todo es el caso
+          normal; quien hizo menos, lo baja.
+        {% endcomment %}
+        <form method="post" action="{% url 'produccion:viga_avanzar_grupo' %}"
+              class="mes-avanzar-lote">
+          {% csrf_token %}
+          <input type="hidden" name="codigo" value="{{ v.codigo_viga }}">
+          <input type="hidden" name="proyecto" value="{{ v.proyecto }}">
+          <input type="hidden" name="estado_actual" value="{{ v.estado }}">
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <label class="mes-oculto-visualmente" for="lote-{{ v.internal_id }}">
+            Cuántas piezas de {{ v.codigo_viga }} pasar a {{ v.next_estado }}
+          </label>
+          <input id="lote-{{ v.internal_id }}" name="cantidad" type="number"
+                 inputmode="numeric" min="1" max="{{ v.iguales }}" value="{{ v.iguales }}">
+          <button type="submit" class="btn btn-outline-secondary">
+            de {{ v.iguales }} iguales
+          </button>
+        </form>
+      {% endif %}
     {% elif v.show_badge %}
       <button type="button" class="btn btn-secondary mes-avanzar" disabled>
         <i class="bi bi-arrow-right-circle me-1"></i><span class="mes-avanzar-largo">{{ v.show_badge }}</span>

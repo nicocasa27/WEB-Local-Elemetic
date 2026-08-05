@@ -389,6 +389,15 @@ que guarde por el ORM. Lo que **no** cubre son las nueve escrituras en bloque
 (`.filter(...).update(...)`) que hay en el código: de ésas se ocupa la
 reconciliación, que además sabe repararlas con `--corregir`.
 
+Un caso concreto de `--corregir`: cuando alguien **borra** una pieza o una
+orden en el sistema de siempre, su copia del núcleo se queda sin origen y la
+reconciliación la reporta como «heredado ausente, núcleo presente». Volver a
+reflejarla no arregla nada porque no hay nada que reflejar, así que sin
+`--corregir` esa diferencia reaparece todos los días y la racha de siete
+jornadas no llega nunca. Con `--corregir`, la orden se marca como retirada
+—no se borra: su historial se queda— y deja de compararse. Si la fila
+heredada reaparece, la orden revive sola.
+
 ### El corte, y cómo se deshace
 
 Orden por riesgo creciente: **robótica → corte láser → herrería → vigas**.

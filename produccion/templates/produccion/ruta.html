@@ -1,15 +1,22 @@
 {% extends "produccion/base.html" %}
 
-{% block title %}Taller Elemetic - Ruta de {{ codigo }}{% endblock %}
+{% block title %}Taller Elemetic - Cómo se hace {{ codigo }}{% endblock %}
 
 {% block content %}
   <div class="mes-ruta">
     <div class="mb-3">
       <div class="kpi-label">{{ linea_nombre }}</div>
-      <div class="h3 mb-0">Ruta de {{ codigo }}</div>
+      <div class="h3 mb-0">Cómo se hace {{ codigo }}</div>
       <p class="text-muted mb-0 mt-1">
-        Por qué etapas pasa esta orden. No todas pasan por todas: hay piezas
-        que se cortan, se sueldan y se entregan sin pintar.
+        Por qué etapas pasa y qué necesita saber quien la fabrica.
+        {% if piezas_del_lote > 1 %}
+          {% comment %}
+            En Estructuras, cincuenta vigas son cincuenta filas. Lo que se
+            decide aquí vale para las cincuenta, y hay que decirlo: quien
+            abrió una pieza tiene que saber que está decidiendo por el pedido.
+          {% endcomment %}
+          Lo que guardes aquí vale para las <strong>{{ piezas_del_lote }} piezas</strong> de este pedido.
+        {% endif %}
       </p>
     </div>
 
@@ -18,6 +25,7 @@
       <input type="hidden" name="next" value="{{ volver }}">
       <div class="card-body">
 
+        <div class="kpi-label mb-2">Etapas</div>
         {% for etapa in configurables %}
           <div class="mes-ruta-etapa">
             <input class="form-check-input" type="checkbox" name="etapas"
@@ -53,11 +61,55 @@
             <div class="text-muted small mt-2">Es la ruta completa: nadie la ha recortado.</div>
           {% endif %}
         </div>
+
+        {% comment %}
+          Las especificaciones. Van en esta pantalla y no en la de edición de
+          la orden porque son la otra mitad de la misma pregunta —qué hay que
+          saber antes de empezar— y porque quien las escribe es quien decide
+          la ruta: ingeniería y quien recibió el pedido.
+        {% endcomment %}
+        <hr class="my-4">
+
+        <label class="kpi-label mb-2 d-block" for="especificaciones">Especificaciones</label>
+        <p class="text-muted small">
+          Esto sale en la pantalla del celular de quien la fabrica, debajo del
+          código. Es para el detalle que no cabe en el nombre de la pieza.
+        </p>
+        <textarea class="form-control mes-ruta-especificaciones" id="especificaciones"
+                  name="especificaciones" rows="4" maxlength="{{ largo_maximo }}"
+                  placeholder="Ejemplo: vigas de 70 cm con un corte a los 30 cm a noventa grados. Sin rebaba en el canto.">{{ especificaciones }}</textarea>
+
+        {% if pieza_catalogo %}
+          {% comment %}
+            Lo que se fabrica todas las semanas se describe una vez. Sin esta
+            casilla, alguien tiene que acordarse de quitarle la pintura al
+            andamio tipo A en cada pedido, y el día que se le olvide el
+            andamio se forma en una cola por la que no va a pasar.
+
+            Va desmarcada siempre, incluso si ya hay algo recordado: guardar
+            una orden no puede cambiar en silencio cómo nacen todas las demás.
+          {% endcomment %}
+          <div class="mes-ruta-recordar">
+            <input class="form-check-input" type="checkbox" name="recordar" id="recordar" value="1">
+            <label class="form-check-label" for="recordar">
+              <span class="fw-semibold">Es siempre así</span>
+              <span class="d-block text-muted small">
+                Los pedidos nuevos de «{{ pieza_catalogo.nombre }}» van a nacer con
+                estas etapas y estas especificaciones.
+                {% if ya_recordada %}
+                  Ahora mismo ya hay algo recordado para esta pieza; al marcar
+                  esto se sustituye.
+                {% endif %}
+                Lo que ya está en producción no se toca.
+              </span>
+            </label>
+          </div>
+        {% endif %}
       </div>
 
       <div class="card-footer d-flex gap-2">
         <button type="submit" class="btn btn-argon text-white">
-          <i class="bi bi-check2 me-1"></i> Guardar la ruta
+          <i class="bi bi-check2 me-1"></i> Guardar
         </button>
         <a class="btn btn-outline-secondary"
            href="{% if volver %}{{ volver }}{% else %}{% url 'produccion:control' %}{% endif %}">Cancelar</a>

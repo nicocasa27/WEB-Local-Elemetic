@@ -719,6 +719,40 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
 .mes-acciones-secundarias { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
 .mes-acciones-secundarias > * { flex: 1 1 auto; }
 
+/* «De estas cincuenta, hice treinta y dos.»
+ *
+ * Deliberadamente más discreto que la acción principal: mover una pieza es lo
+ * que se hace cien veces al día y mover el lote entero es la excepción. Si
+ * pesaran igual, cerrar cincuenta piezas por error estaría a un clic de
+ * distancia del gesto de siempre. */
+.mes-avanzar-lote {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  margin-top: .4rem;
+}
+.mes-avanzar-lote input {
+  width: 4.25rem;
+  min-height: var(--mes-touch);
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid var(--mes-borde, #e3e7ee);
+  border-radius: .4rem;
+  padding: 0 .3rem;
+}
+.mes-avanzar-lote .btn {
+  flex: 1 1 auto;
+  min-height: var(--mes-touch);
+  white-space: nowrap;
+  font-size: .9rem;
+}
+
+@media (min-width: 992px) {
+  .mes-avanzar-lote { margin-top: 0; flex: 0 0 auto; }
+  .mes-avanzar-lote input { width: 3.5rem; min-height: 38px; }
+  .mes-avanzar-lote .btn { min-height: 38px; font-size: .8rem; padding: .25rem .5rem; }
+}
+
 @media (min-width: 992px) {
   .mes-col-acciones {
     display: flex;
@@ -1373,6 +1407,37 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
   color: #fff;
 }
 .mes-ruta-flecha { color: var(--argon-muted); font-size: .8rem; }
+
+/* Las especificaciones. Se escriben en la PC pero se leen con guantes en un
+ * teléfono, así que el campo va cómodo: cuanto más fácil sea escribir el
+ * detalle, más veces se va a escribir. */
+.mes-ruta-especificaciones {
+  font-size: 1rem;
+  line-height: 1.5;
+  min-height: 6rem;
+}
+
+/* «Es siempre así»: recordar esto para todos los pedidos de la misma pieza.
+ * Encuadrada porque su alcance es distinto al del resto del formulario —el
+ * resto toca este pedido, esto toca los que aún no existen— y esa diferencia
+ * tiene que verse antes de leerla. */
+.mes-ruta-recordar {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  margin-top: 1.25rem;
+  padding: .85rem 1rem;
+  border: 1px solid var(--mes-borde, #e3e7ee);
+  border-radius: .6rem;
+  background: var(--argon-soft);
+}
+.mes-ruta-recordar .form-check-input {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: .1rem 0 0;
+  flex: none;
+}
+.mes-ruta-recordar .form-check-label { cursor: pointer; }
 
 /* Marca de que una orden no recorre las mismas etapas que las demás. Sin
  * decirlo, quien mira la lista compara avances que no son comparables. */

@@ -299,3 +299,111 @@ class TestLaPantallaLasAgrupa:
         ).context["trabajos"]
 
         assert all(t["cuantas"] == 3 for t in trabajos)
+
+
+class TestNoSeMezclanDosObras:
+    """Dos pedidos distintos pueden usar el mismo código de pieza.
+
+    Sin la obra, «las 12 de la obra Norte» avanzaba las primeras doce de las
+    dos obras juntas, y la mitad del avance quedaba apuntado en el pedido
+    equivocado.
+    """
+
+    def test_la_obra_acota_el_lote(self, django_user_model):
+        lote(10, proyecto="TORRE NORTE")
+        lote(10, proyecto="NAVE SUR")
+        cliente = navegador(django_user_model)
+
+        respuesta = cliente.post(
+            reverse("produccion:viga_avanzar_grupo"),
+            {
+                "codigo": "V-LOTE",
+                "proyecto": "NAVE SUR",
+                "estado_actual": "Soldadura",
+                "estado_nuevo": "Espera de pintura",
+                "cantidad": 10,
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+            },
+        )
+
+        from produccion.models import Viga
+
+        assert respuesta.json()["hechas"] == 10
+        assert (
+            Viga.objects.filter(proyecto="TORRE NORTE", estado="Soldadura").count() == 10
+        )
+        assert Viga.objects.filter(proyecto="NAVE SUR", estado="Soldadura").count() == 0
+
+
+class TestTambienDesdeLaPC:
+    """El avance por cantidades existía sólo en el celular.
+
+    En la PC, un pedido de cincuenta vigas eran cincuenta clics. No era
+    urgente —quien captura desde la oficina suele ser supervisión— pero era
+    una diferencia entre pantallas de las que acaban en «depende de dónde lo
+    abras».
+    """
+
+    def _con_next(self, cliente, cuantas, destino="/vigas/"):
+        return cliente.post(
+            reverse("produccion:viga_avanzar_grupo"),
+            {
+                "codigo": "V-LOTE",
+                "proyecto": "TORRE NORTE",
+                "estado_actual": "Soldadura",
+                "estado_nuevo": "Espera de pintura",
+                "cantidad": cuantas,
+                "fecha_operacion": timezone.localdate().isoformat(),
+                "comentario": "",
+                "next": destino,
+            },
+        )
+
+    def test_un_formulario_normal_redirige_en_vez_de_devolver_json(
+        self, django_user_model
+    ):
+        """Así funciona aunque el JavaScript falle, que en el taller pasa."""
+        lote(10)
+        cliente = navegador(django_user_model)
+
+        respuesta = self._con_next(cliente, 4)
+
+        assert respuesta.status_code == 302
+        assert respuesta["Location"] == "/vigas/"
+        assert cuantas_en("Espera de pintura") == 4
+
+    def test_el_mensaje_dice_cuantas_y_cuantas_quedan(self, django_user_model):
+        lote(10)
+        cliente = navegador(django_user_model)
+
+        respuesta = self._con_next(cliente, 4)
+        texto = " ".join(str(m) for m in respuesta.wsgi_request._messages)
+
+        assert "4 piezas" in texto
+        assert "Quedan 6" in texto
+
+    def test_un_error_tambien_se_dice_en_la_pantalla(self, django_user_model):
+        """Un formulario que no responde nada es peor que uno que falla."""
+        lote(10, estado="Terminado")
+        cliente = navegador(django_user_model)
+
+        respuesta = self._con_next(cliente, 4)
+
+        assert respuesta.status_code == 302
+        assert "Ya no hay piezas" in " ".join(
+            str(m) for m in respuesta.wsgi_request._messages
+        )
+
+    def test_la_lista_de_escritorio_ofrece_el_lote(self, django_user_model):
+        """El botón sólo aparece cuando de verdad hay más de una igual."""
+        lote(10)
+        lote(1, codigo="V-SOLA")
+        cliente = navegador(django_user_model, nombre="jefa", grupo="admin_general")
+
+        cuerpo = cliente.get(reverse("produccion:viga_list")).content.decode()
+
+        assert "de 10 iguales" in cuerpo
+        # Una pieza sola no tiene lote: ofrecerle «de 1 iguales» sería un
+        # segundo botón que hace lo mismo que el de al lado.
+        assert "de 1 iguales" not in cuerpo

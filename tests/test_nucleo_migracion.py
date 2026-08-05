@@ -375,6 +375,62 @@ class TestReconciliacion:
         assert divergencia.campo == "existencia"
 
 
+class TestUnaOrdenBorradaNoBloqueaElCorteParaSiempre:
+    """En el sistema heredado una orden se puede borrar.
+
+    Cuando eso pasa, su copia del núcleo se queda sin origen. La
+    reconciliación lo notaba, pero no podía cerrarlo: volver a reflejar una
+    fila que ya no está no hace nada, así que la diferencia reaparecía todos
+    los días y la racha de siete jornadas limpias que exige el corte no
+    llegaba nunca. Una orden borrada bien dejaba su línea bloqueada.
+    """
+
+    def _borrada(self):
+        heredada = orden_heredada()
+        sembrar()
+        call_command("backfill_nucleo", verbosity=0, stdout=StringIO())
+        HerrOrdenProduccion.objects.filter(pk=heredada.pk).delete()
+        return heredada
+
+    def test_corregir_la_retira_en_vez_de_borrarla(self):
+        """El historial de lo que hizo se queda: para eso es un registro que
+        sólo crece."""
+        heredada = self._borrada()
+
+        call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
+
+        orden = OrdenProduccion.objects.using("mes").get(
+            legacy_modelo="HerrOrdenProduccion", legacy_id=heredada.pk
+        )
+        assert orden.retirada_en is not None
+        assert EventoProduccion.objects.using("mes").filter(orden=orden).exists()
+
+    def test_y_al_dia_siguiente_ya_no_hay_diferencias(self):
+        self._borrada()
+        call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
+
+        salida = StringIO()
+        call_command("reconciliar_nucleo", verbosity=0, stdout=salida)
+
+        assert "Sin divergencias" in salida.getvalue()
+
+    def test_si_la_orden_reaparece_revive(self):
+        """Pasa al restaurar un respaldo, o cuando alguien vuelve a dar de
+        alta lo que había borrado por error."""
+        heredada = self._borrada()
+        call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
+
+        vuelta = orden_heredada(codigo=heredada.codigo)
+        call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
+
+        assert (
+            OrdenProduccion.objects.using("mes")
+            .get(legacy_modelo="HerrOrdenProduccion", legacy_id=vuelta.pk)
+            .retirada_en
+            is None
+        )
+
+
 class TestPiezas:
     def test_los_tres_catalogos_se_unen_en_uno(self):
         HerrPiezaCatalogo.objects.create(nombre="Marco A", peso_kg=5.0)

@@ -68,6 +68,22 @@
         · {{ t.peso_kg }} kg
       </div>
 
+      {% if t.especificaciones %}
+        {% comment %}
+          Cómo se hace la pieza. Hasta ahora la tarjeta decía cuál era —código,
+          obra, número de pieza— pero no cómo: el detalle viajaba en un plano
+          impreso o de boca en boca, y por eso se rehacían piezas.
+
+          Va debajo de los datos y encima del botón, que es el orden en que se
+          lee: qué es, cómo se hace, ya está. Y con `white-space: pre-line`,
+          porque quien lo escribió puso saltos de línea por algo.
+        {% endcomment %}
+        <div class="mov-especificaciones">
+          <div class="mov-especificaciones-titulo">Cómo se hace</div>
+          {{ t.especificaciones }}
+        </div>
+      {% endif %}
+
       {% if t.por_cantidades %}
         {% comment %}
           Una orden de varias piezas no avanza por etapas después de
@@ -92,6 +108,12 @@
               lote entero es el caso normal; quien hizo menos, lo baja.
             {% endcomment %}
             <input type="hidden" name="codigo" value="{{ t.codigo }}">
+            {% comment %}
+              La obra va con el código: dos pedidos distintos pueden usar el
+              mismo código de pieza en obras distintas, y sin esto «las 12 de
+              la obra Norte» avanzaba las primeras doce de las dos juntas.
+            {% endcomment %}
+            <input type="hidden" name="proyecto" value="{{ t.proyecto }}">
             <input type="hidden" name="estado_actual" value="{{ t.etapa }}">
             <div class="mov-cuantas">
               <label for="cuantas-{{ forloop.counter }}">¿Cuántas?</label>

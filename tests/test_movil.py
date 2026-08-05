@@ -507,3 +507,50 @@ class TestCadaBotonQueSeOfreceLoAceptaElServidor:
 
         assert respuesta.status_code == 200, respuesta.content
         assert Viga.objects.get().estado == "Corte"
+
+
+class TestLaTarjetaDiceComoSeHaceLaPieza:
+    """«V-118 · 3/50 · Obra Norte» dice cuál es la pieza, no cómo es.
+
+    El detalle —«vigas de 70 cm con un corte a los 30 cm a noventa grados»—
+    viajaba en un plano impreso o de boca en boca, y por eso se rehacían
+    piezas.
+    """
+
+    def test_sale_lo_que_alguien_escribio(self, django_user_model):
+        from core.servicios import especificaciones
+
+        la_pieza = pieza()
+        especificaciones.guardar(
+            "Viga", la_pieza.internal_id, "Corte a los 30 cm, noventa grados."
+        )
+
+        cuerpo = (
+            navegador(django_user_model).get(reverse("produccion:movil")).content.decode()
+        )
+
+        assert "Corte a los 30 cm, noventa grados." in cuerpo
+
+    def test_sin_nada_escrito_no_deja_un_hueco(self, django_user_model):
+        pieza()
+
+        cuerpo = (
+            navegador(django_user_model).get(reverse("produccion:movil")).content.decode()
+        )
+
+        assert "mov-especificaciones" not in cuerpo
+
+    def test_no_se_asoma_lo_de_otro_pedido(self, django_user_model):
+        from core.servicios import especificaciones
+
+        mia = pieza(codigo="PRUEBA-1")
+        ajena = pieza(codigo="PRUEBA-2")
+        especificaciones.guardar("Viga", ajena.internal_id, "Instrucciones ajenas.")
+        especificaciones.guardar("Viga", mia.internal_id, "Las mías.")
+
+        cuerpo = (
+            navegador(django_user_model).get(reverse("produccion:movil")).content.decode()
+        )
+
+        assert cuerpo.count("Instrucciones ajenas.") == 1
+        assert "Las mías." in cuerpo

@@ -49,6 +49,7 @@ from django.db.models import Q
 from django.shortcuts import render
 
 from core import estados
+from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio_ruta
 
 BASE = "mes"
@@ -456,6 +457,10 @@ def _cola_de_mi_area(movibles, asignadas):
                 "linea": "estructuras",
                 "linea_titulo": "Estructuras",
                 "codigo": codigo,
+                #: Va al formulario de avance en lote junto con el código: dos
+                #: pedidos distintos pueden usar el mismo código en obras
+                #: distintas, y el servidor tiene que saber cuál es cuál.
+                "proyecto": proyecto,
                 "detalle": detalle,
                 "descripcion": primera.descripcion,
                 "etapa": etapa,
@@ -485,6 +490,47 @@ def _cola_de_mi_area(movibles, asignadas):
         )
 
     return trabajos, total
+
+
+#: De qué tabla heredada sale cada línea de esta pantalla. Es la clave con la
+#: que se guardan las especificaciones.
+LEGACY_DE = {
+    "estructuras": "Viga",
+    "herreria": "HerrOrdenProduccion",
+    "corta": "LaserOrdenProduccion",
+}
+
+
+def _poner_las_especificaciones(trabajos):
+    """Cuelga de cada tarjeta el detalle de cómo se hace su pieza.
+
+    «V-118 · 3/50 · Obra Norte» dice cuál es la pieza, no cómo es. Lo que
+    hace falta en la mano es «vigas de 70 cm con un corte a los 30 cm a
+    noventa grados», y hasta ahora eso viajaba en un plano impreso o de boca
+    en boca.
+
+    Se piden en bloque, una consulta por línea y no una por tarjeta. Con
+    cuarenta tarjetas, lo segundo son cuarenta consultas más para enseñar un
+    párrafo, que es el defecto que este sistema tiene repartido por todas
+    partes.
+    """
+    por_linea = {}
+    for trabajo in trabajos:
+        por_linea.setdefault(trabajo["linea"], []).append(trabajo["id"])
+
+    textos = {}
+    for linea, identificadores in por_linea.items():
+        etiqueta = LEGACY_DE.get(linea)
+        if not etiqueta:
+            continue
+        for identificador, texto in servicio_especificaciones.de_muchas(
+            etiqueta, identificadores
+        ).items():
+            textos[(linea, identificador)] = texto
+
+    for trabajo in trabajos:
+        trabajo["especificaciones"] = textos.get((trabajo["linea"], trabajo["id"]), "")
+    return trabajos
 
 
 def _asignadas_a(colaborador):
@@ -518,7 +564,7 @@ def mi_trabajo(request):
     # Python es estable, así que el orden por prioridad y fecha que trae cada
     # cola se respeta dentro de cada bloque.
     trabajos.sort(key=lambda t: (not t["mia"], t["prioridad"], t["fecha_compromiso"]))
-    visibles = trabajos[:TOPE]
+    visibles = _poner_las_especificaciones(trabajos[:TOPE])
     # Se cuentan **piezas**, no tarjetas: una tarjeta puede llevar cincuenta.
     # Decir «hay 3 piezas más» cuando en realidad hay ciento cincuenta sería
     # peor que no decir nada.

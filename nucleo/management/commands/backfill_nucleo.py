@@ -65,6 +65,8 @@ from catalogos.models import (
     RobotPiezaCatalogo,
     VigaAsignacion,
 )
+from core.servicios import especificaciones as servicio_especificaciones
+from core.servicios import ruta as servicio_ruta
 from nucleo.management.commands.sembrar_nucleo import clave, codigo_de
 from nucleo.models import (
     Asignacion,
@@ -345,6 +347,49 @@ class Command(BaseCommand):
             .first()
         )
 
+    def _pieza_por_nombre(self, linea, nombre):
+        """La pieza de catálogo de esa línea que se llama así, o `None`.
+
+        Herrería no guarda a qué pieza del catálogo corresponde una orden:
+        copia el nombre y ahí se acaba el vínculo. Así que se busca por el
+        nombre normalizado, que es la misma clave con la que el catálogo se
+        declara único. No es una relación de verdad —dos piezas distintas con
+        el mismo nombre serían la misma para esto— pero el catálogo ya prohíbe
+        justamente eso.
+        """
+        nombre = (nombre or "").strip().upper()
+        if not nombre:
+            return None
+        return (
+            PiezaCatalogo.objects.using(BASE)
+            .filter(linea=linea, nombre_normalizado=nombre)
+            .first()
+        )
+
+    def _heredar_del_lote(self, orden):
+        """Una orden recién creada nace sabiendo por dónde pasa y cómo se hace.
+
+        Un andamio que no se pinta lo dice su pieza de catálogo; una viga más
+        de un pedido de cincuenta lo dicen sus hermanas. Sin esto, la ruta y
+        las instrucciones había que escribirlas a mano en cada pedido y en
+        cada pieza, y el día que se olvidara, la pieza se formaba en una cola
+        por la que no iba a pasar, o llegaba al soldador sin decirle dónde va
+        el corte.
+
+        Sólo actúa al dar de alta. Cambiar lo recordado de una pieza no
+        reescribe lo que ya va por medio taller.
+        """
+        heredada = servicio_ruta.heredada(orden)
+        if heredada and list(orden.ruta or []) != list(heredada):
+            orden.ruta = list(heredada)
+            orden.save(using=BASE, update_fields=["ruta", "actualizado_en"])
+
+        texto = servicio_especificaciones.heredadas(orden)
+        if texto:
+            servicio_especificaciones.guardar_en_una(
+                orden.legacy_modelo, orden.legacy_id, texto, quien="alta"
+            )
+
     # ------------------------------------------------------------ despacho
 
     def _volcar(self, nombre):
@@ -397,6 +442,11 @@ class Command(BaseCommand):
             # `peso_kg` es el peso total de la orden: se fija como
             # `kg_pieza * total` al darla de alta.
             peso_unitario=peso_unitario(fila.peso_kg, total),
+            # Herrería no guarda de qué pieza del catálogo salió la orden:
+            # copia el nombre y ahí acaba el vínculo. Se reconstruye por el
+            # nombre, que es lo que hace que una orden nueva pueda heredar la
+            # ruta y las instrucciones de lo que se fabrica todas las semanas.
+            pieza=self._pieza_por_nombre(linea, fila.nombre),
             atributos={
                 "pieza_no": int(fila.pieza_no or 1),
                 "es_op": bool(fila.es_op),
@@ -699,6 +749,10 @@ class Command(BaseCommand):
                 "cierre_revertido_en": con_zona(getattr(fila, "cierre_revertido_en", None)),
                 "cierre_revertido_por": getattr(fila, "cierre_revertido_por", "") or "",
                 "ultimo_cambio": con_zona(getattr(fila, "ultimo_cambio", None)),
+                # Si la fila heredada reaparece, la orden revive. Pasa cuando
+                # se restaura un respaldo o cuando alguien vuelve a dar de
+                # alta lo que había borrado por error.
+                "retirada_en": None,
                 "creado_en": con_zona(
                     creado_en or getattr(fila, "creado_en", None) or self.ahora
                 ),
@@ -708,6 +762,7 @@ class Command(BaseCommand):
         self._contar("ordenes", int(creada))
 
         if creada:
+            self._heredar_del_lote(orden)
             self._evento(
                 orden,
                 f"{etiqueta}.alta",

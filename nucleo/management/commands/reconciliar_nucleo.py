@@ -105,10 +105,14 @@ class Command(BaseCommand):
             )
         )
 
+        # Las retiradas quedan fuera: su fila heredada ya no existe y alguien
+        # lo dio por bueno. Seguir comparándolas repetiría la misma diferencia
+        # todos los días, y la racha de siete jornadas limpias que exige el
+        # corte no llegaría nunca.
         migradas = {
             orden.legacy_id: orden
             for orden in OrdenProduccion.objects.using(BASE)
-            .filter(legacy_modelo=etiqueta)
+            .filter(legacy_modelo=etiqueta, retirada_en__isnull=True)
             .select_related("etapa_actual")
         }
 
@@ -129,9 +133,11 @@ class Command(BaseCommand):
 
         # Lo que está en el núcleo y ya no está en lo heredado. Puede ser una
         # orden purgada; si es otra cosa, hay que saberlo antes del corte.
+        huerfanas = []
         for legacy_id, orden in migradas.items():
             if legacy_id not in vistas:
                 divergencias.append((legacy_id, orden, "existencia", "ausente", "presente"))
+                huerfanas.append(orden)
 
         for legacy_id, orden, campo, heredado, nucleo in divergencias:
             DivergenciaReconciliacion.objects.using(BASE).create(
@@ -154,9 +160,33 @@ class Command(BaseCommand):
             return 0
 
         if self.corregir:
+            self._retirar(huerfanas)
             self._corregir(etiqueta, {d[0] for d in divergencias})
 
         return len(divergencias)
+
+    def _retirar(self, huerfanas):
+        """Marca las órdenes cuya fila heredada ya no existe.
+
+        Volver a reflejarlas no arregla nada: no hay nada que reflejar. Sin
+        esto, borrar una pieza en el sistema viejo dejaba una diferencia
+        permanente que no se podía cerrar, y el corte de esa línea quedaba
+        bloqueado para siempre por una pieza que alguien borró bien.
+
+        Se marcan, no se borran. El historial de lo que esa orden hizo se
+        queda: para eso es un registro que sólo crece.
+        """
+        if not huerfanas:
+            return
+        ahora = timezone.now()
+        OrdenProduccion.objects.using(BASE).filter(
+            pk__in=[o.pk for o in huerfanas]
+        ).update(retirada_en=ahora, actualizado_en=ahora)
+        self.stdout.write(
+            self.style.WARNING(
+                f"  {len(huerfanas)} orden(es) retiradas: su fila heredada ya no existe"
+            )
+        )
 
     def _corregir(self, etiqueta, identificadores):
         """Vuelve a reflejar las filas que difieren.

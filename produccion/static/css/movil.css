@@ -87,6 +87,35 @@
 
 .mov-detalle { color: #55607a; font-size: .95rem; line-height: 1.45; }
 
+/* ----------------------------------------------------- cómo se hace la pieza
+ *
+ * El detalle que hace falta en la mano: «vigas de 70 cm con un corte a los 30
+ * cm a noventa grados». Se lee de pie, a pleno sol y a un brazo de distancia,
+ * así que va a tamaño de lectura y no a tamaño de nota al pie: si hubiera que
+ * acercarse el teléfono a la cara para leerlo, se leería en el papel.
+ *
+ * `pre-line` respeta los saltos de línea de quien lo escribió. Un renglón por
+ * indicación se sigue con la vista; un párrafo corrido, no. */
+.mov-especificaciones {
+  margin-top: .75rem;
+  padding: .7rem .85rem;
+  border-radius: .5rem;
+  border-left: 3px solid var(--argon-primary, #5e72e4);
+  background: #f4f6fc;
+  color: #2c3552;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.mov-especificaciones-titulo {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #6b7699;
+  margin-bottom: .2rem;
+}
+
 /* -------------------------------------------------------------- botones */
 
 .mov-boton {

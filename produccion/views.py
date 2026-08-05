@@ -1048,6 +1048,51 @@ def _viga_queryset(request):
     return qs, {"estado": estado, "proyecto": proyecto, "q": q, "order": order}
 
 
+def _contar_las_iguales(vigas):
+    """Cuelga de cada pieza cuántas hay como ella, para avanzarlas de una vez.
+
+    El avance por cantidades existía sólo en el celular: en la PC, un pedido
+    de cincuenta vigas eran cincuenta clics. Quien captura desde la oficina
+    suele ser supervisión, así que no era urgente, pero era una diferencia
+    entre pantallas de las que acaban en «depende de dónde lo abras».
+
+    «Como ella» es mismo código, misma obra y misma etapa, que es el mismo
+    grupo que usa la pantalla del celular y el mismo que avanza el servidor.
+    Se cuenta sobre **toda** la tabla y no sobre la página ni sobre el filtro:
+    el botón va a mover todas las que haya, así que el número que se enseña
+    tiene que ser ése y no el que se vea desde aquí.
+    """
+    from django.db.models import Count
+
+    claves = {
+        (v.codigo_viga, v.proyecto, v.estado)
+        for v in vigas
+        if getattr(v, "next_estado", "")
+    }
+    if not claves:
+        for v in vigas:
+            v.iguales = 1
+        return
+
+    conteo = {}
+    for fila in (
+        Viga.objects.filter(
+            codigo_viga__in={c[0] for c in claves},
+            proyecto__in={c[1] for c in claves},
+        )
+        .values("codigo_viga", "proyecto", "estado")
+        .annotate(cuantas=Count("internal_id"))
+    ):
+        etapa = _norm_estado(fila["estado"] or "")
+        clave = (fila["codigo_viga"], fila["proyecto"], etapa)
+        # Las variantes de escritura de una etapa —«Espera Armado» y «Espera
+        # de armado» conviven en los datos— son la misma etapa y se suman.
+        conteo[clave] = conteo.get(clave, 0) + fila["cuantas"]
+
+    for v in vigas:
+        v.iguales = conteo.get((v.codigo_viga, v.proyecto, v.estado), 1)
+
+
 @login_required
 def viga_list(request):
     if not _is_admin_user(request.user):
@@ -1077,6 +1122,8 @@ def viga_list(request):
             v.next_estado = ESTADOS[idx + 1]
         if v.estado == "Terminado" and v.next_estado == "Enviado":
             v.next_estado = ""
+
+    _contar_las_iguales(vigas)
 
     today = timezone.localdate()
     cutoff = today - timedelta(days=DECOTE_DAYS)
@@ -2807,26 +2854,48 @@ def viga_avanzar_grupo(request):
     motivo de retroceso, apunte de trabajo y cuadrilla. Copiar ese bloque para
     la versión en lote habría sido la sexta copia de la misma lógica en este
     archivo, y la primera en separarse.
+
+    Responde JSON al celular, que lo llama por `fetch`, y redirige con un
+    mensaje cuando viene de un formulario normal —la lista de escritorio— para
+    que ahí funcione sin depender del JavaScript.
     """
     codigo = (request.POST.get("codigo") or "").strip()
+    proyecto = (request.POST.get("proyecto") or "").strip()
     etapa_actual = _norm_estado(request.POST.get("estado_actual") or "")
+    destino = request.POST.get("next") or ""
+    por_formulario = destino.startswith("/")
+
+    def contestar(datos, estado_http=200):
+        if not por_formulario:
+            return JsonResponse(datos, status=estado_http)
+        if datos.get("ok"):
+            messages.success(request, datos.get("mensaje") or "Avance registrado.")
+            if datos.get("aviso"):
+                messages.warning(request, datos["aviso"])
+        else:
+            messages.error(request, datos.get("error") or "No se pudo registrar el avance.")
+        return redirect(destino)
+
     try:
         cuantas = int(request.POST.get("cantidad") or 0)
     except (TypeError, ValueError):
         cuantas = 0
 
     if not codigo or not etapa_actual or cuantas <= 0:
-        return JsonResponse({"ok": False, "error": "Datos incompletos."}, status=400)
+        return contestar({"ok": False, "error": "Datos incompletos."}, 400)
 
     escrituras = core_estados.variantes(etapa_actual)
-    piezas = list(
-        Viga.objects.filter(codigo_viga=codigo, estado__in=escrituras)
-        .order_by("pieza_no", "internal_id")[:cuantas]
-    )
+    del_grupo = Viga.objects.filter(codigo_viga=codigo, estado__in=escrituras)
+    if proyecto:
+        # Dos pedidos distintos pueden usar el mismo código de pieza en obras
+        # distintas. Sin esto, avanzar «las 12 de la obra Norte» avanzaba las
+        # primeras doce de las dos obras juntas.
+        del_grupo = del_grupo.filter(proyecto=proyecto)
+    piezas = list(del_grupo.order_by("pieza_no", "internal_id")[:cuantas])
     if not piezas:
-        return JsonResponse(
+        return contestar(
             {"ok": False, "error": f"Ya no hay piezas de {codigo} en {etapa_actual}."},
-            status=409,
+            409,
         )
 
     hechas, error = 0, ""
@@ -2845,16 +2914,21 @@ def viga_avanzar_grupo(request):
         break
 
     if not hechas:
-        return JsonResponse({"ok": False, "error": error}, status=400)
+        return contestar({"ok": False, "error": error}, 400)
 
-    quedan = Viga.objects.filter(codigo_viga=codigo, estado__in=escrituras).count()
-    return JsonResponse(
+    quedan = del_grupo.count()
+    return contestar(
         {
             "ok": True,
             "hechas": hechas,
             "quedan": quedan,
             "codigo": codigo,
             "aviso": error,
+            "mensaje": (
+                f"{hechas} pieza{'s' if hechas != 1 else ''} de {codigo} "
+                f"{'salieron' if hechas != 1 else 'salió'} de {etapa_actual.lower()}."
+                + (f" Quedan {quedan}." if quedan else " No queda ninguna.")
+            ),
         }
     )
 
