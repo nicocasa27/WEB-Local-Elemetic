@@ -1326,3 +1326,65 @@ h1, h2, h3, .h1, .h2, .h3 { letter-spacing: -.015em; font-weight: 600; }
   border-bottom: 1px dotted currentColor;
 }
 .mes-linea-enlace:hover { color: var(--argon-primary, #5e72e4); }
+
+/* ------------------------------------------------------- ruta de una orden */
+.mes-ruta { max-width: 46rem; }
+
+.mes-ruta-etapa {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 44px;
+  padding: .35rem .1rem;
+}
+.mes-ruta-etapa .form-check-input {
+  /* 22px: se marca con el dedo, que es como se va a usar en el celular del
+   * supervisor cuando recibe el pedido por teléfono. */
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: 0;
+  flex: none;
+}
+.mes-ruta-etapa .form-check-label { font-size: 1.05rem; font-weight: 600; }
+
+.mes-ruta-previa {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--mes-borde, #e3e7ee);
+}
+.mes-ruta-cadena {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem;
+}
+.mes-ruta-paso {
+  padding: .25rem .55rem;
+  border-radius: .4rem;
+  background: var(--argon-soft);
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--argon-dark);
+}
+/* Dónde está la pieza ahora. Sin esto, la cadena es una lista de palabras y
+ * hay que releer la tabla para situarse. */
+.mes-ruta-paso.aqui {
+  background: var(--argon-dark);
+  color: #fff;
+}
+.mes-ruta-flecha { color: var(--argon-muted); font-size: .8rem; }
+
+/* Marca de que una orden no recorre las mismas etapas que las demás. Sin
+ * decirlo, quien mira la lista compara avances que no son comparables. */
+.mes-ruta-marca {
+  display: inline-block;
+  margin-top: .25rem;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  padding: .1rem .35rem;
+  border-radius: .3rem;
+  color: #6b4b17;
+  background: #fdf0d5;
+}

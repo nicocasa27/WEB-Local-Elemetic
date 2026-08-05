@@ -78,6 +78,7 @@
             <th>Avance</th>
             <th class="text-end">Piezas</th>
             <th class="text-end">Kg</th>
+            <th></th>
             <th>Compromiso</th>
           </tr>
         </thead>
@@ -97,6 +98,14 @@
               <td>
                 {% if r.etapa %}
                   <span class="badge {{ r.clase_etapa }}">{{ r.etapa }}</span>
+                  {% if r.ruta_recortada %}
+                    {% comment %}
+                      Una orden con la ruta recortada no recorre lo mismo que
+                      las demás. Sin decirlo, quien mira la lista compara
+                      avances que no son comparables.
+                    {% endcomment %}
+                    <div class="mes-ruta-marca" title="Esta orden no pasa por todas las etapas">Ruta propia</div>
+                  {% endif %}
                 {% else %}
                   {% comment %}
                     Robótica no tiene máquina de estados. Se dice, en vez de
@@ -126,6 +135,13 @@
               </td>
               <td class="text-end mes-dato">{{ r.piezas|cantidad }}</td>
               <td class="text-end mes-dato">{{ r.peso_kg|cantidad }}</td>
+              <td>
+                {% if r.id and r.linea != "robotica" %}
+                  <a class="btn btn-sm btn-outline-secondary"
+                     href="{% url 'produccion:ruta' r.linea r.id %}?next={{ request.get_full_path|urlencode }}"
+                     title="Por qué etapas pasa esta orden">Ruta</a>
+                {% endif %}
+              </td>
               <td class="small">
                 {% if r.fecha_compromiso %}
                   <span class="mes-dato">{{ r.fecha_compromiso|date:"Y-m-d" }}</span>
@@ -137,7 +153,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="8" class="p-4 text-center">
+              <td colspan="9" class="p-4 text-center">
                 <div class="fw-semibold">
                   {% if busqueda or linea %}Nada con ese filtro{% else %}El taller no tiene nada en producción{% endif %}
                 </div>

@@ -1,0 +1,67 @@
+{% extends "produccion/base.html" %}
+
+{% block title %}Taller Elemetic - Ruta de {{ codigo }}{% endblock %}
+
+{% block content %}
+  <div class="mes-ruta">
+    <div class="mb-3">
+      <div class="kpi-label">{{ linea_nombre }}</div>
+      <div class="h3 mb-0">Ruta de {{ codigo }}</div>
+      <p class="text-muted mb-0 mt-1">
+        Por qué etapas pasa esta orden. No todas pasan por todas: hay piezas
+        que se cortan, se sueldan y se entregan sin pintar.
+      </p>
+    </div>
+
+    <form method="post" class="card">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ volver }}">
+      <div class="card-body">
+
+        {% for etapa in configurables %}
+          <div class="mes-ruta-etapa">
+            <input class="form-check-input" type="checkbox" name="etapas"
+                   value="{{ etapa }}" id="etapa-{{ forloop.counter }}"
+                   {% if etapa in marcadas %}checked{% endif %}>
+            <label class="form-check-label" for="etapa-{{ forloop.counter }}">
+              {{ etapa }}
+            </label>
+          </div>
+        {% endfor %}
+
+        {% comment %}
+          Las etapas de espera no se preguntan: van pegadas a la suya. Nadie
+          tiene que decidir sobre «espera de pintura» — es una consecuencia de
+          que haya pintura, no una elección aparte. Preguntarlo duplicaría las
+          casillas y dejaría configurar cosas imposibles, como una cola para
+          una etapa que no se hace.
+        {% endcomment %}
+        <p class="text-muted small mb-0 mt-3">
+          Las esperas van con su etapa. Quitar pintura quita también la cola de
+          pintura, para que la pieza no se quede esperando a nadie.
+        </p>
+
+        <div class="mes-ruta-previa">
+          <div class="kpi-label mb-2">Como queda hoy</div>
+          <div class="mes-ruta-cadena">
+            {% for paso in ruta %}
+              <span class="mes-ruta-paso {% if paso == etapa_actual %}aqui{% endif %}">{{ paso }}</span>
+              {% if not forloop.last %}<span class="mes-ruta-flecha" aria-hidden="true">→</span>{% endif %}
+            {% endfor %}
+          </div>
+          {% if es_la_de_siempre %}
+            <div class="text-muted small mt-2">Es la ruta completa: nadie la ha recortado.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card-footer d-flex gap-2">
+        <button type="submit" class="btn btn-argon text-white">
+          <i class="bi bi-check2 me-1"></i> Guardar la ruta
+        </button>
+        <a class="btn btn-outline-secondary"
+           href="{% if volver %}{{ volver }}{% else %}{% url 'produccion:control' %}{% endif %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

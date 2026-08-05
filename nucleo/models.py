@@ -466,6 +466,23 @@ class OrdenProduccion(models.Model):
 
     atributos = models.JSONField(default=dict, blank=True)
 
+    #: Por qué etapas pasa **esta** orden. Lista de códigos de `Etapa`.
+    #:
+    #: Vacía significa «las de su línea, todas», que es lo que hacía el
+    #: sistema y sigue siendo lo normal. Ponerla es decir «esta orden no lleva
+    #: pintura»: se corta, se suelda y se entrega.
+    #:
+    #: Hasta ahora la secuencia estaba configurada **por línea**, así que
+    #: todas las órdenes recorrían las mismas etapas. Cuando una no llevaba
+    #: pintura, en el taller se la pasaba por pintura igual y se declaraba sin
+    #: pintar nada: el sistema registraba una etapa que no ocurrió, y todo lo
+    #: que se calcula encima —tiempos, coste, quién hizo qué, cuánto le
+    #: falta— quedaba contaminado por un dato falso.
+    #:
+    #: Va aquí y no en `atributos` porque se filtra y se recorre: es la
+    #: diferencia entre una columna y un cajón de sastre.
+    ruta = models.JSONField(default=list, blank=True)
+
     #: De qué fila heredada salió. Es lo que hace la migración idempotente y
     #: reversible: se puede volver a correr sin duplicar, y se puede comparar
     #: fila a fila contra el original mientras convivan las dos.

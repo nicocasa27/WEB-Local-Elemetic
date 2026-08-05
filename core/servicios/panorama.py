@@ -40,6 +40,7 @@ from django.db.models import F, FloatField, Sum
 from django.db.models.functions import Coalesce
 
 from core import estados
+from core.servicios import ruta as servicio_ruta
 
 BASE = "mes"
 
@@ -67,13 +68,20 @@ LINEAS = {
 }
 
 
-def _avance_de_etapa(etapa):
+def _avance_de_etapa(etapa, legacy_modelo="", legacy_id=None):
     """Cuánto lleva recorrido una pieza única, de 0 a 100.
 
-    Se mide sobre la secuencia sin contar «Enviado»: una pieza terminada está
-    al cien por cien de producción aunque todavía no haya salido del taller.
+    Se mide sobre **su ruta**, no sobre la secuencia general: una pieza que no
+    lleva pintura está al cien por cien cuando sale de soldadura. Medirla
+    contra la secuencia completa la dejaría en 75 % para siempre, y una lista
+    de control llena de órdenes que nunca llegan al final deja de leerse.
+
+    Sin ruta configurada, la ruta *es* la secuencia completa, así que esto no
+    cambia ningún número de los que ya había.
     """
-    secuencia = [e for e in estados.SECUENCIA if e != estados.ENVIADO]
+    if legacy_modelo and legacy_id:
+        return servicio_ruta.avance(legacy_modelo, legacy_id, etapa)
+    secuencia = servicio_ruta.secuencia_completa()
     posicion = estados.posicion(etapa, secuencia)
     if posicion is None or len(secuencia) < 2:
         return 0
@@ -86,6 +94,8 @@ def _renglon(**campos):
         "linea": "",
         "linea_nombre": "",
         "url_linea": "",
+        "id": None,
+        "ruta_recortada": False,
         "codigo": "",
         "descripcion": "",
         "cliente": "",
@@ -129,7 +139,10 @@ def _de_estructuras(busqueda=""):
                 clase_etapa=estados.clase(etapa),
                 en_serie=False,
                 piezas=pieza.total_piezas or 1,
-                avance=_avance_de_etapa(etapa),
+                id=pieza.internal_id,
+                ruta_recortada=servicio_ruta.de("Viga", pieza.internal_id)
+                != servicio_ruta.secuencia_completa(),
+                avance=_avance_de_etapa(etapa, "Viga", pieza.internal_id),
                 peso_kg=pieza.peso_kg or 0,
                 fecha_compromiso=pieza.fecha_compromiso,
                 prioridad=pieza.prioridad or 3,
@@ -139,7 +152,7 @@ def _de_estructuras(busqueda=""):
     return renglones
 
 
-def _de_una_linea_en_serie(modelo, clave, cliente_de, busqueda=""):
+def _de_una_linea_en_serie(modelo, clave, cliente_de, busqueda="", legacy_modelo=""):
     """Herrería y Corta.mx, que son la misma tabla con distinto nombre."""
     ordenes = modelo.objects.using(BASE).filter(estado="Abierta")
     if busqueda:
@@ -155,6 +168,12 @@ def _de_una_linea_en_serie(modelo, clave, cliente_de, busqueda=""):
         renglones.append(
             _renglon(
                 linea=clave,
+                id=orden.pk,
+                ruta_recortada=(
+                    int(orden.total_piezas or 0) < 2
+                    and servicio_ruta.de(legacy_modelo, orden.pk)
+                    != servicio_ruta.secuencia_completa()
+                ),
                 codigo=orden.codigo,
                 descripcion=orden.descripcion or orden.nombre or "",
                 cliente=cliente_de(orden),
@@ -240,6 +259,7 @@ def lo_que_se_esta_haciendo(busqueda="", linea=""):
             )
             or (o.proyecto.nombre if o.proyecto_id else ""),
             busqueda,
+            "HerrOrdenProduccion",
         ),
         "corta": lambda: _de_una_linea_en_serie(
             LaserOrdenProduccion,
@@ -249,6 +269,7 @@ def lo_que_se_esta_haciendo(busqueda="", linea=""):
             )
             or (o.proyecto.nombre if o.proyecto_id else ""),
             busqueda,
+            "LaserOrdenProduccion",
         ),
         "robotica": lambda: _de_robotica(busqueda),
     }

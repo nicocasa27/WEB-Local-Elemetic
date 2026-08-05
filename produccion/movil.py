@@ -49,6 +49,7 @@ from django.db.models import Q
 from django.shortcuts import render
 
 from core import estados
+from core.servicios import ruta as servicio_ruta
 
 BASE = "mes"
 
@@ -180,12 +181,14 @@ def _texto_del_boton(etapa, siguiente):
 
 
 class Linea:
-    def __init__(self, clave, titulo, grupos, ruta_avance, ruta_control):
+    def __init__(self, clave, titulo, grupos, ruta_avance, ruta_control, legacy_modelo):
         self.clave = clave
         self.titulo = titulo
         self.grupos = set(grupos)
         self.ruta_avance = ruta_avance
         self.ruta_control = ruta_control
+        #: Cómo se llama esta tabla en el núcleo, que es donde vive la ruta.
+        self.legacy_modelo = legacy_modelo
 
     def la_ve(self, grupos_del_usuario, es_admin):
         return bool(es_admin or (self.grupos & grupos_del_usuario))
@@ -198,6 +201,7 @@ LINEAS = [
         {"herreria", "herreria_supervision"},
         "catalogos:herreria_change_status_json",
         "catalogos:herreria_control",
+        "HerrOrdenProduccion",
     ),
     Linea(
         "corta",
@@ -205,6 +209,7 @@ LINEAS = [
         {"corte_laser", "corte_laser_supervision"},
         "catalogos:corte_laser_change_status_json",
         "catalogos:corte_laser_control",
+        "LaserOrdenProduccion",
     ),
 ]
 
@@ -230,17 +235,27 @@ def es_orden_grande(orden):
     return int(getattr(orden, "total_piezas", 0) or 0) >= 2
 
 
-def _siguiente_de_una_orden(orden, etapa):
-    """A qué etapa pasa, o cadena vacía si desde aquí ya no se avanza así."""
+def _siguiente_de_una_orden(orden, etapa, legacy_modelo=""):
+    """A qué etapa pasa, o cadena vacía si desde aquí ya no se avanza así.
+
+    Una orden de varias piezas sigue su propia secuencia corta: de soldadura
+    salta al cierre porque el avance se lleva por contadores. Ésa no se
+    recorta, porque no hay etapas que recortar.
+
+    Una orden de una sola pieza sí respeta su ruta: puede no llevar pintura,
+    igual que una pieza de estructuras.
+    """
     grande = es_orden_grande(orden)
-    secuencia = estados.SECUENCIA_ORDEN_GRANDE if grande else estados.SECUENCIA
-    posicion = estados.posicion(etapa, secuencia)
-    if posicion is None or posicion + 1 >= len(secuencia):
-        return ""
-    siguiente = secuencia[posicion + 1]
-    if grande and siguiente not in ETAPAS_QUE_ACEPTA_UNA_ORDEN_GRANDE:
-        return ""
-    if not grande and siguiente == estados.ENVIADO:
+    if grande:
+        secuencia = estados.SECUENCIA_ORDEN_GRANDE
+        posicion = estados.posicion(etapa, secuencia)
+        if posicion is None or posicion + 1 >= len(secuencia):
+            return ""
+        siguiente = secuencia[posicion + 1]
+        return siguiente if siguiente in ETAPAS_QUE_ACEPTA_UNA_ORDEN_GRANDE else ""
+
+    siguiente = servicio_ruta.siguiente(legacy_modelo, orden.pk, etapa)
+    if siguiente == estados.ENVIADO:
         # Enviar es de logística, no del piso.
         return ""
     return siguiente
@@ -266,7 +281,7 @@ def _cola_de_una_linea(linea, modelo, movibles):
         etapa = estados.normalizar(orden.estado_etapa)
         if etapa not in ETAPAS_DE_TRABAJO:
             continue
-        siguiente = _siguiente_de_una_orden(orden, etapa)
+        siguiente = _siguiente_de_una_orden(orden, etapa, linea.legacy_modelo)
         trabajos.append(
             {
                 "id": orden.pk,
@@ -282,6 +297,7 @@ def _cola_de_una_linea(linea, modelo, movibles):
                 "siguiente": siguiente,
                 "puede_mover": bool(siguiente),
                 "por_cantidades": es_orden_grande(orden) and not siguiente,
+                "cuantas": 1,
                 "url_avance": reverse(linea.ruta_avance, args=[orden.pk]),
                 "url_control": reverse(linea.ruta_control),
                 "peso_kg": orden.peso_kg,
@@ -361,37 +377,87 @@ def _cola_de_mi_area(movibles, asignadas):
     for etapa in movibles:
         escrituras.extend(estados.variantes(etapa))
 
-    consulta = (
-        Viga.objects.using(BASE)
-        .filter(estado__in=escrituras)
-        .order_by("prioridad", "fecha_compromiso", "codigo_viga")
-    )
+    consulta = Viga.objects.using(BASE).filter(estado__in=escrituras)
     total = consulta.count()
-    piezas = list(consulta[: TOPE * 2])
 
-    trabajos = []
+    # Los grupos se eligen **en la base**, no recortando piezas y agrupando
+    # después. Con un recorte de piezas, el último grupo se parte por la
+    # mitad: la tarjeta diría «2 de 3» habiendo tres, y la tercera no se
+    # podría avanzar desde ahí. Se piden los grupos más urgentes y luego sus
+    # piezas, que son dos consultas y ningún grupo cortado.
+    from django.db.models import Count, Min
+
+    claves = list(
+        consulta.values("codigo_viga", "proyecto", "estado")
+        .annotate(
+            cuantas=Count("internal_id"),
+            urgencia=Min("prioridad"),
+            compromiso=Min("fecha_compromiso"),
+        )
+        .order_by("urgencia", "compromiso", "codigo_viga")[:TOPE]
+    )
+    if not claves:
+        return [], total
+
+    piezas = list(
+        consulta.filter(
+            codigo_viga__in={c["codigo_viga"] for c in claves},
+            proyecto__in={c["proyecto"] for c in claves},
+            estado__in={c["estado"] for c in claves},
+        ).order_by("prioridad", "fecha_compromiso", "codigo_viga", "pieza_no")
+    )
+    de_los_grupos = {(c["codigo_viga"], c["proyecto"], c["estado"]) for c in claves}
+    piezas = [
+        p for p in piezas if (p.codigo_viga, p.proyecto, p.estado) in de_los_grupos
+    ]
+
+    # Las piezas iguales van juntas.
+    #
+    # Una orden de cincuenta vigas son cincuenta renglones, uno por pieza.
+    # Sin agrupar, un soldador que hizo cuarenta tenía que dar cuarenta toques
+    # con guantes en un teléfono, y en la práctica se apuntaba en papel y
+    # alguien lo capturaba por la tarde. Agrupadas es una tarjeta y un número.
+    #
+    # Se agrupa por código, obra y etapa: dos piezas del mismo código que van
+    # por distinta etapa son dos trabajos distintos y no se pueden sumar.
+    grupos = {}
     for pieza in piezas:
         etapa = estados.normalizar(pieza.estado)
         if etapa not in ETAPAS_DE_TRABAJO:
             # Terminada, enviada o en cierre pendiente: ya no es de piso.
             continue
-        posicion = estados.posicion(etapa)
-        siguiente = (
-            estados.SECUENCIA[posicion + 1]
-            if posicion is not None and posicion + 1 < len(estados.SECUENCIA)
-            else ""
-        )
+        clave = (pieza.codigo_viga, pieza.proyecto, etapa)
+        grupo = grupos.get(clave)
+        if grupo is None:
+            grupos[clave] = grupo = {"piezas": [], "etapa": etapa}
+        grupo["piezas"].append(pieza)
+
+    trabajos = []
+    for (codigo, proyecto, etapa), grupo in grupos.items():
+        integrantes = grupo["piezas"]
+        primera = integrantes[0]
+        cuantas = len(integrantes)
+        # La siguiente etapa sale de la ruta de **esta** pieza, no de la
+        # secuencia general. En una que no lleva pintura, «terminé soldadura»
+        # tiene que llevar a Terminado y no a una cola de pintura por la que
+        # no va a pasar nunca.
+        siguiente = servicio_ruta.siguiente("Viga", primera.internal_id, etapa)
         if siguiente == estados.ENVIADO:
             # Enviar a obra es de logística, no del piso.
             siguiente = ""
+        detalle = (
+            f"{cuantas} de {primera.total_piezas} · {proyecto}"
+            if cuantas > 1
+            else f"{primera.pieza_no}/{primera.total_piezas} · {proyecto}"
+        )
         trabajos.append(
             {
-                "id": pieza.internal_id,
+                "id": primera.internal_id,
                 "linea": "estructuras",
                 "linea_titulo": "Estructuras",
-                "codigo": pieza.codigo_viga,
-                "detalle": f"{pieza.pieza_no}/{pieza.total_piezas} · {pieza.proyecto}",
-                "descripcion": pieza.descripcion,
+                "codigo": codigo,
+                "detalle": detalle,
+                "descripcion": primera.descripcion,
                 "etapa": etapa,
                 "clase_etapa": estados.clase(etapa),
                 "en_curso": etapa in ETAPAS_EN_CURSO,
@@ -399,14 +465,22 @@ def _cola_de_mi_area(movibles, asignadas):
                 "siguiente": siguiente,
                 "puede_mover": bool(siguiente),
                 "por_cantidades": False,
-                "url_avance": reverse(
-                    "produccion:viga_change_status_json", args=[pieza.internal_id]
+                #: Cuántas piezas iguales hay en esta etapa. Con más de una, la
+                #: tarjeta pide el número en vez de avanzarlas todas a ciegas:
+                #: casi nunca se terminan las cincuenta de un tirón.
+                "cuantas": cuantas,
+                "url_avance": (
+                    reverse("produccion:viga_avanzar_grupo")
+                    if cuantas > 1
+                    else reverse(
+                        "produccion:viga_change_status_json", args=[primera.internal_id]
+                    )
                 ),
                 "url_control": reverse("produccion:viga_list"),
-                "peso_kg": pieza.peso_kg,
-                "prioridad": pieza.prioridad,
-                "fecha_compromiso": pieza.fecha_compromiso,
-                "mia": pieza.internal_id in asignadas,
+                "peso_kg": primera.peso_kg,
+                "prioridad": primera.prioridad,
+                "fecha_compromiso": primera.fecha_compromiso,
+                "mia": any(p.internal_id in asignadas for p in integrantes),
             }
         )
 
@@ -445,6 +519,10 @@ def mi_trabajo(request):
     # cola se respeta dentro de cada bloque.
     trabajos.sort(key=lambda t: (not t["mia"], t["prioridad"], t["fecha_compromiso"]))
     visibles = trabajos[:TOPE]
+    # Se cuentan **piezas**, no tarjetas: una tarjeta puede llevar cincuenta.
+    # Decir «hay 3 piezas más» cuando en realidad hay ciento cincuenta sería
+    # peor que no decir nada.
+    piezas_visibles = sum(int(t.get("cuantas") or 1) for t in visibles)
 
     return render(
         request,
@@ -452,7 +530,7 @@ def mi_trabajo(request):
         {
             "colaborador": colaborador,
             "trabajos": visibles,
-            "de_mas": max(0, total - len(visibles)),
+            "de_mas": max(0, total - piezas_visibles),
             "varias_lineas": len({t["linea"] for t in visibles}) > 1,
             "puede_mover_algo": puede_ver_alguna_linea(request.user),
             "motivos_de_paro": list(

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import movil, panorama, views
+from . import movil, panorama, rutas, views
 
 app_name = "produccion"
 
@@ -11,6 +11,10 @@ urlpatterns = [
     # Las cuatro líneas en una sola lista. La pregunta «¿qué se está
     # produciendo?» no tenía pantalla: había que abrir cuatro y sumar.
     path("control/", panorama.control, name="control"),
+    # Por qué etapas pasa una orden. Una pantalla para las cuatro líneas: la
+    # ruta es la misma idea en todas.
+    path("control/<str:linea>/<int:identificador>/ruta/", rutas.configurar, name="ruta"),
+    path("control/<str:linea>/<int:identificador>/ruta/guardar/", rutas.guardar, name="ruta_guardar"),
     path("menu/", views.home, name="menu"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("dashboard/export/", views.dashboard_export_html, name="dashboard_export_html"),
@@ -33,6 +37,9 @@ urlpatterns = [
     path("vigas/eliminar-decote/", views.viga_delete_decote_all, name="viga_delete_decote_all"),
     path("vigas/<int:pk>/estado/", views.viga_change_status, name="viga_change_status"),
     path("vigas/<int:pk>/estado-json/", views.viga_change_status_json, name="viga_change_status_json"),
+    # «De estas cincuenta, hice treinta y dos.» N piezas del mismo código en
+    # un solo envío, con las mismas comprobaciones que una.
+    path("vigas/avanzar-grupo/", views.viga_avanzar_grupo, name="viga_avanzar_grupo"),
     path("vigas/<int:pk>/asignaciones/", views.viga_asignaciones, name="viga_asignaciones"),
     path("vigas/<int:pk>/meta-json/", views.viga_update_meta_json, name="viga_update_meta_json"),
     path("export/vigas.xlsx", views.export_vigas_excel, name="export_vigas_excel"),

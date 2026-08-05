@@ -174,3 +174,27 @@
   background: var(--argon-primary, #5e72e4);
 }
 .mov-terminar.mov-empezar:active { background: #4756b8; }
+
+/* «De estas cincuenta, hice treinta y dos.»
+ *
+ * El campo va grande y con teclado numérico: se usa con guantes y de pie. Y
+ * viene con el lote entero puesto, porque terminarlo todo es el caso normal
+ * y así el gesto sigue siendo un solo toque. */
+.mov-cuantas {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: .9rem;
+}
+.mov-cuantas label { font-size: 1rem; font-weight: 600; color: var(--argon-dark); }
+.mov-cuantas input {
+  width: 5.5rem;
+  min-height: 56px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid var(--mes-borde, #e3e7ee);
+  border-radius: .6rem;
+  padding: 0 .4rem;
+}
+.mov-cuantas-total { color: #55607a; font-size: .95rem; }

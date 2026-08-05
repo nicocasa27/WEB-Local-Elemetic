@@ -31,9 +31,13 @@ try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
     PdfReader = None
+from django.views.decorators.http import require_POST
+
+from core import estados as core_estados
 from core import metricas, paginacion, roles
 from core.estados import clase as clase_de_estado
 from core.servicios import inventario as servicio_inventario
+from core.servicios import ruta as servicio_ruta
 from core.servicios import trabajo as servicio_trabajo
 
 from catalogos.models import Proyecto
@@ -2784,6 +2788,78 @@ def viga_change_status(request, pk: int):
 
 
 @login_required
+@require_POST
+def viga_avanzar_grupo(request):
+    """«De estas cincuenta, hice treinta y dos.»
+
+    En Estructuras una orden de cincuenta piezas son **cincuenta renglones**,
+    uno por pieza, porque el avance se lleva por etapas y no por contadores.
+    Para un soldador que hizo cuarenta, eso eran cuarenta toques con guantes
+    en un teléfono: en la práctica se apuntaba en papel y alguien lo capturaba
+    por la tarde, que es exactamente por lo que el sistema iba siempre por
+    detrás del taller.
+
+    Aquí se avanzan N piezas del mismo código y la misma etapa de una vez.
+
+    **No se reimplementa nada.** Se llama al mismo endpoint de una pieza, una
+    vez por pieza, así que se aplican sus mismas comprobaciones: permisos de
+    etapa, ruta de la orden, equipo de corte obligatorio, máquina en paro,
+    motivo de retroceso, apunte de trabajo y cuadrilla. Copiar ese bloque para
+    la versión en lote habría sido la sexta copia de la misma lógica en este
+    archivo, y la primera en separarse.
+    """
+    codigo = (request.POST.get("codigo") or "").strip()
+    etapa_actual = _norm_estado(request.POST.get("estado_actual") or "")
+    try:
+        cuantas = int(request.POST.get("cantidad") or 0)
+    except (TypeError, ValueError):
+        cuantas = 0
+
+    if not codigo or not etapa_actual or cuantas <= 0:
+        return JsonResponse({"ok": False, "error": "Datos incompletos."}, status=400)
+
+    escrituras = core_estados.variantes(etapa_actual)
+    piezas = list(
+        Viga.objects.filter(codigo_viga=codigo, estado__in=escrituras)
+        .order_by("pieza_no", "internal_id")[:cuantas]
+    )
+    if not piezas:
+        return JsonResponse(
+            {"ok": False, "error": f"Ya no hay piezas de {codigo} en {etapa_actual}."},
+            status=409,
+        )
+
+    hechas, error = 0, ""
+    for pieza in piezas:
+        respuesta = viga_change_status_json(request, pieza.internal_id)
+        if respuesta.status_code == 200:
+            hechas += 1
+            continue
+        # Se para en el primer fallo en vez de seguir: si falta el equipo de
+        # corte o la máquina está en paro, va a fallar en las cincuenta, y
+        # cincuenta errores iguales no dicen más que uno.
+        try:
+            error = json.loads(respuesta.content).get("error") or ""
+        except Exception:
+            error = "No se pudo registrar el avance."
+        break
+
+    if not hechas:
+        return JsonResponse({"ok": False, "error": error}, status=400)
+
+    quedan = Viga.objects.filter(codigo_viga=codigo, estado__in=escrituras).count()
+    return JsonResponse(
+        {
+            "ok": True,
+            "hechas": hechas,
+            "quedan": quedan,
+            "codigo": codigo,
+            "aviso": error,
+        }
+    )
+
+
+@login_required
 def viga_change_status_json(request, pk: int):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "Método inválido."}, status=405)
@@ -2801,7 +2877,39 @@ def viga_change_status_json(request, pk: int):
     estado_nuevo = form.cleaned_data["estado_nuevo"]
     cur_estado = _norm_estado(getattr(viga, "estado", "") or "")
     new_estado = _norm_estado(estado_nuevo)
-    if role != "admin" and (not allowed or cur_estado not in allowed or new_estado not in allowed):
+    # Quien es dueño de una etapa puede **completarla**, lleve su ruta a donde
+    # la lleve.
+    #
+    # Sin esto, una pieza que no pasa por pintura deja al soldador atascado: su
+    # ruta manda de «Soldadura» a «Terminado», y «Terminado» es un permiso del
+    # área de pintura. El botón saldría y el servidor lo rechazaría con un «Sin
+    # permiso» que en el piso no explica nada, y nadie podría cerrar esa pieza
+    # sin llamar a un administrador.
+    #
+    # Es un permiso concreto y no un agujero: vale sólo cuando la ruta de esa
+    # pieza **se salta** algo, y sólo para el destino exacto al que la manda.
+    #
+    # La condición de que el destino sea distinto del normal es lo que lo
+    # cierra. Sin ella se colaba lo contrario de lo que se quiere: una pieza en
+    # «Espera de pintura» tiene como siguiente «Pintura» tanto en su ruta como
+    # en la secuencia general, así que un soldador —que puede tocar la espera,
+    # porque es el punto de entrega— habría podido meterse a pintar.
+    siguiente_de_su_ruta = servicio_ruta.siguiente("Viga", viga.internal_id, cur_estado)
+    posicion_normal = core_estados.posicion(cur_estado)
+    siguiente_normal = (
+        core_estados.SECUENCIA[posicion_normal + 1]
+        if posicion_normal is not None
+        and posicion_normal + 1 < len(core_estados.SECUENCIA)
+        else ""
+    )
+    cierra_su_etapa = (
+        cur_estado in allowed
+        and new_estado == siguiente_de_su_ruta
+        and new_estado != siguiente_normal
+    )
+    if role != "admin" and not (
+        allowed and cur_estado in allowed and (new_estado in allowed or cierra_su_etapa)
+    ):
         return JsonResponse({"ok": False, "error": "Sin permiso."}, status=403)
     estado_nuevo = new_estado
 

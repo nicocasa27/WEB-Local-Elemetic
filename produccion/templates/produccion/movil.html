@@ -85,6 +85,21 @@
           {% csrf_token %}
           <input type="hidden" name="estado_nuevo" value="{{ t.siguiente }}">
           <input type="hidden" name="comentario" value="">
+          {% if t.cuantas > 1 %}
+            {% comment %}
+              Cincuenta vigas iguales son una tarjeta y un número, no cincuenta
+              toques con guantes. Viene con todas puestas porque terminar el
+              lote entero es el caso normal; quien hizo menos, lo baja.
+            {% endcomment %}
+            <input type="hidden" name="codigo" value="{{ t.codigo }}">
+            <input type="hidden" name="estado_actual" value="{{ t.etapa }}">
+            <div class="mov-cuantas">
+              <label for="cuantas-{{ forloop.counter }}">¿Cuántas?</label>
+              <input id="cuantas-{{ forloop.counter }}" name="cantidad" type="number"
+                     inputmode="numeric" min="1" max="{{ t.cuantas }}" value="{{ t.cuantas }}">
+              <span class="mov-cuantas-total">de {{ t.cuantas }}</span>
+            </div>
+          {% endif %}
           {% comment %}
             La fecha va siempre con la de hoy y no se pregunta. Era un campo
             obligatorio que el operador no tiene por qué pensar, y el que
