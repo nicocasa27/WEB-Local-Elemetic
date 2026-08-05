@@ -66,8 +66,55 @@ class TestMigasDePan:
         barra no dice, que es en qué parte del área estás.
         """
         migas = navegacion(self.Peticion("herreria_ordenes"))["migas"]
-        assert [m["texto"] for m in migas] == ["Herrería"]
+        assert [m["texto"] for m in migas] == ["Control de producción"]
         assert migas[0]["url"] == reverse("catalogos:herreria_control")
+
+    #: Las dos pantallas que el taller renombró. La barra lateral y las migas
+    #: de pan se escriben en archivos distintos, así que un cambio de nombre
+    #: en una es fácil que no llegue a la otra: la barra diría «Herrería» y la
+    #: miga «Soldadura» sobre la misma pantalla, y así empiezan las llamadas
+    #: de «no encuentro dónde estaba».
+    #:
+    #: No se comparan todas: la miga nombra la **sección** y la entrada del
+    #: menú nombra la **pantalla**, y hay sitios donde eso es distinto a
+    #: propósito —dentro de «Pedidos» hay varias pantallas y la miga las
+    #: agrupa—. Aquí van sólo aquellas en las que la entrada del menú *es* la
+    #: portada de su sección, que son las que tienen que coincidir.
+    RENOMBRADAS = [
+        ("produccion:area_soldadura", "Herrería"),
+        ("catalogos:herreria_control", "Control de producción"),
+    ]
+
+    @pytest.mark.parametrize("ruta,esperado", RENOMBRADAS)
+    def test_la_barra_y_las_migas_las_llaman_igual(self, ruta, esperado):
+        from produccion import navegacion as menu_lateral
+        from produccion.context_processors import INICIO_DE_SECCION
+
+        acceso = dict.fromkeys(
+            ["is_admin", "can_corte", "can_soldadura", "can_robotica",
+             "can_herreria", "can_corte_laser", "can_pedidos",
+             "can_logistica_corta"],
+            True,
+        )
+        en_la_barra = {
+            item.url: item.nombre
+            for grupo in menu_lateral.para(acceso)
+            for item in grupo["items"]
+        }
+        en_las_migas = {r: t for t, r in INICIO_DE_SECCION.values()}
+
+        assert en_la_barra.get(ruta) == esperado, "la barra lateral no lo llama así"
+        assert en_las_migas.get(ruta) == esperado, "las migas de pan no lo llaman así"
+
+    def test_control_de_produccion_va_primero(self):
+        """El taller lo pidió arriba del todo: es la pantalla desde la que se
+        dirige el día."""
+        from produccion import navegacion as menu_lateral
+
+        grupos = menu_lateral.para({"is_admin": True})
+        produccion = next(g for g in grupos if g["titulo"] == "Producción")
+
+        assert produccion["items"][0].nombre == "Control de producción"
 
     def test_la_portada_de_un_area_no_se_repite_a_si_misma(self):
         """«Corte» encima de «Área Corte» es la misma palabra dos veces, dos

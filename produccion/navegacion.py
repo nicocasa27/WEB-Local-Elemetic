@@ -76,16 +76,18 @@ MENU = [
     ]),
 
     Grupo("Producción", [
+        # El taller pidió este orden y estos nombres. «Control de producción»
+        # va primero porque es la pantalla desde la que se dirige el día.
+        Item("Control de producción", "catalogos:herreria_control", "bi-hammer",
+             visible=_solo_area("can_herreria")),
         Item("Corte", "produccion:area_corte", "bi-scissors",
              consulta="?src=nav", visible=_solo_area("can_corte")),
-        Item("Soldadura", "produccion:area_soldadura", "bi-fire",
+        Item("Herrería", "produccion:area_soldadura", "bi-fire",
              consulta="?src=nav", visible=_solo_area("can_soldadura")),
         Item("Estructuras", "produccion:viga_list", "bi-list-task",
              visible=_si("is_admin")),
         Item("Robótica", "catalogos:robotica", "bi-robot",
              visible=_solo_area("can_robotica")),
-        Item("Herrería", "catalogos:herreria_control", "bi-hammer",
-             visible=_solo_area("can_herreria")),
         Item("Corta.mx", "catalogos:corte_laser_control", "bi-layers",
              visible=_solo_area("can_corte_laser")),
         Item("Solo lectura", "produccion:solo_lectura_produccion", "bi-eye",
