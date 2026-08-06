@@ -217,17 +217,35 @@ class TestLosComentariosNoSeVenEnPantalla:
     """
 
     def test_ningun_comentario_se_queda_abierto(self):
+        """Mira **todas** las carpetas de plantillas, no tres escritas a mano.
+
+        Miraba sólo `produccion`, `catalogos` y `nucleo`, así que se le
+        escapaban `templates/` —donde está la pantalla de entrar—, `acceso`,
+        `inventario`, `costeo` y `personal`. Un guardia que sólo vigila tres
+        puertas de siete da la sensación de estar cubierto sin estarlo, que es
+        peor que no tenerlo.
+
+        Y eso no es teórico: uno de estos comentarios dentro del `<head>` es
+        texto suelto, así que el navegador da la cabecera por terminada y mete
+        el resto —hojas de estilo incluidas— dentro del cuerpo. La página se
+        descoloca entera y el motivo no se parece en nada a lo que se ve.
+        """
+        raiz = Path(settings.BASE_DIR)
+        carpetas = sorted(
+            d for d in raiz.rglob("templates")
+            if d.is_dir() and ".venv" not in d.parts and "attic" not in d.parts
+        )
+        assert len(carpetas) >= 5, f"Se esperaban más carpetas de plantillas: {carpetas}"
+
         culpables = []
-        for carpeta in ("produccion", "catalogos", "nucleo"):
-            raiz = Path(settings.BASE_DIR) / carpeta / "templates"
-            if not raiz.is_dir():
-                continue
-            for archivo in raiz.rglob("*.html"):
+        for carpeta in carpetas:
+            for archivo in carpeta.rglob("*.html"):
                 for n, linea in enumerate(
                     archivo.read_text(encoding="utf-8").splitlines(), 1
                 ):
                     if "{#" in linea and "#}" not in linea:
-                        culpables.append(f"{archivo.name}:{n}  {linea.strip()[:70]}")
+                        relativa = archivo.relative_to(raiz)
+                        culpables.append(f"{relativa}:{n}  {linea.strip()[:70]}")
         assert not culpables, (
             "Comentario que se va a imprimir en la página.\n"
             "Para varias líneas hay que usar {% comment %}:\n" + "\n".join(culpables)

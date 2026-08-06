@@ -1,0 +1,106 @@
+/* La pantalla de entrar al sistema.
+ *
+ * Estaba dentro de la plantilla, en una etiqueta <style>, y estaba mal de tres
+ * formas a la vez. Las tres se veían igual —«la tarjeta no está centrada»— y
+ * ninguna era eso:
+ *
+ * 1. La pantalla vive dentro del armazón de la aplicación, que reserva 15.5rem
+ *    a la izquierda para la barra lateral. Aquí no hay barra lateral, pero el
+ *    hueco seguía ahí: **todo salía 124 píxeles corrido a la derecha**.
+ * 2. El velo oscuro era un bloque dentro del contenido, así que no llegaba a
+ *    los bordes: se veía el rectángulo, con la foto sin oscurecer alrededor.
+ * 3. El velo pedía 100vh **más** el relleno del contenedor, así que la página
+ *    medía más que la ventana y salía una barra de desplazamiento para nada.
+ *
+ * Ahora la foto y el velo son una capa fija que cubre la ventana entera, y la
+ * tarjeta se centra con rejilla sobre esa capa.
+ */
+
+/* Anula el hueco de la barra lateral en las pantallas que no la tienen. Va con
+ * `!important` a regañadientes: la regla que aparta el contenido está dentro
+ * de una media query, y sin esto ganaría ella. */
+.app-shell--sin-barra .app-main {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+.app-shell--sin-barra .content-wrap {
+  padding: 0;
+  max-width: none;
+}
+
+/* --------------------------------------------------------------- la foto */
+
+/* Capa fija en vez de `background-attachment: fixed`, que en Safari de iPhone
+ * salta al desplazar y a veces se queda en blanco. */
+.acceso-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(180deg, rgba(12, 18, 28, .78) 0%, rgba(12, 18, 28, .55) 45%, rgba(12, 18, 28, .82) 100%),
+    var(--acceso-foto);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ------------------------------------------------------------ la tarjeta */
+
+.acceso-centro {
+  /* `dvh` y no `vh`: en el celular la barra del navegador se mete dentro de
+   * `vh`, así que con `vh` el botón de entrar queda tapado. */
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1rem, 4vw, 2.5rem);
+}
+
+/* En horizontal con el teclado abierto no cabe centrado: mejor arriba y que
+ * se pueda desplazar, que centrado y con la mitad fuera de la pantalla. */
+@media (max-height: 640px) {
+  .acceso-centro {
+    place-items: start center;
+  }
+}
+
+.acceso-tarjeta {
+  width: min(100%, 25rem);
+  border: 0;
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 3rem rgba(8, 12, 20, .45);
+}
+
+.acceso-tarjeta .card-body {
+  padding: clamp(1.5rem, 5vw, 2.25rem);
+}
+
+.acceso-marca {
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--argon-primary, #5e72e4);
+}
+
+.acceso-titulo {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+/* La otra puerta: la del piso. Se separa de la de arriba con aire y una línea,
+ * no con un botón del mismo peso, para que no parezca que hay dos formas
+ * igual de normales de entrar. */
+.acceso-otra-puerta {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--acero-200, #e9ecef);
+}
+
+/* Objetivos táctiles de 48px: esta pantalla se abre desde la tableta del piso,
+ * con guantes. */
+.acceso-tarjeta .form-control,
+.acceso-tarjeta .btn {
+  min-height: 3rem;
+}

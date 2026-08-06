@@ -11,6 +11,11 @@
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}" rel="stylesheet">
     <link href="{% static 'css/tipografia.css' %}" rel="stylesheet">
     <link href="{% static 'css/mes.css' %}" rel="stylesheet">
+    {% comment %}
+      Para la hoja de estilo propia de una pantalla. Va después de mes.css, que
+      es lo que hace que pueda ajustar lo común sin pelearse por especificidad.
+    {% endcomment %}
+    {% block head_extra %}{% endblock %}
   </head>
   {% comment %}
     La sección la resuelve produccion/context_processors.py para todas las

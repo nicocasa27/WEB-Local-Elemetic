@@ -1,48 +1,60 @@
 {% extends "produccion/base.html" %}
 {% load static %}
 {% block title %}Taller Elemetic - Iniciar sesión{% endblock %}
+
+{% comment %}
+  Sin barra lateral y sin barra superior: quien está aquí todavía no ha
+  entrado, así que no hay nada a lo que navegar. `shell_class` es lo que le
+  quita al contenido el hueco de 15.5rem que la barra reserva; sin eso la
+  tarjeta salía corrida a la derecha y nadie sabía por qué.
+{% endcomment %}
+{% block shell_class %}app-shell--sin-barra{% endblock %}
 {% block navbar %}{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="{% static 'css/acceso-web.css' %}">
+  {# La foto se pasa por variable para no meter una URL de Django dentro del CSS. #}
+  <style>:root { --acceso-foto: url("{% static 'produccion/taller_bg.jpg' %}"); }</style>
+{% endblock %}
+
 {% block content %}
-  <style>
-    body {
-      background-image: url("{% static 'produccion/taller_bg.jpg' %}");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
-    }
-    .login-overlay {
-      min-height: 100vh;
-      background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.35));
-      padding: 2rem 0;
-    }
-  </style>
-  <div class="login-overlay">
-  <div class="d-flex align-items-center justify-content-center" style="min-height: 78vh;">
-    <div class="card border-0" style="max-width: 420px; width: 92%;">
-      <div class="card-body py-4">
-        <div class="text-center mb-3">
-          <div class="kpi-label mb-1">Acceso</div>
-          <div class="h5 mb-0">Iniciar sesión</div>
+  <div class="acceso-fondo" aria-hidden="true"></div>
+
+  <div class="acceso-centro">
+    <div class="card acceso-tarjeta">
+      <div class="card-body">
+        <div class="text-center mb-4">
+          <div class="acceso-marca mb-1">Taller Elemetic</div>
+          <h1 class="acceso-titulo">Iniciar sesión</h1>
         </div>
+
         {% if form.errors %}
-          <div class="alert alert-danger">Usuario o contraseña inválidos.</div>
+          <div class="alert alert-danger py-2">Usuario o contraseña inválidos.</div>
         {% endif %}
+
         <form method="post" action="{% url 'login' %}">
           {% csrf_token %}
-          <input type="hidden" name="next" value="/">
+          {% comment %}
+            La dirección a la que se iba antes de que el sistema pidiera entrar.
+            Estaba escrita a mano como «/», así que quien abría un enlace a una
+            pantalla concreta entraba y aterrizaba en la portada, y tenía que
+            volver a buscarla. Django ya valida que sea de este sitio.
+          {% endcomment %}
+          <input type="hidden" name="next" value="{{ next|default:'/' }}">
           <div class="mb-3">
             <label for="campo-username" class="form-label">Usuario</label>
-            <input id="campo-username" class="form-control" type="text" name="username" autocomplete="username" required>
+            <input id="campo-username" class="form-control" type="text" name="username"
+                   autocomplete="username" autocapitalize="none" autofocus required>
           </div>
-          <div class="mb-3">
+          <div class="mb-4">
             <label for="loginPassword" class="form-label">Contraseña</label>
             <div class="input-group">
-              <input id="loginPassword" class="form-control" type="password" name="password" autocomplete="current-password" required>
+              <input id="loginPassword" class="form-control" type="password" name="password"
+                     autocomplete="current-password" required>
               <button id="togglePasswordBtn" class="btn btn-outline-secondary" type="button">Mostrar</button>
             </div>
           </div>
-          <div class="d-grid gap-2">
+          <div class="d-grid">
             <button type="submit" class="btn btn-argon text-white">
               <i class="bi bi-box-arrow-in-right me-1"></i> Entrar
             </button>
@@ -55,7 +67,7 @@
           Se dice aquí porque ésta es la pantalla a la que llega cualquiera que
           abra el sistema sin sesión, incluida la tableta de la nave.
         {% endcomment %}
-        <div class="text-center mt-3 pt-3 border-top">
+        <div class="acceso-otra-puerta text-center">
           <a class="btn btn-outline-secondary w-100" href="{% url 'acceso:teclado' %}">
             <i class="bi bi-123 me-1"></i> Entrar con PIN
           </a>
@@ -63,7 +75,6 @@
         </div>
       </div>
     </div>
-  </div>
   </div>
 {% endblock %}
 
