@@ -17,7 +17,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST, require_http_methods
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
@@ -140,6 +140,109 @@ def _get_or_create_corta_cliente_proyecto(raw: str, *, tipo_default: str = "clie
             obj.save(update_fields=["nombre", "nombre_normalizado", "actualizado_en"])
         return obj
     return CortaClienteProyecto.objects.create(nombre=nombre, nombre_normalizado=nombre_norm, tipo=tipo_default, activo=True)
+
+
+def _get_or_create_corta_pieza(raw: str) -> CortaPiezaCatalogo:
+    """La pieza del catálogo, buscándola por nombre y creándola si no está.
+
+    Igual que el cliente. Antes era una lista desplegable y sólo eso: para dar
+    de alta una pieza había que irse a otra pantalla, con lo escrito a medias
+    en el formulario, darla de alta, volver y empezar de nuevo. Quien captura
+    pedidos hace eso varias veces al día.
+
+    El PDF y el DXF se siguen subiendo desde el catálogo, que es donde tiene
+    sentido; aquí se crea el nombre para poder seguir capturando.
+    """
+    nombre = _norm_text(raw)
+    nombre_norm = _norm_upper(raw)
+    if not nombre_norm:
+        raise ValueError("Nombre requerido.")
+    obj = CortaPiezaCatalogo.objects.filter(nombre_normalizado=nombre_norm).first()
+    if obj:
+        if not obj.activo:
+            # Se dio de baja y alguien la vuelve a pedir. Reutilizarla es mejor
+            # que crear una copia con el mismo nombre: el nombre es único.
+            obj.activo = True
+            obj.save(update_fields=["activo", "actualizado_en"])
+        return obj
+    return CortaPiezaCatalogo.objects.create(nombre=nombre, activo=True)
+
+
+def _etiquetas_de_materiales(materiales) -> dict[int, str]:
+    """Cómo se lee cada placa en una lista desplegable.
+
+    Estaba escrito dos veces, palabra por palabra, dentro de dos formularios, y
+    ahora hace falta una tercera vez para el alta rápida. Tres copias de lo
+    mismo divergen; una sola no.
+
+    El `(#2)` del final sólo aparece cuando dos placas comparten categoría,
+    tipo y nombre: sin él serían indistinguibles en la lista.
+    """
+    materiales = list(materiales)
+
+    def clave(m):
+        return (
+            (getattr(m, "categoria_material", "") or "").strip().upper(),
+            (getattr(m, "tipo_material", "") or "").strip().upper(),
+            (getattr(m, "nombre", "") or "").strip().upper(),
+        )
+
+    cuantas: dict[tuple[str, str, str], int] = {}
+    for m in materiales:
+        k = clave(m)
+        cuantas[k] = cuantas.get(k, 0) + 1
+
+    vistas: dict[tuple[str, str, str], int] = {}
+    posicion: dict[int, int] = {}
+    for m in materiales:
+        k = clave(m)
+        vistas[k] = vistas.get(k, 0) + 1
+        posicion[int(m.id)] = int(vistas[k])
+
+    etiquetas: dict[int, str] = {}
+    for obj in materiales:
+        categoria = (getattr(obj, "categoria_material", "") or "").strip()
+        tipo = (getattr(obj, "tipo_material", "") or "").strip()
+        nombre = (getattr(obj, "nombre", "") or "").strip()
+        calibre = (getattr(obj, "calibre", "") or "").strip()
+        espesor = float(getattr(obj, "espesor_mm", 0.0) or 0.0)
+        largo = int(getattr(obj, "largo_mm", 0) or 0)
+        ancho = int(getattr(obj, "ancho_mm", 0) or 0)
+        partes: list[str] = []
+        if categoria:
+            partes.append(categoria)
+        if tipo:
+            partes.append(tipo)
+        partes.append(nombre if nombre else f"Material #{int(obj.id)}")
+        if calibre:
+            partes.append(f"Cédula {calibre}")
+        if espesor > 0:
+            partes.append(f"{espesor:.2f}mm")
+        if largo > 0 and ancho > 0:
+            partes.append(f"{(largo / 10.0):.1f}x{(ancho / 10.0):.1f}cm")
+        try:
+            peso = float(getattr(obj, "peso_kg", 0.0) or 0.0)
+        except Exception:
+            peso = 0.0
+        if peso > 0:
+            partes.append(f"{peso:.3f}kg")
+        if cuantas.get(clave(obj), 0) > 1:
+            partes.append(f"(#{posicion.get(int(obj.id), 1)})")
+        etiquetas[int(obj.id)] = " · ".join(partes)
+    return etiquetas
+
+
+def _materiales_de_placa_activos():
+    return LaserMaterialPlaca.objects.filter(activo=True).order_by(
+        "categoria_material",
+        "tipo_material",
+        "nombre",
+        "calibre",
+        "espesor_mm",
+        "largo_mm",
+        "ancho_mm",
+        "id",
+    )
 
 
 def _get_or_create_herr_cliente(raw: str) -> HerrCliente:
@@ -1277,69 +1380,12 @@ class LaserOrdenProduccionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        materiales_qs = LaserMaterialPlaca.objects.filter(activo=True).order_by(
-            "categoria_material",
-            "tipo_material",
-            "nombre",
-            "calibre",
-            "espesor_mm",
-            "largo_mm",
-            "ancho_mm",
-            "id",
-        )
-        materiales = list(materiales_qs)
+        materiales_qs = _materiales_de_placa_activos()
         self.fields["material"].queryset = materiales_qs
-        name_key_counts: dict[tuple[str, str, str], int] = {}
-        for m in materiales:
-            k = (
-                (getattr(m, "categoria_material", "") or "").strip().upper(),
-                (getattr(m, "tipo_material", "") or "").strip().upper(),
-                (getattr(m, "nombre", "") or "").strip().upper(),
-            )
-            name_key_counts[k] = name_key_counts.get(k, 0) + 1
-        name_key_seen: dict[tuple[str, str, str], int] = {}
-        material_pos: dict[int, int] = {}
-        for m in materiales:
-            k = (
-                (getattr(m, "categoria_material", "") or "").strip().upper(),
-                (getattr(m, "tipo_material", "") or "").strip().upper(),
-                (getattr(m, "nombre", "") or "").strip().upper(),
-            )
-            name_key_seen[k] = name_key_seen.get(k, 0) + 1
-            material_pos[int(m.id)] = int(name_key_seen[k])
-
-        def _material_label(obj: LaserMaterialPlaca) -> str:
-            categoria = (getattr(obj, "categoria_material", "") or "").strip()
-            tipo = (getattr(obj, "tipo_material", "") or "").strip()
-            nombre = (getattr(obj, "nombre", "") or "").strip()
-            calibre = (getattr(obj, "calibre", "") or "").strip()
-            espesor = float(getattr(obj, "espesor_mm", 0.0) or 0.0)
-            largo = int(getattr(obj, "largo_mm", 0) or 0)
-            ancho = int(getattr(obj, "ancho_mm", 0) or 0)
-            parts: list[str] = []
-            if categoria:
-                parts.append(categoria)
-            if tipo:
-                parts.append(tipo)
-            parts.append(nombre if nombre else f"Material #{int(obj.id)}")
-            if calibre:
-                parts.append(f"Cédula {calibre}")
-            if espesor > 0:
-                parts.append(f"{espesor:.2f}mm")
-            if largo > 0 and ancho > 0:
-                parts.append(f"{(largo / 10.0):.1f}x{(ancho / 10.0):.1f}cm")
-            try:
-                peso = float(getattr(obj, "peso_kg", 0.0) or 0.0)
-            except Exception:
-                peso = 0.0
-            if peso > 0:
-                parts.append(f"{peso:.3f}kg")
-            key = ((categoria or "").strip().upper(), (tipo or "").strip().upper(), (nombre or "").strip().upper())
-            if name_key_counts.get(key, 0) > 1:
-                parts.append(f"(#{material_pos.get(int(obj.id), 1)})")
-            return " · ".join(parts)
-
-        self.fields["material"].label_from_instance = _material_label
+        etiquetas = _etiquetas_de_materiales(materiales_qs)
+        self.fields["material"].label_from_instance = lambda obj: etiquetas.get(
+            int(obj.id), (getattr(obj, "nombre", "") or "").strip() or f"Material #{int(obj.id)}"
+        )
         for name, field in self.fields.items():
             if isinstance(field.widget, forms.Select):
                 field.widget.attrs.setdefault("class", "form-select")
@@ -2877,7 +2923,13 @@ class HerrVigaLikeForm(forms.Form):
 
 class LaserVigaLikeForm(forms.Form):
     folio_externo = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
-    pieza = forms.ModelChoiceField(queryset=CortaPiezaCatalogo.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
+    # Se escribe, no se elige de una lista: si la pieza no está en el catálogo
+    # se crea al guardar, igual que el cliente. Ver `_get_or_create_corta_pieza`.
+    pieza = forms.CharField(
+        widget=forms.TextInput(
+            attrs={"class": "form-control", "list": "cortaPiezaList", "placeholder": "Escribe el nombre de la pieza"}
+        )
+    )
     cliente_proyecto = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
     correo = forms.CharField(required=False, widget=forms.EmailInput(attrs={"class": "form-control"}))
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
@@ -2897,70 +2949,12 @@ class LaserVigaLikeForm(forms.Form):
     def __init__(self, *args, estados: list[str], **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["estado"].choices = [(s, s) for s in estados]
-        self.fields["pieza"].queryset = CortaPiezaCatalogo.objects.filter(activo=True).order_by("nombre")
-        materiales_qs = LaserMaterialPlaca.objects.filter(activo=True).order_by(
-            "categoria_material",
-            "tipo_material",
-            "nombre",
-            "calibre",
-            "espesor_mm",
-            "largo_mm",
-            "ancho_mm",
-            "id",
-        )
-        materiales = list(materiales_qs)
+        materiales_qs = _materiales_de_placa_activos()
         self.fields["material"].queryset = materiales_qs
-        name_key_counts: dict[tuple[str, str, str], int] = {}
-        for m in materiales:
-            k = (
-                (getattr(m, "categoria_material", "") or "").strip().upper(),
-                (getattr(m, "tipo_material", "") or "").strip().upper(),
-                (getattr(m, "nombre", "") or "").strip().upper(),
-            )
-            name_key_counts[k] = name_key_counts.get(k, 0) + 1
-        name_key_seen: dict[tuple[str, str, str], int] = {}
-        material_pos: dict[int, int] = {}
-        for m in materiales:
-            k = (
-                (getattr(m, "categoria_material", "") or "").strip().upper(),
-                (getattr(m, "tipo_material", "") or "").strip().upper(),
-                (getattr(m, "nombre", "") or "").strip().upper(),
-            )
-            name_key_seen[k] = name_key_seen.get(k, 0) + 1
-            material_pos[int(m.id)] = int(name_key_seen[k])
-
-        def _material_label(obj: LaserMaterialPlaca) -> str:
-            categoria = (getattr(obj, "categoria_material", "") or "").strip()
-            tipo = (getattr(obj, "tipo_material", "") or "").strip()
-            nombre = (getattr(obj, "nombre", "") or "").strip()
-            calibre = (getattr(obj, "calibre", "") or "").strip()
-            espesor = float(getattr(obj, "espesor_mm", 0.0) or 0.0)
-            largo = int(getattr(obj, "largo_mm", 0) or 0)
-            ancho = int(getattr(obj, "ancho_mm", 0) or 0)
-            parts: list[str] = []
-            if categoria:
-                parts.append(categoria)
-            if tipo:
-                parts.append(tipo)
-            parts.append(nombre if nombre else f"Material #{int(obj.id)}")
-            if calibre:
-                parts.append(f"Cédula {calibre}")
-            if espesor > 0:
-                parts.append(f"{espesor:.2f}mm")
-            if largo > 0 and ancho > 0:
-                parts.append(f"{(largo / 10.0):.1f}x{(ancho / 10.0):.1f}cm")
-            try:
-                peso = float(getattr(obj, "peso_kg", 0.0) or 0.0)
-            except Exception:
-                peso = 0.0
-            if peso > 0:
-                parts.append(f"{peso:.3f}kg")
-            key = ((categoria or "").strip().upper(), (tipo or "").strip().upper(), (nombre or "").strip().upper())
-            if name_key_counts.get(key, 0) > 1:
-                parts.append(f"(#{material_pos.get(int(obj.id), 1)})")
-            return " · ".join(parts)
-
-        self.fields["material"].label_from_instance = _material_label
+        etiquetas = _etiquetas_de_materiales(materiales_qs)
+        self.fields["material"].label_from_instance = lambda obj: etiquetas.get(
+            int(obj.id), (getattr(obj, "nombre", "") or "").strip() or f"Material #{int(obj.id)}"
+        )
 
     def clean_folio_externo(self):
         s = (self.cleaned_data.get("folio_externo") or "").strip()
@@ -2971,7 +2965,7 @@ class LaserVigaLikeForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         cp = _norm_text(cleaned.get("cliente_proyecto") or "")
-        pieza = cleaned.get("pieza")
+        pieza = _norm_text(cleaned.get("pieza") or "")
         material = cleaned.get("material")
         ancho = int(cleaned.get("pieza_ancho_mm") or 0)
         alto = int(cleaned.get("pieza_alto_mm") or 0)
@@ -4681,6 +4675,82 @@ def corte_laser_piezas(request):
 
 
 @login_required
+@require_POST
+def corte_laser_material_nuevo(request):
+    """Dar de alta una placa sin salir del formulario del pedido.
+
+    La pieza y el cliente se resuelven escribiéndolos, pero una placa no cabe
+    en una palabra: lleva categoría, tipo, nombre, cédula, espesor y medidas, y
+    de ahí sale el peso estimado del pedido. Así que aquí el equivalente a
+    «escríbelo y se crea» es un recuadro con esos campos y un botón, en la
+    misma pantalla.
+
+    Si la placa ya existe **se devuelve la que hay** en vez de fallar por la
+    restricción de unicidad. Es lo mismo que hace el cliente: quien captura no
+    tiene por qué saber si alguien la dio de alta antes.
+    """
+    if not _can_corte_laser(request.user):
+        return JsonResponse({"ok": False, "error": "Sin permiso."}, status=403)
+
+    # El peso se puede dejar vacío: si no viene, el sistema lo estima con las
+    # medidas y la densidad, que es lo que ya hacía la pantalla de kilos. Pedir
+    # un número que quien captura no tiene a mano sólo consigue que lo invente.
+    entrada = request.POST.copy()
+    if not (entrada.get("peso_kg") or "").strip():
+        entrada["peso_kg"] = "0"
+
+    form = LaserMaterialPlacaForm(entrada)
+    if not form.is_valid():
+        return JsonResponse({"ok": False, "errores": form.errors}, status=400)
+
+    datos = form.cleaned_data
+    largo_mm = int(round(float(datos.get("largo_cm") or 0.0) * 10.0))
+    ancho_mm = int(round(float(datos.get("ancho_cm") or 0.0) * 10.0))
+    existente = LaserMaterialPlaca.objects.filter(
+        categoria_material=(datos.get("categoria_material") or "").strip(),
+        tipo_material=(datos.get("tipo_material") or "").strip(),
+        nombre_normalizado=(datos.get("nombre") or "").strip().upper(),
+        calibre=(datos.get("calibre") or "").strip(),
+        espesor_mm=float(datos.get("espesor_mm") or 0.0),
+        largo_mm=largo_mm,
+        ancho_mm=ancho_mm,
+    ).first()
+
+    if existente:
+        placa = existente
+        creada = False
+        if not placa.activo:
+            placa.activo = True
+            placa.save(update_fields=["activo", "actualizado_en"])
+    else:
+        placa = form.save()
+        creada = True
+
+    # Las etiquetas se calculan sobre todas las placas: el sufijo «(#2)» sólo
+    # aparece si hay otra con la misma categoría, tipo y nombre, y eso no se
+    # puede saber mirando una sola.
+    etiqueta = _etiquetas_de_materiales(_materiales_de_placa_activos()).get(int(placa.id), placa.nombre)
+    return JsonResponse(
+        {
+            "ok": True,
+            "creada": creada,
+            "etiqueta": etiqueta,
+            "material": {
+                "id": int(placa.id),
+                "categoria_material": placa.categoria_material,
+                "tipo_material": placa.tipo_material,
+                "nombre": placa.nombre,
+                "calibre": placa.calibre,
+                "espesor_mm": float(placa.espesor_mm or 0.0),
+                "largo_mm": int(placa.largo_mm or 0),
+                "ancho_mm": int(placa.ancho_mm or 0),
+                "peso_kg": float(placa.peso_kg or 0.0),
+            },
+        }
+    )
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def corte_laser_control(request):
     if not _can_corte_laser(request.user):
@@ -5063,7 +5133,7 @@ def corte_laser_create(request):
         form = LaserVigaLikeForm(request.POST, estados=estados)
         if form.is_valid():
             folio_externo = form.cleaned_data["folio_externo"]
-            pieza = form.cleaned_data["pieza"]
+            pieza = _get_or_create_corta_pieza(form.cleaned_data["pieza"])
             codigo = (getattr(pieza, "nombre", "") or "").strip()
             total = int(form.cleaned_data["total_piezas"] or 1)
             is_op = bool(int(total or 0) >= 2)
@@ -5175,6 +5245,9 @@ def corte_laser_create(request):
             "clientes_proyectos": list(
                 CortaClienteProyecto.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
             ),
+            "piezas_catalogo": list(
+                CortaPiezaCatalogo.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
+            ),
             "materiales_payload": list(
                 LaserMaterialPlaca.objects.filter(activo=True).values(
                     "id",
@@ -5275,7 +5348,7 @@ def corte_laser_update(request, pk: int):
         form = LaserVigaLikeForm(request.POST, estados=estados)
         if form.is_valid():
             folio_externo = form.cleaned_data["folio_externo"]
-            pieza = form.cleaned_data["pieza"]
+            pieza = _get_or_create_corta_pieza(form.cleaned_data["pieza"])
             codigo = (getattr(pieza, "nombre", "") or "").strip()
             total = int(form.cleaned_data["total_piezas"] or 1)
             is_op = bool(int(total or 0) >= 2)
@@ -5378,7 +5451,7 @@ def corte_laser_update(request, pk: int):
         form = LaserVigaLikeForm(
             initial={
                 "folio_externo": getattr(orden, "folio_externo", "") or "",
-                "pieza": getattr(orden, "corta_pieza_id", None),
+                "pieza": getattr(getattr(orden, "corta_pieza", None), "nombre", "") or "",
                 "cliente_proyecto": getattr(getattr(orden, "corta_cliente_proyecto", None), "nombre", "") or "",
                 "correo": getattr(orden, "correo", "") or "",
                 "telefono": getattr(orden, "telefono", "") or "",
@@ -5412,6 +5485,9 @@ def corte_laser_update(request, pk: int):
             "dxf_url": dxf_url,
             "clientes_proyectos": list(
                 CortaClienteProyecto.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
+            ),
+            "piezas_catalogo": list(
+                CortaPiezaCatalogo.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
             ),
             "materiales_payload": list(
                 LaserMaterialPlaca.objects.filter(activo=True).values(

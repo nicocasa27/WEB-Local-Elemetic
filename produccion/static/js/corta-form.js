@@ -242,6 +242,160 @@ const cfg = document.getElementById("mesCfg").dataset;
     }
     calc();
 
+    /* Alta de una placa sin salir del formulario.
+     *
+     * Lo que importa aquí no es el envío, que es trivial, sino que al volver la
+     * placa quede metida en `payload` y en `optTextById`. Si no, la lista se
+     * reconstruye al cambiar categoría o tipo y la recién creada desaparece,
+     * y los kilos estimados salen vacíos porque `calc` la busca en `matMap`.
+     */
+    (function () {
+      const abrir = document.getElementById("nuevaPlacaAbrir");
+      const panel = document.getElementById("nuevaPlacaPanel");
+      const guardar = document.getElementById("nuevaPlacaGuardar");
+      const cancelar = document.getElementById("nuevaPlacaCancelar");
+      const aviso = document.getElementById("nuevaPlacaAviso");
+      const url = cfg.urlPlacaNueva;
+      if (!abrir || !panel || !guardar || !url) return;
+
+      const campos = {
+        categoria_material: document.getElementById("nuevaPlacaCategoria"),
+        tipo_material: document.getElementById("nuevaPlacaTipo"),
+        nombre: document.getElementById("nuevaPlacaNombre"),
+        calibre: document.getElementById("nuevaPlacaCalibre"),
+        espesor_mm: document.getElementById("nuevaPlacaEspesor"),
+        largo_cm: document.getElementById("nuevaPlacaLargo"),
+        ancho_cm: document.getElementById("nuevaPlacaAncho"),
+        peso_kg: document.getElementById("nuevaPlacaPeso"),
+      };
+
+      function sugerencias() {
+        // Para que quien da de alta reutilice las categorías y tipos que ya
+        // existen en vez de inventar una variante nueva de la misma palabra.
+        const lista = (sel, valores) => {
+          const dl = document.getElementById(sel);
+          if (!dl) return;
+          dl.innerHTML = "";
+          uniqSorted(valores).forEach((v) => {
+            const o = document.createElement("option");
+            o.value = v;
+            dl.appendChild(o);
+          });
+        };
+        lista("nuevaPlacaCategorias", (payload || []).map((m) => m.categoria_material));
+        lista("nuevaPlacaTipos", (payload || []).map((m) => m.tipo_material));
+      }
+
+      function decir(texto, clase) {
+        if (!aviso) return;
+        aviso.textContent = texto || "";
+        aviso.className = "small mt-2 " + (clase || "");
+      }
+
+      function cerrar() {
+        panel.classList.add("d-none");
+        decir("", "");
+      }
+
+      abrir.addEventListener("click", () => {
+        panel.classList.toggle("d-none");
+        if (panel.classList.contains("d-none")) return;
+        sugerencias();
+        // Arranca con lo que ya esté filtrado arriba: casi siempre es lo que
+        // la persona estuvo buscando antes de no encontrarlo.
+        if (catSel && catSel.value && campos.categoria_material && !campos.categoria_material.value) {
+          campos.categoria_material.value = catSel.value;
+        }
+        if (tipoSel && tipoSel.value && campos.tipo_material && !campos.tipo_material.value) {
+          campos.tipo_material.value = tipoSel.value;
+        }
+        if (campos.nombre) campos.nombre.focus();
+      });
+
+      if (cancelar) cancelar.addEventListener("click", cerrar);
+
+      function csrf() {
+        const el = document.querySelector("input[name=csrfmiddlewaretoken]");
+        return el ? el.value : "";
+      }
+
+      guardar.addEventListener("click", async () => {
+        const datos = new FormData();
+        Object.keys(campos).forEach((k) => {
+          datos.append(k, campos[k] ? String(campos[k].value || "").trim() : "");
+        });
+        datos.append("activo", "on");
+
+        guardar.disabled = true;
+        decir("Guardando...", "text-muted");
+        let res;
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: {"X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest"},
+            body: datos,
+          });
+        } catch (e) {
+          guardar.disabled = false;
+          decir("No se pudo conectar con el servidor. Reintenta.", "text-danger");
+          return;
+        }
+        guardar.disabled = false;
+
+        let cuerpo = null;
+        try { cuerpo = await res.json(); } catch (e) { cuerpo = null; }
+        if (!res.ok || !cuerpo || !cuerpo.ok) {
+          const errores = (cuerpo && cuerpo.errores) || {};
+          const partes = Object.keys(errores).map((k) => {
+            const msgs = errores[k];
+            return (Array.isArray(msgs) ? msgs.join(" ") : String(msgs));
+          });
+          decir(partes.length ? partes.join(" ") : ((cuerpo && cuerpo.error) || "No se pudo guardar."), "text-danger");
+          return;
+        }
+
+        const m = cuerpo.material;
+        const id = String(m.id);
+        // Sustituir y no acumular: si se le da a Guardar dos veces con los
+        // mismos datos, el servidor devuelve la misma placa y aquí no debe
+        // quedar duplicada en la lista.
+        const yaEstaba = payload.findIndex((x) => String(x.id) === id);
+        if (yaEstaba >= 0) payload[yaEstaba] = m;
+        else payload.push(m);
+        matMap[id] = m;
+        optTextById[id] = cuerpo.etiqueta;
+
+        if (catSel) {
+          const cat = catSel.value;
+          fillSelect(catSel, uniqSorted((payload || []).map((x) => x.categoria_material)), "Todas");
+          catSel.value = cat;
+        }
+        if (tipoSel) {
+          const tipo = tipoSel.value;
+          fillSelect(tipoSel, tiposForCategoria(catSel ? catSel.value : ""), "Todos");
+          tipoSel.value = tipo;
+        }
+        rebuildMaterialOptions();
+        if (matSel) {
+          matSel.value = id;
+          // La placa nueva puede quedar fuera del filtro de arriba, y entonces
+          // asignar el valor no surte efecto. Se limpia el filtro y se rehace.
+          if (String(matSel.value) !== id) {
+            if (catSel) catSel.value = "";
+            if (tipoSel) {
+              fillSelect(tipoSel, tiposForCategoria(""), "Todos");
+              tipoSel.value = "";
+            }
+            rebuildMaterialOptions();
+            matSel.value = id;
+          }
+        }
+        syncCategoryTypeFromSelectedMaterial();
+        calc();
+        cerrar();
+      });
+    })();
+
     if (input && frame) {
       input.addEventListener("change", function () {
         const f = input.files && input.files[0];
