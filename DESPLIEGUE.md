@@ -269,6 +269,46 @@ Y depende de que el piso use el celular. Si el avance se sigue capturando por
 la tarde desde la oficina, los tiempos que salgan serán los de la captura, no
 los del trabajo.
 
+## Capturar un pedido de Corta.mx
+
+Tres cosas cambiaron en la pantalla de alta, y las tres van en la misma
+dirección: que no haya que salirse a otro sitio a media captura.
+
+**La pieza se escribe.** Ya no es una lista: se teclea, se sugiere lo que hay,
+y si no existe se crea al guardar. El PDF y el DXF se siguen subiendo desde el
+catálogo, que es donde tienen sentido.
+
+**La placa se da de alta ahí mismo.** No cabe en una palabra —de sus medidas
+sale el peso del pedido—, así que hay un botón que abre un recuadro con sus
+campos. Se guarda al momento y queda elegida. Si ya existía se devuelve la que
+hay: la tabla tiene unicidad sobre categoría, tipo, nombre, cédula, espesor y
+medidas, y antes eso reventaba.
+
+**La cotización en PDF se lee sola.** Al adjuntar el PDF que se baja de la
+página, el sistema saca el folio, la pieza, las medidas, el material, el
+espesor y la cantidad, y ofrece llenar el pedido con eso.
+
+Sobre esto último, lo que conviene saber antes de que falle:
+
+- **No guarda nada.** Sólo escribe los campos del formulario. Una lectura
+  equivocada es un formulario mal llenado, que se ve y se corrige; nunca un
+  pedido inventado. Por eso no hay ninguna importación automática.
+- **Cada pieza de la cotización es un pedido.** Si la cotización trae tres, se
+  llena una y se repite. El panel las lista y dice cuál se está usando.
+- **La placa sólo se propone si se está seguro.** Tiene que coincidir el
+  espesor —una placa del mismo material con otro espesor no sirve, y el error
+  saldría en kilos— y además el nombre. Si no, el campo se queda vacío a
+  propósito. Para que acierte, el catálogo de placas tiene que estar poblado
+  con el mismo nombre que usa la cotización (`A36`, categoría `Acero`).
+- **Un PDF escaneado no se puede leer.** Si alguien imprime la cotización y la
+  vuelve a escanear, no trae texto y el sistema lo dice. Hay que bajarla otra
+  vez de la página.
+- **El formato es de Tempus Tools**, el motor de cotización de Corta.mx. Si
+  cambian el diseño del PDF, lo que se rompe es la lectura y se vuelve a
+  capturar a mano mientras se ajusta. La muestra que documenta el formato está
+  versionada en `tests/datos/cotizacion_corta.pdf`, y `tests/test_cotizacion_pdf.py`
+  es lo que avisa de que cambió.
+
 ## Pasar el servidor a producción
 
 Todo esto se hace **en la máquina del taller**. Conviene hacerlo fuera de

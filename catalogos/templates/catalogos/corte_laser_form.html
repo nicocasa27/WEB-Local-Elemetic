@@ -251,11 +251,34 @@
       <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2">
         <div>
           <div class="fw-semibold">Archivo (PDF)</div>
-          <div class="text-muted small">Abre el archivo aquí para copiar datos sin cambiar de ventana.</div>
+          <div class="text-muted small">Si es la cotización de Corta.mx, se lee sola y llena el pedido.</div>
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <input id="pdfArchivoInput" name="archivo" form="laserMainForm" type="file" class="form-control" accept="application/pdf" style="max-width: 420px;">
           <a id="pdfArchivoOpenTab" class="btn btn-outline-secondary" href="{% if archivo_url %}{{ archivo_url }}{% else %}#{% endif %}" target="_blank" rel="noopener" {% if not archivo_url %}style="display:none;"{% endif %}>Abrir en pestaña</a>
+        </div>
+      </div>
+
+      {% comment %}
+        Lo leído de la cotización. Aparece solo al elegir el PDF y nunca guarda
+        nada por su cuenta: se ve, se corrige arriba y se le da a Guardar.
+      {% endcomment %}
+      <div id="cotizacionPanel" class="d-none mt-3">
+        <div class="card border-primary">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+              <div>
+                <div class="fw-semibold">Cotización leída</div>
+                <div class="text-muted small" id="cotizacionResumen"></div>
+              </div>
+              <button type="button" id="cotizacionCerrar" class="btn-close" aria-label="Cerrar"></button>
+            </div>
+            <div id="cotizacionAvisos" class="small text-warning-emphasis mt-2"></div>
+            <div id="cotizacionRenglones" class="mt-2 d-flex flex-column gap-2"></div>
+            <div class="text-muted small mt-2">
+              Se llenan los campos de arriba. Revísalos y dale a Guardar: nada se guarda solo.
+            </div>
+          </div>
         </div>
       </div>
       <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mt-3">
@@ -280,6 +303,10 @@
        data-campo-cliente="{{ form.cliente_proyecto.id_for_label }}"
        data-campo-material="{{ form.material.id_for_label }}"
        data-url-placa-nueva="{% url 'catalogos:corte_laser_material_nuevo' %}"
+       data-url-leer-cotizacion="{% url 'catalogos:corte_laser_leer_cotizacion' %}"
+       data-campo-folio="{{ form.folio_externo.id_for_label }}"
+       data-campo-pieza="{{ form.pieza.id_for_label }}"
+       data-campo-descripcion="{{ form.descripcion.id_for_label }}"
        data-campo-alto="{{ form.pieza_alto_mm.id_for_label }}"
        data-campo-ancho="{{ form.pieza_ancho_mm.id_for_label }}"
        data-campo-piezas="{{ form.total_piezas.id_for_label }}"></div>

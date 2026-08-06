@@ -91,6 +91,8 @@ urlpatterns = [
     path("corte-laser/materiales/", views.corte_laser_materiales, name="corte_laser_materiales"),
     # Alta de una placa sin salir del formulario del pedido. Contesta JSON.
     path("corte-laser/materiales/nuevo/", views.corte_laser_material_nuevo, name="corte_laser_material_nuevo"),
+    # Lee el PDF de la cotizacion y propone con que llenar el pedido. Contesta JSON.
+    path("corte-laser/cotizacion/leer/", views.corte_laser_leer_cotizacion, name="corte_laser_leer_cotizacion"),
     path("corte-laser/ordenes/", views.corte_laser_ordenes, name="corte_laser_ordenes"),
     path("corte-laser/ordenes/<int:pk>/", views.corte_laser_orden_detalle, name="corte_laser_orden_detalle"),
     path("corte-laser/reportes/", views.corte_laser_reportes, name="corte_laser_reportes"),

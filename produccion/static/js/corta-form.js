@@ -411,4 +411,160 @@ const cfg = document.getElementById("mesCfg").dataset;
         }
       });
     }
+
+    /* Leer la cotización de Corta.mx y llenar el pedido con ella.
+     *
+     * El PDF ya se adjuntaba: lo único nuevo es que, al elegirlo, se manda a
+     * leer. Nada se guarda desde aquí, sólo se escriben los campos de arriba,
+     * que es lo que permite que una lectura equivocada no pase de un susto.
+     */
+    (function () {
+      const panel = document.getElementById("cotizacionPanel");
+      const resumen = document.getElementById("cotizacionResumen");
+      const avisos = document.getElementById("cotizacionAvisos");
+      const lista = document.getElementById("cotizacionRenglones");
+      const cerrar = document.getElementById("cotizacionCerrar");
+      const url = cfg.urlLeerCotizacion;
+      if (!panel || !lista || !input || !url) return;
+
+      const folioInput = document.getElementById(cfg.campoFolio);
+      const piezaInput = document.getElementById(cfg.campoPieza);
+      const descInput = document.getElementById(cfg.campoDescripcion);
+
+      if (cerrar) cerrar.addEventListener("click", () => panel.classList.add("d-none"));
+
+      function csrf() {
+        const el = document.querySelector("input[name=csrfmiddlewaretoken]");
+        return el ? el.value : "";
+      }
+
+      function llenar(folio, r) {
+        if (folioInput && folio && !folioInput.value.trim()) folioInput.value = folio;
+        if (piezaInput && r.parte) piezaInput.value = r.parte;
+        if (anchoInput && r.ancho_mm) anchoInput.value = r.ancho_mm;
+        if (altoInput && r.largo_mm) altoInput.value = r.largo_mm;
+        if (qtyInput && r.cantidad) qtyInput.value = r.cantidad;
+        if (descInput && !descInput.value.trim() && (r.procesos || []).length) {
+          descInput.value = r.procesos.join(", ");
+        }
+        if (matSel && r.placa_id) {
+          matSel.value = String(r.placa_id);
+          if (String(matSel.value) !== String(r.placa_id)) {
+            // La placa puede estar fuera del filtro de categoría o tipo.
+            if (catSel) catSel.value = "";
+            if (tipoSel) {
+              fillSelect(tipoSel, tiposForCategoria(""), "Todos");
+              tipoSel.value = "";
+            }
+            rebuildMaterialOptions();
+            matSel.value = String(r.placa_id);
+          }
+          syncCategoryTypeFromSelectedMaterial();
+        }
+        calc();
+        const arriba = folioInput || piezaInput;
+        if (arriba) {
+          arriba.scrollIntoView({behavior: "smooth", block: "center"});
+          arriba.focus({preventScroll: true});
+        }
+      }
+
+      function pintar(datos) {
+        panel.classList.remove("d-none");
+        lista.innerHTML = "";
+
+        const partes = [];
+        if (datos.folio) partes.push("Folio " + datos.folio);
+        if (datos.caducidad) partes.push("caduca el " + datos.caducidad);
+        const n = (datos.renglones || []).length;
+        partes.push(n === 1 ? "1 pieza" : n + " piezas");
+        if (resumen) resumen.textContent = partes.join(" · ");
+
+        if (avisos) {
+          avisos.textContent = (datos.avisos || []).join(" ");
+          avisos.classList.toggle("d-none", !(datos.avisos || []).length);
+        }
+
+        if (n > 1 && resumen) {
+          // Cada pieza de la cotización es un pedido aparte: no se puede
+          // llenar el formulario con varias a la vez, y fingir que sí sería
+          // perder las demás sin decirlo.
+          resumen.textContent += " · una por pedido";
+        }
+
+        (datos.renglones || []).forEach((r) => {
+          const fila = document.createElement("div");
+          fila.className = "d-flex justify-content-between align-items-center gap-2 border rounded p-2 flex-wrap";
+
+          const texto = document.createElement("div");
+          const titulo = document.createElement("div");
+          titulo.className = "fw-semibold";
+          titulo.textContent = r.parte || "(sin nombre)";
+          const detalle = document.createElement("div");
+          detalle.className = "text-muted small";
+          const trozos = [];
+          if (r.largo_mm && r.ancho_mm) trozos.push(r.largo_mm + " x " + r.ancho_mm + " mm");
+          if (r.material) trozos.push(r.material);
+          if (r.espesor_mm) trozos.push(r.espesor_mm + " mm de espesor");
+          if (r.cantidad) trozos.push(r.cantidad + " pzas");
+          detalle.textContent = trozos.join(" · ");
+          texto.appendChild(titulo);
+          texto.appendChild(detalle);
+
+          const placa = document.createElement("div");
+          placa.className = "small " + (r.placa_id ? "text-success" : "text-warning-emphasis");
+          placa.textContent = r.placa_id
+            ? "Placa: " + r.placa_nombre
+            : "La placa no está en el catálogo: elígela o dala de alta arriba.";
+          texto.appendChild(placa);
+
+          const boton = document.createElement("button");
+          boton.type = "button";
+          boton.className = "btn btn-argon text-white";
+          boton.textContent = "Llenar con esta";
+          boton.addEventListener("click", () => llenar(datos.folio, r));
+
+          fila.appendChild(texto);
+          fila.appendChild(boton);
+          lista.appendChild(fila);
+        });
+
+        if (!n) {
+          const vacio = document.createElement("div");
+          vacio.className = "text-muted small";
+          vacio.textContent = "No se pudo leer ninguna pieza de este PDF. Captúralo a mano.";
+          lista.appendChild(vacio);
+        }
+      }
+
+      input.addEventListener("change", async function () {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        const datos = new FormData();
+        datos.append("archivo", f);
+        panel.classList.remove("d-none");
+        if (resumen) resumen.textContent = "Leyendo el PDF...";
+        if (lista) lista.innerHTML = "";
+        if (avisos) avisos.textContent = "";
+
+        let res;
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: {"X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest"},
+            body: datos,
+          });
+        } catch (e) {
+          if (resumen) resumen.textContent = "No se pudo leer el PDF. Captúralo a mano.";
+          return;
+        }
+        let cuerpo = null;
+        try { cuerpo = await res.json(); } catch (e) { cuerpo = null; }
+        if (!cuerpo) {
+          if (resumen) resumen.textContent = "No se pudo leer el PDF. Captúralo a mano.";
+          return;
+        }
+        pintar(cuerpo);
+      });
+    })();
   })();

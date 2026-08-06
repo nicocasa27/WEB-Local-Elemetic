@@ -28,6 +28,7 @@ from core.excepciones import ErrorDeDominio
 from core.estados import clase as clase_de_estado
 from core.servicios import almacen as servicio_almacen
 from core.servicios import cierres as servicio_cierres
+from core.servicios import cotizacion as servicio_cotizacion
 
 logger = logging.getLogger("mes.catalogos")
 
@@ -4671,6 +4672,60 @@ def corte_laser_piezas(request):
         request,
         "catalogos/corte_laser_piezas.html",
         {"form": form, "rows": rows, "edit_obj": edit_obj},
+    )
+
+
+@login_required
+@require_POST
+def corte_laser_leer_cotizacion(request):
+    """Lee el PDF de la cotización y propone con qué llenar el pedido.
+
+    Hoy la cotización se genera en la página, se baja en PDF y alguien vuelve a
+    teclear lo que ya está escrito ahí. Una medida mal tecleada se corta mal.
+
+    **No guarda nada.** Devuelve lo que leyó para que se vea en pantalla y se
+    corrija antes de darle a guardar. Si el formato del PDF cambia, lo que
+    falla es la lectura y se sigue capturando a mano; no se cuela un pedido
+    inventado.
+    """
+    if not _can_corte_laser(request.user):
+        return JsonResponse({"ok": False, "error": "Sin permiso."}, status=403)
+
+    archivo = request.FILES.get("archivo")
+    if not archivo:
+        return JsonResponse({"ok": False, "error": "No llegó ningún archivo."}, status=400)
+
+    cot = servicio_cotizacion.de_pdf(archivo.read())
+    renglones = []
+    for r in cot.renglones:
+        placa = servicio_cotizacion.placa_parecida(r)
+        renglones.append(
+            {
+                "numero": r.numero,
+                "parte": r.parte,
+                "largo_mm": int(round(r.largo_mm)),
+                "ancho_mm": int(round(r.ancho_mm)),
+                "material": r.material,
+                "espesor_mm": r.espesor_mm,
+                "cantidad": r.cantidad,
+                "procesos": r.procesos,
+                "placa_id": int(placa.id) if placa else None,
+                "placa_nombre": (
+                    _etiquetas_de_materiales(_materiales_de_placa_activos()).get(int(placa.id), "")
+                    if placa
+                    else ""
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "ok": not cot.vacia,
+            "folio": cot.folio,
+            "caducidad": cot.caducidad,
+            "renglones": renglones,
+            "avisos": cot.avisos,
+        }
     )
 
 
