@@ -129,6 +129,47 @@ class Colaborador(models.Model):
     #: significa que esa persona todavía no tiene cuenta enlazada, que es lo
     #: normal el primer día.
     usuario = models.CharField(max_length=150, blank=True, db_index=True)
+
+    # --- Recursos humanos -------------------------------------------------
+    #
+    # La ficha de la persona vive aquí y no en una tabla aparte a propósito.
+    # Media persona en un sitio y media en otro acaba siendo dos personas: se
+    # da de alta por un lado a quien ya estaba por el otro, y a partir de ahí
+    # nadie sabe cuánta gente hay.
+    #
+    # Todo es opcional. Los colaboradores que ya existen no tienen ninguno de
+    # estos datos, y el sistema tiene que seguir funcionando igual mientras
+    # alguien los va completando.
+
+    SEXO_CHOICES = [
+        ("M", "Hombre"),
+        ("F", "Mujer"),
+        ("X", "Prefiere no decirlo"),
+    ]
+
+    sexo = models.CharField(max_length=1, choices=SEXO_CHOICES, blank=True, default="")
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+    fecha_ingreso = models.DateField(null=True, blank=True)
+    telefono = models.CharField(max_length=40, blank=True, default="")
+    departamento = models.ForeignKey(
+        "personal.Departamento",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="colaboradores",
+    )
+    puesto = models.ForeignKey(
+        "personal.Puesto",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="colaboradores",
+    )
+    #: Sueldo mensual bruto. `Decimal` y no `float`: es dinero, y en coma
+    #: flotante 0.1 + 0.2 no da 0.3. Cero significa «sin capturar», que es lo
+    #: que hay hoy para todo el mundo.
+    sueldo_mensual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 

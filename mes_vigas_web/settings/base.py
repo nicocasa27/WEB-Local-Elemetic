@@ -110,6 +110,8 @@ INSTALLED_APPS = [
     "nucleo",
     "inventario",
     "costeo",
+    # Recursos humanos: departamentos, puestos y la ficha de cada persona.
+    "personal",
     # Entrar con cuatro dígitos desde la tableta del piso. Va en la base
     # `default`, junto a `auth`, porque apunta a `User` con una clave foránea.
     "acceso",

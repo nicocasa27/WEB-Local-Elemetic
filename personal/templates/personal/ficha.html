@@ -1,0 +1,159 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - {% if ficha %}{{ ficha.nombre }}{% else %}Alta de personal{% endif %}{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <div class="kpi-label">Recursos humanos</div>
+      <div class="h3 mb-0">{% if ficha %}{{ ficha.nombre }}{% else %}Dar de alta a alguien{% endif %}</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'personal:lista' %}">
+      <i class="bi bi-arrow-left me-1"></i> Volver
+    </a>
+  </div>
+
+  {% if not hay_departamentos or not hay_puestos %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        {% if not hay_departamentos and not hay_puestos %}
+          Todavía no hay departamentos ni puestos. Se puede dar de alta a alguien sin ellos y ponérselos después.
+        {% elif not hay_departamentos %}
+          Todavía no hay departamentos.
+        {% else %}
+          Todavía no hay puestos.
+        {% endif %}
+      </div>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'personal:organizacion' %}">Crearlos</a>
+    </div>
+  {% endif %}
+
+  {% if form.non_field_errors %}
+    <div class="alert alert-warning">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form id="form-ficha" method="post" class="row g-3">
+    {% csrf_token %}
+
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="fw-semibold mb-3">La persona</div>
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>
+            {{ form.nombre }}
+            {% if form.nombre.errors %}<div class="invalid-feedback d-block">{{ form.nombre.errors }}</div>{% endif %}
+          </div>
+          <div class="col-6 col-md-4">
+            <label for="{{ form.sexo.id_for_label }}" class="form-label">{{ form.sexo.label }}</label>
+            {{ form.sexo }}
+            {% if form.sexo.errors %}<div class="invalid-feedback d-block">{{ form.sexo.errors }}</div>{% endif %}
+          </div>
+          <div class="col-6 col-md-4">
+            <label for="{{ form.fecha_nacimiento.id_for_label }}" class="form-label">{{ form.fecha_nacimiento.label }}</label>
+            {{ form.fecha_nacimiento }}
+            {% if form.fecha_nacimiento.errors %}<div class="invalid-feedback d-block">{{ form.fecha_nacimiento.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-4">
+            <label for="{{ form.telefono.id_for_label }}" class="form-label">{{ form.telefono.label }}</label>
+            {{ form.telefono }}
+            {% if form.telefono.errors %}<div class="invalid-feedback d-block">{{ form.telefono.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-12"><hr class="my-1"></div>
+
+          <div class="col-12 col-md-6">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="{{ form.departamento.id_for_label }}" class="form-label mb-0">{{ form.departamento.label }}</label>
+              <a class="small text-decoration-none" href="{% url 'personal:organizacion' %}">Crear</a>
+            </div>
+            {{ form.departamento }}
+            {% if form.departamento.errors %}<div class="invalid-feedback d-block">{{ form.departamento.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="d-flex justify-content-between align-items-center">
+              <label for="{{ form.puesto.id_for_label }}" class="form-label mb-0">{{ form.puesto.label }}</label>
+              <a class="small text-decoration-none" href="{% url 'personal:organizacion' %}">Crear</a>
+            </div>
+            {{ form.puesto }}
+            {% if form.puesto.errors %}<div class="invalid-feedback d-block">{{ form.puesto.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12 col-md-6">
+            <label for="{{ form.equipo.id_for_label }}" class="form-label">{{ form.equipo.label }}</label>
+            {{ form.equipo }}
+            <div class="text-muted small mt-1">{{ form.equipo.help_text }}</div>
+            {% if form.equipo.errors %}<div class="invalid-feedback d-block">{{ form.equipo.errors }}</div>{% endif %}
+          </div>
+          <div class="col-6 col-md-3">
+            <label for="{{ form.fecha_ingreso.id_for_label }}" class="form-label">{{ form.fecha_ingreso.label }}</label>
+            {{ form.fecha_ingreso }}
+            {% if form.fecha_ingreso.errors %}<div class="invalid-feedback d-block">{{ form.fecha_ingreso.errors }}</div>{% endif %}
+          </div>
+          <div class="col-6 col-md-3">
+            <label for="{{ form.sueldo_mensual.id_for_label }}" class="form-label">{{ form.sueldo_mensual.label }}</label>
+            {{ form.sueldo_mensual }}
+            <div class="text-muted small mt-1">{{ form.sueldo_mensual.help_text }}</div>
+            {% if form.sueldo_mensual.errors %}<div class="invalid-feedback d-block">{{ form.sueldo_mensual.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.activo }}
+              <label class="form-check-label" for="{{ form.activo.id_for_label }}">{{ form.activo.label }}</label>
+            </div>
+            <div class="text-muted small">{{ form.activo.help_text }}</div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="fw-semibold">Su cuenta para entrar</div>
+        <div class="text-muted small mb-3">
+          Opcional. Sin cuenta esta persona sale en los repartos de trabajo, pero no puede entrar al sistema.
+        </div>
+
+        {% if cuenta_form.non_field_errors %}
+          <div class="alert alert-warning py-2">{{ cuenta_form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="mb-3">
+          <label for="{{ cuenta_form.usuario.id_for_label }}" class="form-label">{{ cuenta_form.usuario.label }}</label>
+          {{ cuenta_form.usuario }}
+          <div class="text-muted small mt-1">{{ cuenta_form.usuario.help_text }}</div>
+          {% if cuenta_form.usuario.errors %}<div class="invalid-feedback d-block">{{ cuenta_form.usuario.errors }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ cuenta_form.contrasena.id_for_label }}" class="form-label">{{ cuenta_form.contrasena.label }}</label>
+          {{ cuenta_form.contrasena }}
+          <div class="text-muted small mt-1">{{ cuenta_form.contrasena.help_text }}</div>
+          {% if cuenta_form.contrasena.errors %}<div class="invalid-feedback d-block">{{ cuenta_form.contrasena.errors }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ cuenta_form.pin.id_for_label }}" class="form-label">{{ cuenta_form.pin.label }}</label>
+          {{ cuenta_form.pin }}
+          <div class="text-muted small mt-1">{{ cuenta_form.pin.help_text }}</div>
+          {% if cuenta_form.pin.errors %}<div class="invalid-feedback d-block">{{ cuenta_form.pin.errors }}</div>{% endif %}
+        </div>
+
+        {% comment %}
+          Las casillas llevan `form="form-ficha"` desde el widget: están fuera
+          del recuadro principal y sin eso no viajarían con el envío. Ese fallo
+          exacto ya le quitó los permisos a alguien en la pantalla de Usuarios.
+        {% endcomment %}
+        <div class="fw-semibold mb-2">{{ cuenta_form.grupos.label }}</div>
+        <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
+          {% for opcion in cuenta_form.grupos %}
+            <div class="form-check">
+              {{ opcion.tag }}
+              <label class="form-check-label" for="{{ opcion.id_for_label }}">{{ opcion.choice_label }}</label>
+            </div>
+          {% endfor %}
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col-12 d-flex justify-content-end gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'personal:lista' %}">Cancelar</a>
+      <button type="submit" class="btn btn-argon text-white"><i class="bi bi-check2 me-1"></i> Guardar</button>
+    </div>
+  </form>
+{% endblock %}

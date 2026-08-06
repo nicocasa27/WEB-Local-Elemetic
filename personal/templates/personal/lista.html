@@ -1,0 +1,171 @@
+{% extends "produccion/base.html" %}
+{% block title %}Taller Elemetic - Personal{% endblock %}
+{% block content %}
+  <div class="d-flex align-items-start align-items-md-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <div class="kpi-label">Recursos humanos</div>
+      <div class="h3 mb-0">Personal</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{% url 'personal:organizacion' %}">
+        <i class="bi bi-diagram-2 me-1"></i> Departamentos y puestos
+      </a>
+      <a class="btn btn-argon text-white" href="{% url 'personal:alta' %}">
+        <i class="bi bi-person-plus me-1"></i> Dar de alta
+      </a>
+    </div>
+  </div>
+
+  {% comment %}
+    Los números se calculan en cada carga. Un total guardado se queda viejo en
+    cuanto alguien da de alta a alguien por otra pantalla.
+  {% endcomment %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="kpi-label">Personas</div>
+        <div class="h3 mb-0">{{ resumen.personas }}</div>
+        {% if resumen.bajas %}<div class="text-muted small">{{ resumen.bajas }} de baja</div>{% endif %}
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="kpi-label">Nómina mensual</div>
+        <div class="h3 mb-0">${{ resumen.nomina|floatformat:2 }}</div>
+        {% if resumen.sin_sueldo %}
+          <div class="text-warning-emphasis small">{{ resumen.sin_sueldo }} sin sueldo capturado</div>
+        {% endif %}
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="kpi-label">Sin cuenta</div>
+        <div class="h3 mb-0">{{ resumen.sin_cuenta }}</div>
+        <div class="text-muted small">No pueden entrar al sistema</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 h-100"><div class="card-body">
+        <div class="kpi-label">Sin departamento</div>
+        <div class="h3 mb-0">{{ huerfanos }}</div>
+        <div class="text-muted small">No salen en el reparto de abajo</div>
+      </div></div>
+    </div>
+  </div>
+
+  {% if por_departamento %}
+    <div class="card border-0 mb-3"><div class="card-body">
+      <div class="fw-semibold mb-2">Por departamento</div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr>
+            <th>Departamento</th><th class="text-end">Personas</th><th class="text-end">Nómina</th>
+          </tr></thead>
+          <tbody>
+            {% for d in por_departamento %}
+              <tr>
+                <td><a href="?departamento={{ d.id }}">{{ d.nombre }}</a></td>
+                <td class="text-end">{{ d.gente }}</td>
+                <td class="text-end">${{ d.nomina|default:0|floatformat:2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+  {% endif %}
+
+  <div class="card border-0">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-12 col-md-4">
+          <label for="filtroQ" class="form-label">Buscar</label>
+          <input id="filtroQ" name="q" class="form-control" value="{{ filtros.q }}" placeholder="Nombre o usuario">
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="filtroDepartamento" class="form-label">Departamento</label>
+          <select id="filtroDepartamento" name="departamento" class="form-select">
+            <option value="">Todos</option>
+            <option value="sin" {% if filtros.departamento == "sin" %}selected{% endif %}>Sin departamento</option>
+            {% for d in departamentos %}
+              <option value="{{ d.id }}" {% if filtros.departamento == d.id|stringformat:"s" %}selected{% endif %}>{{ d.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label for="filtroPuesto" class="form-label">Puesto</label>
+          <select id="filtroPuesto" name="puesto" class="form-select">
+            <option value="">Todos</option>
+            {% for p in puestos %}
+              <option value="{{ p.id }}" {% if filtros.puesto == p.id|stringformat:"s" %}selected{% endif %}>{{ p.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="filtroVer" class="form-label">Ver</label>
+          <select id="filtroVer" name="ver" class="form-select">
+            <option value="activos" {% if filtros.ver == "activos" %}selected{% endif %}>Activos</option>
+            <option value="bajas" {% if filtros.ver == "bajas" %}selected{% endif %}>De baja</option>
+            <option value="todos" {% if filtros.ver == "todos" %}selected{% endif %}>Todos</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button class="btn btn-outline-secondary btn-sm" type="submit">Aplicar</button>
+          <a class="btn btn-link btn-sm" href="{% url 'personal:lista' %}">Quitar filtros</a>
+        </div>
+      </form>
+
+      {% if fichas %}
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead><tr>
+              <th>Nombre</th>
+              <th>Departamento</th>
+              <th>Puesto</th>
+              <th>Equipo</th>
+              <th>Entró</th>
+              <th class="text-end">Sueldo</th>
+              <th>Cuenta</th>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              {% for f in fichas %}
+                <tr {% if not f.activo %}class="text-muted"{% endif %}>
+                  <td>
+                    <a href="{% url 'personal:editar' f.id %}">{{ f.nombre }}</a>
+                    {% if not f.activo %}<span class="badge bg-secondary ms-1">De baja</span>{% endif %}
+                  </td>
+                  <td>{{ f.departamento.nombre|default:"—" }}</td>
+                  <td>{{ f.puesto.nombre|default:f.rol }}</td>
+                  <td>{{ f.equipo.nombre }}</td>
+                  <td>{{ f.fecha_ingreso|date:"d/m/Y"|default:"—" }}</td>
+                  <td class="text-end">
+                    {% if f.sueldo_mensual %}${{ f.sueldo_mensual|floatformat:2 }}{% else %}<span class="text-warning-emphasis">Sin capturar</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if f.usuario %}<code>{{ f.usuario }}</code>{% else %}<span class="text-muted">—</span>{% endif %}
+                  </td>
+                  <td class="text-end">
+                    <form method="post" action="{% url 'personal:dar_de_baja' f.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-secondary" type="submit">
+                        {% if f.activo %}Dar de baja{% else %}Reactivar{% endif %}
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-4">
+          <div class="text-muted">No hay nadie con esos filtros.</div>
+          <a class="btn btn-argon text-white mt-3" href="{% url 'personal:alta' %}">
+            <i class="bi bi-person-plus me-1"></i> Dar de alta a alguien
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

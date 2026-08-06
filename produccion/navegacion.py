@@ -134,6 +134,11 @@ MENU = [
         Item("Trazabilidad", "catalogos:trazabilidad", "bi-diagram-3"),
     ]),
 
+    Grupo("Recursos humanos", [
+        Item("Personal", "personal:lista", "bi-person-vcard"),
+        Item("Departamentos y puestos", "personal:organizacion", "bi-diagram-2"),
+    ], visible=_si("is_admin")),
+
     Grupo("Configuración", [
         Item("Proyectos", "catalogos:proyectos", "bi-folder2-open"),
         Item("Equipos", "catalogos:equipos", "bi-people"),

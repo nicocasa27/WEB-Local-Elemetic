@@ -269,6 +269,55 @@ Y depende de que el piso use el celular. Si el avance se sigue capturando por
 la tarde desde la oficina, los tiempos que salgan serán los de la captura, no
 los del trabajo.
 
+## Recursos humanos
+
+Menú → **Recursos humanos**, sólo para quien administra. El sueldo no lo puede
+ver cualquiera: en el taller esta pantalla se abre delante de otros.
+
+Antes la ficha de una persona tenía tres datos —nombre, equipo y un rol elegido
+de cuatro palabras escritas en el código— y se daba de alta desde la pantalla
+de Equipos porque era donde cabía. No se podía contestar cuánta gente hay, en
+qué departamento está, ni cuánto suma la nómina.
+
+**Al actualizar hay que correr una vez:**
+
+```
+.venv\Scripts\python.exe manage.py migrate --database=mes
+.venv\Scripts\python.exe manage.py sembrar_personal
+```
+
+`sembrar_personal` crea los cuatro puestos que el sistema ya usaba —Soldador,
+Auxiliar, Pintor, Operador— y le enlaza el suyo a cada persona que ya está dada
+de alta, para que la pantalla no salga vacía el primer día. Es idempotente.
+**No siembra departamentos**: cómo se divide este taller lo sabe el taller, e
+inventar cuatro nombres plausibles sólo conseguiría que alguien los diera por
+buenos.
+
+### Lo que hay que hacer una vez
+
+1. **Crear los departamentos**, en Departamentos y puestos.
+2. **Crear los puestos que falten.** Cada uno dice a cuál de los cuatro papeles
+   de producción se parece: eso es lo que hace que inventar «Pailero» no rompa
+   el reparto de órdenes, que sigue funcionando con los de siempre. Un puesto
+   de oficina o de almacén se deja sin equivalencia.
+3. **Completar la ficha de las 18 personas**: sexo, nacimiento, ingreso,
+   departamento, puesto y sueldo. Hasta que no se capture el sueldo, la nómina
+   sale en cero y la pantalla lo dice.
+
+### Detalles que conviene saber
+
+- **La cuenta se crea desde la ficha.** Se puede, y es lo recomendable: cuando
+  son dos pantallas, el enlace entre la cuenta y la ficha es justo lo que se
+  olvida, y sin enlace «Mi trabajo» no le enseña sus órdenes a nadie.
+- **Dar de baja no borra.** La ficha se apaga, su cuenta deja de poder entrar y
+  se le quita el PIN. Sus asignaciones, sus firmas y su rendimiento se quedan
+  en el historial: sin la ficha, todo eso se quedaría sin dueño.
+- **Los totales se calculan en cada carga**, no se guardan. Y se calculan sobre
+  todo el taller aunque haya un filtro puesto: si no, filtrar por un
+  departamento haría creer que esa es la nómina de la empresa.
+- La ficha de la persona vive en `catalogos.Colaborador`, no en una tabla
+  aparte. Media persona en un sitio y media en otro acaba siendo dos personas.
+
 ## Capturar un pedido de Corta.mx
 
 Tres cosas cambiaron en la pantalla de alta, y las tres van en la misma

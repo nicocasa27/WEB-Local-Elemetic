@@ -27,6 +27,7 @@ urlpatterns = [
     path('catalogos/', include('catalogos.urls')),
     path('configuracion/', include('nucleo.urls')),
     path('almacen/', include('inventario.urls')),
+    path('personal/', include('personal.urls')),
     path('admin/', admin.site.urls),
 
     # Los archivos subidos (planos, DXF, comprobantes de envío) se sirven
