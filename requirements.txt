@@ -21,7 +21,10 @@ whitenoise==6.12.0
 # Exportación de reportes y expedientes a Excel.
 openpyxl==3.1.5
 
-# Lectura de PDF. Solo la usa el importador de vigas (produccion/views.py),
-# que hoy no tiene ruta en urls.py. Se importa con try/except, así que la app
-# arranca sin él, pero se fija la versión para no depender del azar.
+# Lectura de PDF. Hoy no lo usa nada del sistema en marcha: su único usuario
+# era el importador de vigas, que estaba sin ruta y se aparcó en
+# attic/importador-de-pdf/. Se deja instalado y con la versión fijada porque
+# ese analizador vuelve cuando se monte el inventario, para leer certificados
+# de material, y porque el taller no tiene internet: lo que no esté instalado
+# el día que haga falta, no se puede instalar.
 pypdf==6.9.2

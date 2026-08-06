@@ -20,6 +20,63 @@ Lo que sí conviene es pasar a producción, porque en desarrollo:
   configuración dentro, **incluida la contraseña de PostgreSQL**;
 - la clave de firma de sesiones es pública (está en el repositorio).
 
+## Montar el sistema en una máquina nueva
+
+Esto es para un Windows recién puesto, no para actualizar el del taller. Está
+probado de principio a fin: clonar, instalar, migrar, arrancar y entrar.
+
+**Lo que el repositorio no trae, y no puede traer.** Aquí sólo está el código.
+Los datos y los secretos se quedan fuera a propósito:
+
+| Falta | Dónde está | Qué pasa sin ello |
+|---|---|---|
+| `db.sqlite3` | sólo en el servidor | Cuentas, grupos y PIN. Sin él se arranca vacío y sólo entra el administrador de fábrica. |
+| La base `mes_vigas` | PostgreSQL del servidor | Todas las órdenes, piezas y almacén. Sin ella el sistema arranca vacío. |
+| `.env` | sólo en el servidor | Se copia de `.env.example`. Sin él arranca en modo desarrollo. |
+| `media/` | sólo en el servidor | Planos, DXF y acuses ya subidos. |
+| `.venv/` | se crea al instalar | — |
+
+**Para una máquina de pruebas eso basta**: arranca vacía y se puede trabajar.
+**Para mudar el taller de servidor hace falta llevarse los datos**, y eso es un
+`pg_dump`/`pg_restore` de `mes_vigas` más una copia de `db.sqlite3` y de
+`media/`, no un `git clone`.
+
+### Los pasos
+
+```bat
+rem 0. Antes: Python 3.12 y PostgreSQL instalados.
+rem    Con Python 3.9 o anterior, `pip install` falla diciendo que no
+rem    encuentra Django 5.2, que no explica nada. Django 5.2 exige 3.10+.
+python --version
+
+git clone <url-del-repositorio> "DJANGO WEB"
+cd "DJANGO WEB"
+
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+rem La base vacía. El nombre tiene que coincidir con MES_DB_NAME.
+createdb -h 127.0.0.1 -U postgres mes_vigas
+
+copy .env.example .env
+rem Y editar .env: al menos MES_DB_PASSWORD y DJANGO_SECRET_KEY.
+
+rem `default` primero: es donde viven las cuentas y los grupos.
+.venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py migrate --database=mes
+
+.venv\Scripts\python.exe manage.py crear_admin
+.venv\Scripts\python.exe manage.py collectstatic --noinput
+
+INICIAR_SERVIDOR.bat
+```
+
+Y entrar en `http://127.0.0.1:8501/` con el administrador de fábrica, que
+`crear_admin` deja creado y dice por pantalla.
+
+A partir de ahí, **Configuración de planta → Puesta en marcha** dice qué falta
+por capturar y qué pasa si falta.
+
 ## Actualizar el servidor del taller
 
 Para traer una versión nueva desde el repositorio. Se puede hacer sin parar el
@@ -40,8 +97,11 @@ rem 3. Dependencias, por si alguna cambió.
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 
 rem 4. Estructura de la base. No borra nada: sólo añade.
-.venv\Scripts\python.exe manage.py migrate --database=mes
+rem    Primero `default`, que es donde viven las cuentas y los grupos. Al
+rem    revés falla en una instalación desde cero: algunas migraciones de
+rem    negocio consultan `auth_group`, y todavía no existiría.
 .venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py migrate --database=mes
 
 rem 5. Grupos de permisos que hayan aparecido. Es idempotente.
 .venv\Scripts\python.exe manage.py crear_admin
