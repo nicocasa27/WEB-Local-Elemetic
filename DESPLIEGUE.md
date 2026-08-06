@@ -284,6 +284,28 @@ campos. Se guarda al momento y queda elegida. Si ya existía se devuelve la que
 hay: la tabla tiene unicidad sobre categoría, tipo, nombre, cédula, espesor y
 medidas, y antes eso reventaba.
 
+**El espesor y la cédula se copian de la placa y se pueden escribir encima.**
+Estaban en gris y no se guardaban en ninguna parte: eran una ficha de la placa
+elegida. Ahora el pedido tiene los suyos —dos columnas nuevas, `espesor_mm` y
+`calibre`— porque a veces la placa que había en el taller no era exactamente la
+del catálogo, y eso hay que poder anotarlo sin tocar el catálogo, que es de
+todos. En blanco o en cero significa «los de la placa», que es el caso normal.
+
+Tres detalles que evitan que esto se convierta en dos verdades:
+
+- Al elegir una placa se copian solos, **salvo que alguien haya escrito algo
+  distinto**: eso ya no se pisa. Borrar el campo lo devuelve al automático.
+- Si lo escrito no coincide con la placa, la pantalla lo dice en un aviso.
+  Una divergencia callada es la clase de dato que aparece meses después sin que
+  nadie sepa cuál de los dos era el bueno.
+- **Los kilos se siguen calculando con la placa**, no con lo escrito. El peso
+  sale del peso de la lámina y de cuánta se ocupa; el espesor del pedido es una
+  anotación, no una medida de la que colgar dinero.
+
+También funcionan al revés: escribir el espesor deja en la lista sólo las
+placas de ese espesor, y si sólo queda una se elige sola. Es como se busca de
+verdad —«necesito la de 4.76»—.
+
 **La cotización en PDF se lee sola.** Al adjuntar el PDF que se baja de la
 página, el sistema saca el folio, la pieza, las medidas, el material, el
 espesor y la cantidad, y ofrece llenar el pedido con eso.

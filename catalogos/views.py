@@ -2937,6 +2937,17 @@ class LaserVigaLikeForm(forms.Form):
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     descripcion = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     material = forms.ModelChoiceField(queryset=LaserMaterialPlaca.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
+    # Se copian de la placa al elegirla y se pueden escribir encima. No son
+    # obligatorios: en blanco valen los de la placa.
+    espesor_mm = forms.FloatField(
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "list": "cortaEspesores"}),
+    )
+    calibre = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "list": "cortaCalibres"}),
+    )
     pieza_ancho_mm = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     pieza_alto_mm = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     fecha_compromiso = forms.DateField(widget=CampoDeFecha())
@@ -5224,6 +5235,8 @@ def corte_laser_create(request):
                     prioridad=int(form.cleaned_data["prioridad"] or 3),
                     estado_etapa=estado_etapa,
                     material=material,
+                    espesor_mm=float(form.cleaned_data.get("espesor_mm") or 0.0),
+                    calibre=(form.cleaned_data.get("calibre") or "").strip(),
                     pieza_ancho_mm=ancho_mm,
                     pieza_alto_mm=alto_mm,
                     peso_kg=float(peso_total or 0.0),
@@ -5303,6 +5316,22 @@ def corte_laser_create(request):
             ),
             "piezas_catalogo": list(
                 CortaPiezaCatalogo.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
+            ),
+            # Para sugerir al escribir: los espesores y las cédulas que ya
+            # existen, en vez de que cada quien invente los suyos.
+            "espesores": sorted(
+                {
+                    round(float(e or 0.0), 2)
+                    for e in LaserMaterialPlaca.objects.filter(activo=True).values_list("espesor_mm", flat=True)
+                    if e
+                }
+            ),
+            "calibres": sorted(
+                {
+                    (c or "").strip()
+                    for c in LaserMaterialPlaca.objects.filter(activo=True).values_list("calibre", flat=True)
+                    if (c or "").strip()
+                }
             ),
             "materiales_payload": list(
                 LaserMaterialPlaca.objects.filter(activo=True).values(
@@ -5434,6 +5463,8 @@ def corte_laser_update(request, pk: int):
                 orden.estado_etapa = estado_etapa
                 material = form.cleaned_data["material"]
                 orden.material = material
+                orden.espesor_mm = float(form.cleaned_data.get("espesor_mm") or 0.0)
+                orden.calibre = (form.cleaned_data.get("calibre") or "").strip()
                 orden.pieza_ancho_mm = int(form.cleaned_data["pieza_ancho_mm"] or 0)
                 orden.pieza_alto_mm = int(form.cleaned_data["pieza_alto_mm"] or 0)
                 orden.peso_kg = float(_calc_peso_total(material, int(orden.pieza_ancho_mm or 0), int(orden.pieza_alto_mm or 0), total) or 0.0)
@@ -5513,6 +5544,8 @@ def corte_laser_update(request, pk: int):
                 "telefono": getattr(orden, "telefono", "") or "",
                 "descripcion": orden.descripcion,
                 "material": orden.material_id,
+                "espesor_mm": float(getattr(orden, "espesor_mm", 0.0) or 0.0) or None,
+                "calibre": getattr(orden, "calibre", "") or "",
                 "pieza_ancho_mm": int(getattr(orden, "pieza_ancho_mm", 0) or 0),
                 "pieza_alto_mm": int(getattr(orden, "pieza_alto_mm", 0) or 0),
                 "fecha_compromiso": orden.fecha_compromiso,
@@ -5544,6 +5577,22 @@ def corte_laser_update(request, pk: int):
             ),
             "piezas_catalogo": list(
                 CortaPiezaCatalogo.objects.filter(activo=True).values_list("nombre", flat=True).order_by("nombre")[:2000]
+            ),
+            # Para sugerir al escribir: los espesores y las cédulas que ya
+            # existen, en vez de que cada quien invente los suyos.
+            "espesores": sorted(
+                {
+                    round(float(e or 0.0), 2)
+                    for e in LaserMaterialPlaca.objects.filter(activo=True).values_list("espesor_mm", flat=True)
+                    if e
+                }
+            ),
+            "calibres": sorted(
+                {
+                    (c or "").strip()
+                    for c in LaserMaterialPlaca.objects.filter(activo=True).values_list("calibre", flat=True)
+                    if (c or "").strip()
+                }
             ),
             "materiales_payload": list(
                 LaserMaterialPlaca.objects.filter(activo=True).values(

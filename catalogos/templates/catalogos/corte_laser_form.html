@@ -160,13 +160,29 @@
           {{ form.pieza_alto_mm }}
           {% if form.pieza_alto_mm.errors %}<div class="invalid-feedback d-block">{{ form.pieza_alto_mm.errors }}</div>{% endif %}
         </div>
+        {% comment %}
+          Se copian de la placa al elegirla y se pueden escribir encima. Además
+          filtran la lista de placas: escribir 4.76 deja sólo las de ese
+          espesor, que es como se busca de verdad —«necesito la de 4.76»—.
+        {% endcomment %}
         <div class="col-12 col-md-6">
-          <label for="laserEspesorMm" class="form-label">ESPESOR (MM) · MATERIAL</label>
-          <input id="laserEspesorMm" class="form-control bg-light" type="number" step="0.01" readonly>
+          <label for="{{ form.espesor_mm.id_for_label }}" class="form-label">ESPESOR (MM)</label>
+          {{ form.espesor_mm }}
+          <datalist id="cortaEspesores">
+            {% for e in espesores %}<option value="{{ e }}"></option>{% endfor %}
+          </datalist>
+          {% if form.espesor_mm.errors %}<div class="invalid-feedback d-block">{{ form.espesor_mm.errors }}</div>{% endif %}
         </div>
         <div class="col-12 col-md-6">
-          <label for="laserCalibre" class="form-label">CALIBRE · MATERIAL</label>
-          <input id="laserCalibre" class="form-control bg-light" type="text" readonly>
+          <label for="{{ form.calibre.id_for_label }}" class="form-label">CALIBRE</label>
+          {{ form.calibre }}
+          <datalist id="cortaCalibres">
+            {% for c in calibres %}<option value="{{ c }}"></option>{% endfor %}
+          </datalist>
+          {% if form.calibre.errors %}<div class="invalid-feedback d-block">{{ form.calibre.errors }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+          <div id="laserAvisoPlaca" class="alert alert-warning py-2 px-3 mb-0 small d-none"></div>
         </div>
         <div class="col-12 col-md-6">
           <label for="{{ form.fecha_compromiso.id_for_label }}" class="form-label">FECHA COMPROMISO</label>
@@ -307,6 +323,8 @@
        data-campo-folio="{{ form.folio_externo.id_for_label }}"
        data-campo-pieza="{{ form.pieza.id_for_label }}"
        data-campo-descripcion="{{ form.descripcion.id_for_label }}"
+       data-campo-espesor="{{ form.espesor_mm.id_for_label }}"
+       data-campo-calibre="{{ form.calibre.id_for_label }}"
        data-campo-alto="{{ form.pieza_alto_mm.id_for_label }}"
        data-campo-ancho="{{ form.pieza_ancho_mm.id_for_label }}"
        data-campo-piezas="{{ form.total_piezas.id_for_label }}"></div>

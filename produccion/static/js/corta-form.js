@@ -23,8 +23,9 @@ const cfg = document.getElementById("mesCfg").dataset;
     const qtyInput = document.getElementById(cfg.campoPiezas);
     const outPza = document.getElementById("laserKgPza");
     const outTotal = document.getElementById("laserKgTotal");
-    const outEspesor = document.getElementById("laserEspesorMm");
-    const outCalibre = document.getElementById("laserCalibre");
+    const outEspesor = document.getElementById(cfg.campoEspesor);
+    const outCalibre = document.getElementById(cfg.campoCalibre);
+    const avisoPlaca = document.getElementById("laserAvisoPlaca");
     const input = document.getElementById("pdfArchivoInput");
     const frame = document.getElementById("pdfArchivoFrame");
     const openTab = document.getElementById("pdfArchivoOpenTab");
@@ -177,6 +178,113 @@ const cfg = document.getElementById("mesCfg").dataset;
       });
     }
 
+    /* Espesor y cédula: se copian de la placa, pero se pueden escribir encima.
+     *
+     * La regla es una sola: **no se pisa lo que alguien escribió**. Mientras el
+     * campo esté vacío o siga teniendo lo que puso la placa anterior, se
+     * refresca al cambiar de placa. En cuanto se teclea algo distinto, ese
+     * valor manda y ya no se toca, porque significa que la placa que había en
+     * el taller no era exactamente la del catálogo y eso es justo lo que se
+     * quiere anotar.
+     *
+     * Y cuando no cuadran, se dice. Una divergencia callada entre el pedido y
+     * la placa es la clase de dato que aparece meses después sin que nadie
+     * sepa cuál de los dos era el bueno.
+     */
+    function aMano(campo) {
+      return campo && campo.dataset.aMano === "1";
+    }
+
+    function copiarDeLaPlaca(m) {
+      const poner = (campo, valor) => {
+        if (!campo || aMano(campo)) return;
+        campo.value = m ? String(valor || "") : "";
+        campo.dataset.deLaPlaca = campo.value;
+      };
+      poner(outEspesor, m && m.espesor_mm);
+      poner(outCalibre, m && m.calibre);
+    }
+
+    function marcarSiLoCambiaron(campo) {
+      if (!campo) return;
+      const escrito = String(campo.value || "").trim();
+      const puesto = String(campo.dataset.deLaPlaca || "").trim();
+      // Volver a dejarlo como lo puso la placa -o vaciarlo- lo devuelve al
+      // automático: si no, un tecleo y un arrepentimiento lo congelaban.
+      campo.dataset.aMano = escrito && escrito !== puesto ? "1" : "0";
+    }
+
+    function mismoNumero(a, b) {
+      const x = parseFloat(a);
+      const y = parseFloat(b);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+      return Math.abs(x - y) < 0.005;
+    }
+
+    function avisarSiNoCuadran(m) {
+      if (!avisoPlaca) return;
+      const quejas = [];
+      if (m && outEspesor) {
+        const escrito = String(outEspesor.value || "").trim();
+        if (escrito && !mismoNumero(escrito, m.espesor_mm)) {
+          quejas.push(`el espesor (${escrito} mm) no es el de la placa (${m.espesor_mm} mm)`);
+        }
+      }
+      if (m && outCalibre) {
+        const escrito = String(outCalibre.value || "").trim();
+        const suyo = String(m.calibre || "").trim();
+        if (escrito && suyo && escrito.toUpperCase() !== suyo.toUpperCase()) {
+          quejas.push(`la cédula (${escrito}) no es la de la placa (${suyo})`);
+        }
+      }
+      avisoPlaca.classList.toggle("d-none", !quejas.length);
+      if (quejas.length) {
+        avisoPlaca.textContent =
+          "Ojo: " + quejas.join(" y ") + ". Se guarda lo escrito, no lo de la placa. " +
+          "Los kilos se siguen calculando con la placa.";
+      }
+    }
+
+    function filtrarPorEspesorYCalibre() {
+      // Escribir 4.76 deja en la lista sólo las placas de ese espesor. Es como
+      // se busca de verdad: «necesito la de 4.76», no «necesito una de acero».
+      if (!matSel) return;
+      const esp = outEspesor ? String(outEspesor.value || "").trim() : "";
+      const ced = outCalibre ? String(outCalibre.value || "").trim() : "";
+      if (!esp && !ced) return;
+
+      const candidatas = (payload || []).filter((m) => {
+        if (esp && !mismoNumero(esp, m.espesor_mm)) return false;
+        if (ced && String(m.calibre || "").trim().toUpperCase() !== ced.toUpperCase()) return false;
+        return true;
+      });
+      // Si sólo queda una, se elige sola: no tiene sentido obligar a abrir un
+      // desplegable de un solo elemento.
+      if (candidatas.length === 1 && String(matSel.value || "") !== String(candidatas[0].id)) {
+        if (catSel) catSel.value = "";
+        if (tipoSel) {
+          fillSelect(tipoSel, tiposForCategoria(""), "Todos");
+          tipoSel.value = "";
+        }
+        rebuildMaterialOptions();
+        matSel.value = String(candidatas[0].id);
+        syncCategoryTypeFromSelectedMaterial();
+      }
+    }
+
+    [outEspesor, outCalibre].forEach((campo) => {
+      if (!campo) return;
+      campo.dataset.deLaPlaca = campo.value || "";
+      // Lo que venga puesto al abrir una orden ya guardada es de la orden, no
+      // de la placa: se respeta.
+      campo.dataset.aMano = String(campo.value || "").trim() ? "1" : "0";
+      campo.addEventListener("input", () => {
+        marcarSiLoCambiaron(campo);
+        filtrarPorEspesorYCalibre();
+        calc();
+      });
+    });
+
     function round3(x) {
       return Math.round((x + Number.EPSILON) * 1000) / 1000;
     }
@@ -206,8 +314,8 @@ const cfg = document.getElementById("mesCfg").dataset;
       const alto = altoInput ? parseFloat(altoInput.value || "0") : 0;
       const qtyRaw = qtyInput ? parseInt(qtyInput.value || "1", 10) : 1;
       const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
-      if (outEspesor) outEspesor.value = m ? String(m.espesor_mm || "") : "";
-      if (outCalibre) outCalibre.value = m ? String(m.calibre || "") : "";
+      copiarDeLaPlaca(m);
+      avisarSiNoCuadran(m);
       if (!m || !(ancho > 0) || !(alto > 0)) {
         if (outPza) outPza.value = "";
         if (outTotal) outTotal.value = "";

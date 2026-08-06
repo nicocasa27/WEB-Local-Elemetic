@@ -1416,6 +1416,13 @@ class LaserOrdenProduccion(models.Model):
     fecha_compromiso = models.DateField(null=True, blank=True, db_index=True)
     prioridad = models.PositiveSmallIntegerField(default=3, db_index=True)
     material = models.ForeignKey(LaserMaterialPlaca, on_delete=models.PROTECT, null=True, blank=True)
+    # El espesor y la cédula **de este pedido**, que normalmente son los de la
+    # placa y por eso se copian solos al elegirla. Se guardan aparte porque a
+    # veces no coinciden: la placa que había en el taller no era exactamente la
+    # del catálogo, y eso hay que poder anotarlo sin ensuciar el catálogo, que
+    # es de todos. Vacío o cero significa «los de la placa».
+    espesor_mm = models.FloatField(default=0.0)
+    calibre = models.CharField(max_length=40, blank=True, default="")
     pieza_ancho_mm = models.PositiveIntegerField(default=0)
     pieza_alto_mm = models.PositiveIntegerField(default=0)
     logo_ancho_mm = models.PositiveIntegerField(default=0)
