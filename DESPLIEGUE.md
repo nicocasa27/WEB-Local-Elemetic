@@ -113,6 +113,41 @@ Lo carga `mes_vigas_web/settings/__init__.py`. **Lo que ya esté en el entorno
 manda sobre el archivo**, para que se pueda cambiar algo puntualmente sin
 editarlo y para que los tests fijen su propia base.
 
+## Que abra desde las demás computadoras
+
+Dos cosas tienen que cumplirse, y fallan de forma distinta:
+
+| Qué se ve en la otra computadora | Qué pasa |
+|---|---|
+| No conecta, o se queda cargando | El puerto 8501 está cerrado en el Firewall. Lo abre `INSTALAR.bat` como administrador |
+| **Bad Request (400)** | La petición llega, y Django rechaza el `Host:` |
+
+El 400 era el fallo real hasta esta versión: `ALLOWED_HOSTS` traía escrita a
+mano la IP del servidor del taller, `192.168.50.92`. En cualquier otra máquina
+—y en el propio taller el día que le cambiara la IP— el sistema abría desde el
+servidor, porque ahí se entra por `localhost`, y daba 400 desde toda la red. Es
+indistinguible de un problema de firewall salvo que uno se fije en el mensaje.
+
+Ahora la máquina dice cómo se llama en vez de suponerlo: `nombres_de_esta_maquina`
+en `settings/base.py` reúne el nombre corto, el largo y todas sus IPv4, **en
+minúsculas** (Django compara los patrones tal cual, y el nombre de un equipo
+Windows suele venir en mayúsculas: `SERVIDOR-TALLER` como patrón no casa nunca).
+
+Se resuelve al arrancar, así que si la máquina cambia de IP hay que reiniciar
+el servidor. Para entrar por un nombre que no sea el suyo —uno del DNS de la
+empresa, o un proxy delante— se pone en `.env`:
+
+```
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,mes.elemetic.local
+```
+
+Con `DJANGO_ENV=prod` hay que añadir el mismo nombre a `DJANGO_CSRF_TRUSTED_ORIGINS`,
+con esquema y puerto (`http://mes.elemetic.local:8501`), o los formularios se
+rechazan aunque las pantallas abran.
+
+Lo vigila `tests/test_red_local.py`, que además prohíbe que vuelva a aparecer
+una IP escrita a mano en la configuración.
+
 ## Actualizar el servidor del taller
 
 Para traer una versión nueva desde el repositorio. Se puede hacer sin parar el

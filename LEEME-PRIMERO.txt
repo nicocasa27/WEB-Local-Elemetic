@@ -86,7 +86,24 @@ SI ALGO NO VA
 -------------
 
   El sistema no abre desde otra computadora, pero si desde el servidor
-      Es el Firewall. Volver a correr INSTALAR.bat como administrador.
+      Hay que fijarse en QUE sale en la otra computadora, porque son dos
+      averias distintas y se arreglan distinto:
+
+      "No se puede acceder a este sitio" / se queda cargando
+          Es el Firewall: la peticion ni siquiera llega. Volver a correr
+          INSTALAR.bat como administrador.
+
+      "Bad Request (400)"
+          Si llega, y el servidor rechaza esa direccion. Anotar la
+          direccion EXACTA que se puso en el navegador y ponerla en el
+          archivo .env del servidor:
+
+              DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,LA-DIRECCION
+
+          y reiniciar el servidor. Esto no deberia pasar: el sistema
+          reconoce solo el nombre y las IP de su maquina. Pasa si se
+          entra por un nombre distinto, por ejemplo uno que alguien haya
+          dado de alta en el DNS de la empresa.
 
   El sistema no abre desde ninguna parte
       Se apago el servidor. Doble clic en INICIAR_SERVIDOR.bat.

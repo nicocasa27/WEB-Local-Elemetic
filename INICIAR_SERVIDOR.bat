@@ -18,12 +18,9 @@ rem ===================================================================
 
 cd /d "%~dp0"
 
-rem Solo cuando no hay .env. Lo que se ponga aqui gana sobre el archivo, asi
-rem que fijarlo siempre haria que una instalacion con PostgreSQL en otra
-rem maquina se conectara a la equivocada sin decir nada. Con .env manda el
-rem archivo; sin el, se mantiene lo que ha hecho el servidor del taller
-rem desde siempre.
-if not exist ".env" set MES_DB_HOST=127.0.0.1
+rem Ya no hace falta fijar MES_DB_HOST aqui: el valor por defecto es 127.0.0.1,
+rem que es donde el instalador deja PostgreSQL. Quien la tenga en otra maquina
+rem lo pone en .env, y ese archivo manda.
 
 if not exist ".venv\Scripts\python.exe" (
   echo.

@@ -15,7 +15,13 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
-from .base import DATABASES, STORAGES, env_bool, env_lista
+from .base import (
+    DATABASES,
+    STORAGES,
+    env_bool,
+    env_lista,
+    nombres_de_esta_maquina,
+)
 
 
 def requerido(nombre):
@@ -32,7 +38,10 @@ DEBUG = False
 
 SECRET_KEY = requerido("DJANGO_SECRET_KEY")
 
-ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,192.168.50.92")
+_ESTA_MAQUINA = nombres_de_esta_maquina()
+
+# Igual que en dev: el nombre y las IP se preguntan. Ver base.py.
+ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost") + _ESTA_MAQUINA
 
 DATABASES["mes"]["PASSWORD"] = requerido("MES_DB_PASSWORD")
 
@@ -47,8 +56,8 @@ STORAGES["staticfiles"] = {
 # de 127.0.0.1, Django los exige para aceptar formularios.
 CSRF_TRUSTED_ORIGINS = env_lista(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
-    "http://192.168.50.92:8501,http://localhost:8501",
-)
+    "http://localhost:8501,http://127.0.0.1:8501",
+) + [f"http://{nombre}:8501" for nombre in _ESTA_MAQUINA]
 
 # HTTPS: hoy el taller sirve por http en la red local, así que activar estas
 # banderas dejaría a todo el mundo fuera. Se controlan por variable para poder

@@ -24,6 +24,78 @@ def env_lista(nombre, defecto=""):
     return [x.strip() for x in os.getenv(nombre, defecto).split(",") if x.strip()]
 
 
+def nombres_de_esta_maquina():
+    """Cómo se puede llamar a este equipo desde la red del taller.
+
+    Django rechaza con **400** cualquier petición cuyo `Host:` no esté en
+    `ALLOWED_HOSTS`. Hasta ahora la lista traía escrita a mano la IP del
+    servidor del taller, `192.168.50.92`, y eso rompía dos casos que son
+    justamente los normales:
+
+    - Se instala en otro equipo. La IP es otra, así que desde cualquier
+      computadora de la red sale «Bad Request (400)». Desde el propio servidor
+      abre bien, porque ahí se entra por `localhost`. El fallo se ve como «no
+      me abre desde las demás», que es exactamente como se ve un problema de
+      firewall, y por ahí se va a buscar.
+    - Se entra por el nombre del equipo, que es lo que aconseja repartir el
+      LEEME porque no cambia cuando cambia la IP. El nombre tampoco estaba en
+      la lista, así que la dirección que el propio sistema anuncia al terminar
+      de instalarse no funcionaba.
+
+    Se resuelve preguntándole a la máquina cómo se llama en vez de suponerlo:
+    el nombre corto, el largo y todas sus IPv4. `DJANGO_ALLOWED_HOSTS` sigue
+    mandando cuando está puesta, para el día que haya un nombre de dominio o un
+    proxy delante.
+
+    Si la resolución de nombres falla -pasa con la red del taller caída- se
+    devuelve lo que se haya podido averiguar y no se rompe el arranque: un
+    servidor que no levanta es peor que uno al que le falta un alias.
+    """
+    import socket
+
+    nombres = set()
+    try:
+        corto = socket.gethostname()
+    except OSError:
+        return []
+
+    # Todo en minúsculas. Django compara el `Host:` de la petición ya pasado a
+    # minúsculas contra los patrones **tal cual están escritos**, así que un
+    # patrón con mayúsculas no casa nunca. Y en Windows el nombre del equipo
+    # suele venir en mayúsculas -SERVIDOR-TALLER-, o sea que sin esto el nombre
+    # de la máquina seguiría dando 400 justo en el sistema donde corre.
+    nombres.add(corto.lower())
+    try:
+        nombres.add(socket.getfqdn(corto).lower())
+    except OSError:
+        pass
+
+    try:
+        for datos in socket.getaddrinfo(corto, None, socket.AF_INET):
+            nombres.add(datos[4][0])
+    except OSError:
+        pass
+
+    # `getaddrinfo` sobre el propio nombre no siempre devuelve la IP con la que
+    # se sale a la red: en un equipo con cable y wifi a la vez puede dar sólo
+    # una, y el taller entra por la otra. Este truco la consigue sin depender
+    # de la tabla de nombres: se prepara un socket UDP hacia fuera -no llega a
+    # enviar nada, UDP no abre conexión- y se le pregunta por qué interfaz
+    # habría salido.
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.settimeout(0.2)
+            s.connect(("8.8.8.8", 80))
+            nombres.add(s.getsockname()[0])
+    except OSError:
+        pass
+
+    # `getfqdn` a veces devuelve el nombre inverso de la IP local
+    # -«1.0.0.127.in-addr.arpa»-, que no es un nombre por el que nadie vaya a
+    # entrar y sólo ensucia la lista.
+    return sorted(n for n in nombres if n and not n.endswith(".in-addr.arpa"))
+
+
 # ---------------------------------------------------------------- aplicación
 
 INSTALLED_APPS = [
@@ -103,7 +175,14 @@ DATABASES = {
         "NAME": os.getenv("MES_DB_NAME", "mes_vigas"),
         "USER": os.getenv("MES_DB_USER", "postgres").strip(),
         "PASSWORD": os.getenv("MES_DB_PASSWORD", "").strip(),
-        "HOST": os.getenv("MES_DB_HOST", "192.168.50.92"),
+        # 127.0.0.1, no la IP del servidor del taller. El instalador pone
+        # PostgreSQL en la misma máquina, así que ese es el caso normal. Con la
+        # IP del taller como valor por defecto, una instalación nueva se
+        # intentaba conectar a la base de OTRA máquina -o se quedaba esperando
+        # hasta agotar el tiempo, si esa máquina no estaba en la red- y el
+        # error no mencionaba en ningún sitio de dónde salía esa dirección.
+        # Quien tenga la base en otro equipo lo pone en `.env`.
+        "HOST": os.getenv("MES_DB_HOST", "127.0.0.1"),
         "PORT": int(os.getenv("MES_DB_PORT", "5432")),
         "CONN_MAX_AGE": 60,
         "OPTIONS": {"options": "-c lc_messages=C"},

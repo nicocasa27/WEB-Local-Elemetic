@@ -7,7 +7,7 @@ explicada en settings/__init__.py.
 import os
 
 from .base import *  # noqa: F401,F403
-from .base import DATABASES, env_lista
+from .base import DATABASES, env_lista, nombres_de_esta_maquina
 
 DEBUG = True
 
@@ -15,10 +15,13 @@ DEBUG = True
 # venga del entorno.
 SECRET_KEY = "django-insecure-solo-para-desarrollo-no-usar-en-el-taller"
 
+# El nombre y las IP de esta máquina se preguntan, no se suponen: ver
+# `nombres_de_esta_maquina` en base.py. Sin eso, instalarlo en un equipo que no
+# fuera el del taller daba 400 desde toda la red.
 ALLOWED_HOSTS = env_lista(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost,0.0.0.0,192.168.50.92,testserver",
-)
+    "127.0.0.1,localhost,0.0.0.0,testserver",
+) + nombres_de_esta_maquina()
 
 # En local basta con la contraseña histórica del Postgres de pruebas. En
 # producción prod.py la exige por entorno y no acepta valor por defecto.
