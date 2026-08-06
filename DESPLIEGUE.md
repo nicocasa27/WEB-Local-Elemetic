@@ -74,6 +74,70 @@ paso 1 está a un `pg_restore` de distancia.
 variables que falten se comportan como apagadas, así que **no arranca mal por
 no hacerlo**: sólo se queda sin la función nueva.
 
+## Lo que hay que hacer en el piso después de esta versión
+
+Las tres cosas nuevas de esta versión tocan al piso, no a la oficina. Dos
+funcionan solas y la tercera hay que capturarla una vez.
+
+### 1. Ponerle su PIN a cada quien  *(hace falta hacerlo)*
+
+Quien trabaja en la nave no teclea un correo y una contraseña de ocho
+caracteres de pie, con guantes, delante de una tableta compartida. Ahora entra
+con cuatro dígitos en `/pin/`.
+
+**Configuración → Usuarios.** La pantalla avisa cuántas cuentas del piso
+siguen sin PIN y propone uno libre al editar cada una. Hasta que se capturen,
+esas personas siguen entrando como siempre: nada deja de funcionar por no
+hacerlo, sólo sigue costando lo mismo que antes.
+
+Tres cosas que conviene saber antes de repartirlos:
+
+- **Un PIN sólo abre cuentas de piso.** A un administrador no se le puede
+  poner: cuatro dígitos son diez mil combinaciones y eso no puede ser lo único
+  que proteja la pantalla que da de alta usuarios. Si a alguien se le dan
+  permisos de administración, su PIN deja de abrir en ese momento, sin que
+  nadie tenga que acordarse de quitárselo.
+- **Dos personas no pueden compartirlo**, y lo impide la base de datos.
+- **El PIN se ve** en la lista de usuarios, que sólo abre quien administra. Es
+  a propósito: la pregunta que llega de verdad es «se me olvidó el mío», y si
+  estuviera escondido habría que asignar uno nuevo cada vez, que a media mañana
+  es dejar a alguien fuera.
+
+La sesión de la tableta se cierra sola a los quince minutos sin usarse
+(`MES_PIN_MINUTOS`). Las de oficina no.
+
+### 2. La entrega firmada entre áreas  *(funciona sola)*
+
+Desde esta versión, cuando una pieza cambia de área hay dos firmas: quien la
+entrega firma con el dedo que revisó que quedó como se pidió, y quien la recibe
+ve qué le entregan y quién lo firmó, y decide si la acepta o la devuelve.
+
+No hay nada que configurar. Lo que sí conviene es decirlo en el piso, porque
+cambia el gesto: el botón de «Terminé corte» ya no avanza la pieza, abre la
+pregunta. Y sobre todo, que **devolver una pieza mala cuenta a favor**. Si en
+el taller se entiende al revés, nadie devolverá nada y las firmas dejarán de
+valer en una semana.
+
+Sólo se firma al cambiar de área —corte a soldadura, soldadura a pintura—, no
+en cada etapa.
+
+### 3. El rendimiento por persona  *(funciona solo, pero empieza de cero)*
+
+**KPIs → Rendimiento por persona.** Cuánto tarda cada quien en su etapa, dónde
+se queda parado el material entre áreas, y quién entrega piezas que hay que
+rehacer.
+
+**Se mide desde el día que se instala esta versión**, y esto hay que decirlo
+antes de que alguien abra la pantalla y crea que el taller no trabajó el mes
+pasado. El tiempo sale de la diferencia entre el momento en que alguien pulsa
+«Empezar corte» y el momento en que pulsa «Terminé corte». Lo anterior está en
+la bitácora vieja, que guarda la hora pero no quién, así que sirve para las
+esperas entre áreas y no para el rendimiento de una persona.
+
+Y depende de que el piso use el celular. Si el avance se sigue capturando por
+la tarde desde la oficina, los tiempos que salgan serán los de la captura, no
+los del trabajo.
+
 ## Pasar el servidor a producción
 
 Todo esto se hace **en la máquina del taller**. Conviene hacerlo fuera de
