@@ -22,60 +22,71 @@ Lo que sí conviene es pasar a producción, porque en desarrollo:
 
 ## Montar el sistema en una máquina nueva
 
-Esto es para un Windows recién puesto, no para actualizar el del taller. Está
-probado de principio a fin: clonar, instalar, migrar, arrancar y entrar.
+**Doble clic en `INSTALAR.bat`.** Eso es todo, y está pensado para que lo haga
+alguien que no programa: comprueba lo que falta, lo dice en castellano, y no
+deja nada a medias. `LEEME-PRIMERO.txt` es la versión para esa persona.
 
-**Lo que el repositorio no trae, y no puede traer.** Aquí sólo está el código.
-Los datos y los secretos se quedan fuera a propósito:
+Lo que hace, en orden: encuentra Python, monta el entorno, instala las
+librerías **desde `vendor/ruedas-windows/` sin tocar internet**, pide una vez
+la contraseña de PostgreSQL, escribe `.env`, crea la base si no existe, migra
+las dos bases en el orden correcto, deja el administrador, prepara los
+archivos estáticos, abre el puerto 8501 en el Firewall, y deja el sistema
+arrancando solo al encender el equipo. Al terminar dice con qué dirección
+entran los demás.
+
+**Es idempotente.** Volver a correrlo no rompe nada: lo que ya está hecho se
+salta y se dice que ya estaba. Importa porque el modo de uso real de un
+instalador que no se entiende es volver a darle doble clic.
+
+Lo único que no puede instalar solo es **Python 3.12 y PostgreSQL**. Si faltan,
+para y dice de dónde bajarlos y qué casilla marcar.
+
+### Lo que el repositorio no trae, y no puede traer
+
+Aquí sólo está el código. Los datos y los secretos se quedan fuera a propósito:
 
 | Falta | Dónde está | Qué pasa sin ello |
 |---|---|---|
-| `db.sqlite3` | sólo en el servidor | Cuentas, grupos y PIN. Sin él se arranca vacío y sólo entra el administrador de fábrica. |
-| La base `mes_vigas` | PostgreSQL del servidor | Todas las órdenes, piezas y almacén. Sin ella el sistema arranca vacío. |
-| `.env` | sólo en el servidor | Se copia de `.env.example`. Sin él arranca en modo desarrollo. |
+| `db.sqlite3` | sólo en el servidor | Cuentas, grupos y PIN. Se arranca vacío, con el administrador de fábrica. |
+| La base `mes_vigas` | PostgreSQL del servidor | Todas las órdenes, piezas y almacén. Se arranca vacío. |
+| `.env` | sólo en el servidor | Lo escribe `INSTALAR.bat`. |
 | `media/` | sólo en el servidor | Planos, DXF y acuses ya subidos. |
-| `.venv/` | se crea al instalar | — |
 
 **Para una máquina de pruebas eso basta**: arranca vacía y se puede trabajar.
 **Para mudar el taller de servidor hace falta llevarse los datos**, y eso es un
 `pg_dump`/`pg_restore` de `mes_vigas` más una copia de `db.sqlite3` y de
 `media/`, no un `git clone`.
 
-### Los pasos
+### Si se prefiere a mano
 
 ```bat
-rem 0. Antes: Python 3.12 y PostgreSQL instalados.
-rem    Con Python 3.9 o anterior, `pip install` falla diciendo que no
-rem    encuentra Django 5.2, que no explica nada. Django 5.2 exige 3.10+.
-python --version
-
-git clone <url-del-repositorio> "DJANGO WEB"
-cd "DJANGO WEB"
-
 python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-
-rem La base vacía. El nombre tiene que coincidir con MES_DB_NAME.
+.venv\Scripts\python.exe -m pip install --no-index ^
+  --find-links "vendor\ruedas-windows" -r requirements.txt tzdata
 createdb -h 127.0.0.1 -U postgres mes_vigas
-
 copy .env.example .env
-rem Y editar .env: al menos MES_DB_PASSWORD y DJANGO_SECRET_KEY.
+rem  y editar .env: al menos MES_DB_PASSWORD
 
-rem `default` primero: es donde viven las cuentas y los grupos.
+rem  `default` primero: ahí viven las cuentas y los grupos, y algunas
+rem  migraciones de negocio los consultan. Al revés falla desde cero.
 .venv\Scripts\python.exe manage.py migrate
 .venv\Scripts\python.exe manage.py migrate --database=mes
-
 .venv\Scripts\python.exe manage.py crear_admin
 .venv\Scripts\python.exe manage.py collectstatic --noinput
-
 INICIAR_SERVIDOR.bat
 ```
 
-Y entrar en `http://127.0.0.1:8501/` con el administrador de fábrica, que
-`crear_admin` deja creado y dice por pantalla.
+### Sobre `.env`
 
-A partir de ahí, **Configuración de planta → Puesta en marcha** dice qué falta
-por capturar y qué pasa si falta.
+**Ahora sí se lee.** Hasta esta versión no lo leía nadie: la configuración
+llamaba a `os.getenv` a secas, así que quien seguía las instrucciones y
+escribía ahí la contraseña de PostgreSQL arrancaba y el sistema se conectaba
+sin contraseña. El error que salía hablaba de autenticación, no de que el
+archivo se ignorara, así que no llevaba a ninguna parte.
+
+Lo carga `mes_vigas_web/settings/__init__.py`. **Lo que ya esté en el entorno
+manda sobre el archivo**, para que se pueda cambiar algo puntualmente sin
+editarlo y para que los tests fijen su propia base.
 
 ## Actualizar el servidor del taller
 

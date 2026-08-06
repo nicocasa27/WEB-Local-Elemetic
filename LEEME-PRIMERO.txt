@@ -1,0 +1,115 @@
+===================================================================
+  TALLER ELEMETIC - sistema de produccion
+  Como dejarlo funcionando. No hace falta saber programar.
+===================================================================
+
+
+QUE ES ESTO
+-----------
+
+El sistema donde se llevan las ordenes, las piezas, el almacen y los
+indicadores del taller. Se instala en UNA sola computadora -el servidor-
+y todos los demas entran desde su navegador, incluidos los celulares del
+piso. No hay que instalar nada en las otras computadoras.
+
+
+ANTES DE EMPEZAR: DOS PROGRAMAS
+-------------------------------
+
+Hay que instalar estos dos en la computadora que va a ser el servidor.
+Si ya estan, saltarse este paso.
+
+  1) PYTHON 3.12
+     https://www.python.org/downloads/windows/
+
+     IMPORTANTE: en la primera pantalla del instalador, abajo del todo,
+     hay una casilla que dice "Add python.exe to PATH". HAY QUE
+     MARCARLA. Si no se marca, la instalacion no lo va a encontrar.
+
+  2) POSTGRESQL
+     https://www.postgresql.org/download/windows/
+
+     Durante la instalacion pide inventar una contrasena para el
+     usuario "postgres". APUNTARLA EN UN PAPEL. Se va a pedir una vez
+     y despues nunca mas.
+
+     Lo demas que pregunte, dejarlo como viene.
+
+
+INSTALAR
+--------
+
+Doble clic en:      INSTALAR.bat
+
+Va a salir un aviso de Windows pidiendo permiso de administrador:
+darle a SI. Hace falta para que las demas computadoras del taller
+puedan entrar.
+
+Tarda un par de minutos. Al final dice LISTO y ensena la direccion con
+la que entra todo el mundo. Apuntarla y repartirla.
+
+Si algo falta, la ventana lo dice en castellano y explica que hacer.
+No pasa nada por volver a darle doble clic las veces que haga falta:
+lo que ya este hecho se salta y no se borra nada.
+
+
+ENTRAR
+------
+
+El sistema arranca solo cada vez que se enciende la computadora.
+
+Desde cualquier computadora o celular del taller, en el navegador:
+
+      http://NOMBRE-DE-LA-COMPUTADORA:8501/
+
+El nombre exacto lo dice INSTALAR.bat al terminar.
+
+La primera vez se entra con:
+
+      Usuario:     admin
+      Contrasena:  Elemetic2026!
+
+Lo primero que conviene hacer, desde Configuracion -> Usuarios, es dar
+de alta a cada persona con su PIN de cuatro digitos. Con eso, la gente
+del piso entra desde la tableta tecleando cuatro numeros, sin usuario
+ni contrasena.
+
+
+SI ALGO NO VA
+-------------
+
+  El sistema no abre desde otra computadora, pero si desde el servidor
+      Es el Firewall. Volver a correr INSTALAR.bat como administrador.
+
+  El sistema no abre desde ninguna parte
+      Se apago el servidor. Doble clic en INICIAR_SERVIDOR.bat.
+      Si se cierra sola la ventana negra, ahi esta escrito el error.
+
+  Se cambio la direccion y ya nadie entra
+      Pasa si la computadora cambia de IP. Por eso conviene repartir la
+      direccion con el NOMBRE de la computadora y no con el numero: el
+      nombre no cambia.
+
+  Sale una ventana negra al encender y alguien la cierra
+      Es el sistema. Si se cierra, se apaga para todos. Dejarla abierta
+      o minimizada.
+
+
+LO QUE NO HAY QUE HACER NUNCA
+-----------------------------
+
+  - Borrar la carpeta media/     ahi estan los planos y los acuses
+  - Borrar el archivo db.sqlite3 ahi estan las cuentas y los PIN
+  - Borrar la base de PostgreSQL ahi esta absolutamente todo lo demas
+
+Ninguno de los tres se puede recuperar del repositorio: no viajan con
+el codigo, a proposito. Antes de tocar el servidor, hacer respaldo.
+Como, esta en DESPLIEGUE.md.
+
+
+PARA QUIEN SI PROGRAMA
+----------------------
+
+Todo lo demas -pasar a produccion, respaldos, la tarea programada, el
+motor unificado, los modulos de inventario y costeo- esta en
+DESPLIEGUE.md.
