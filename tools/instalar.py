@@ -16,13 +16,16 @@ se respeta lo que hay dentro y sólo se añade lo que falte.
 """
 
 import os
-import re
 import secrets
-import shutil
 import socket
 import subprocess
 import sys
 from pathlib import Path
+
+# Al lado, no como paquete: el .bat lanza `python tools\instalar.py`, y
+# entonces lo que queda en el camino de busqueda es la carpeta tools, no la
+# raiz del proyecto. Un `from tools import ...` fallaria ahi mismo.
+import requisitos
 
 RAIZ = Path(__file__).resolve().parent.parent
 PUERTO = 8501
@@ -75,44 +78,11 @@ def parar(titulo, explicacion):
     sys.exit(1)
 
 
-# ------------------------------------------------------------- PostgreSQL
-
-
-def buscar_psql():
-    """Dónde está `psql`. En Windows casi nunca está en el PATH.
-
-    El instalador de PostgreSQL no lo añade salvo que alguien marque la casilla,
-    así que buscar sólo en el PATH da «no está instalado» en una máquina donde
-    sí lo está. Se miran también las rutas donde lo deja por defecto.
-    """
-    encontrado = shutil.which("psql")
-    if encontrado:
-        return Path(encontrado)
-
-    candidatos = []
-    for base in (r"C:\Program Files\PostgreSQL", r"C:\Program Files (x86)\PostgreSQL"):
-        carpeta = Path(base)
-        if not carpeta.is_dir():
-            continue
-        for version in sorted(carpeta.iterdir(), reverse=True):
-            candidato = version / "bin" / "psql.exe"
-            if candidato.exists():
-                candidatos.append(candidato)
-    return candidatos[0] if candidatos else None
-
-
-def probar_conexion(psql, password, host, puerto, usuario):
-    entorno = {**os.environ, "PGPASSWORD": password}
-    resultado = subprocess.run(
-        [str(psql), "-h", host, "-p", str(puerto), "-U", usuario,
-         "-d", "postgres", "-tAc", "SELECT 1"],
-        capture_output=True, text=True, env=entorno,
-    )
-    return resultado.returncode == 0, (resultado.stderr or "").strip()
+# ------------------------------------------------------ la base de datos
 
 
 def base_existe(psql, password, host, puerto, usuario, nombre):
-    entorno = {**os.environ, "PGPASSWORD": password}
+    entorno = {**os.environ, "PGPASSWORD": password or ""}
     resultado = subprocess.run(
         [str(psql), "-h", host, "-p", str(puerto), "-U", usuario, "-d", "postgres",
          "-tAc", f"SELECT 1 FROM pg_database WHERE datname='{nombre}'"],
@@ -122,7 +92,7 @@ def base_existe(psql, password, host, puerto, usuario, nombre):
 
 
 def crear_base(psql, password, host, puerto, usuario, nombre):
-    entorno = {**os.environ, "PGPASSWORD": password}
+    entorno = {**os.environ, "PGPASSWORD": password or ""}
     resultado = subprocess.run(
         [str(psql), "-h", host, "-p", str(puerto), "-U", usuario, "-d", "postgres",
          "-c", f'CREATE DATABASE "{nombre}"'],
@@ -325,71 +295,77 @@ def main():
               f"Hay {sys.version.split()[0]} y hace falta 3.10 o mas nuevo.")
 
     # --------------------------------------------------------- PostgreSQL
-    paso("Buscando PostgreSQL")
-    psql = buscar_psql()
-    if psql is None:
-        parar("PostgreSQL no esta instalado", """
-Es la base de datos donde vive todo: las ordenes, las piezas, el almacen.
-El sistema no puede funcionar sin ella.
-
-Que hacer:
-  1. Instalar PostgreSQL desde https://www.postgresql.org/download/windows/
-  2. Durante la instalacion pide una contrasena para el usuario "postgres".
-     APUNTARLA: este instalador la va a pedir.
-  3. Volver a darle doble clic a INSTALAR.bat
-""")
-    bien(f"encontrado en {psql}")
-
-    # ------------------------------------------------------------ el .env
-    paso("Preparando la configuracion")
+    paso("PostgreSQL")
     ruta_env = RAIZ / ".env"
     actual = leer_env(ruta_env)
 
     host = actual.get("MES_DB_HOST") or "127.0.0.1"
-    puerto = actual.get("MES_DB_PORT") or "5432"
+    puerto = actual.get("MES_DB_PORT") or requisitos.PUERTO_POSTGRES
     usuario = actual.get("MES_DB_USER") or "postgres"
     nombre_base = actual.get("MES_DB_NAME") or "mes_vigas"
     password = actual.get("MES_DB_PASSWORD") or ""
 
-    # Se prueba lo que ya hay antes de preguntar nada, **incluida la
-    # contrasena vacia**. Hay instalaciones de PostgreSQL configuradas para
-    # dejar entrar sin ella; preguntarsela a alguien que no la tiene porque no
-    # existe es mandarlo a buscar un dato que no va a encontrar.
-    lista, _ = probar_conexion(psql, password, host, puerto, usuario)
-    if lista:
-        bien("la conexion guardada en .env sirve")
-    elif password:
-        aviso("la contrasena guardada en .env ya no sirve")
+    psql = requisitos.buscar_psql()
+    if psql is None:
+        # No está: la contraseña no existe todavía, así que la ponemos
+        # nosotros. Es lo que hace que no haya ninguna pregunta.
+        password = requisitos.contrasena_nueva()
+        ok, detalle = requisitos.instalar_postgres(password, avisar=print)
+        if not ok:
+            parar("no se pudo instalar PostgreSQL", f"""
+{detalle}
 
-    intentos = 0
-    while not lista:
-        intentos += 1
-        if intentos > 3:
-            parar("no se pudo entrar a PostgreSQL", """
-Se agotaron los intentos.
+Que hacer, cualquiera de las dos:
 
-Si no se sabe la contrasena de PostgreSQL, la puede cambiar quien
-administre el equipo, o se puede reinstalar PostgreSQL: los datos del
-sistema no estan ahi todavia si esta es la primera instalacion.
+  a) Conectar este equipo a internet un rato y volver a darle doble clic
+     a INSTALAR.bat. Baja los 350 MB una sola vez.
 
-Volver a darle doble clic a INSTALAR.bat cuando se tenga.
+  b) Desde otro equipo con internet, bajar el instalador y dejarlo en
+     la carpeta  vendor\\instaladores\\  con este nombre exacto:
+
+       {requisitos.ARCHIVO_POSTGRES}
+
+     Se baja de:
+       {requisitos.URL_POSTGRES}
 """)
-        print()
-        print("   Contrasena del usuario 'postgres' de PostgreSQL.")
-        print("   Es la que se puso al instalar PostgreSQL, no la de Windows.")
-        try:
-            intento = input("   Contrasena: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            # Sin esto, cerrar la ventana escupe una traza de Python que en una
-            # maquina donde nadie programa se lee como que el sistema se rompio.
-            parar("instalacion cancelada",
-                  "No se escribio ninguna contrasena. No se cambio nada.")
-        ok, error = probar_conexion(psql, intento, host, puerto, usuario)
+        psql = requisitos.buscar_psql()
+        bien("PostgreSQL instalado, con una contrasena propia del sistema")
+    else:
+        bien(f"ya estaba instalado  ({psql})")
+
+    # ------------------------------------------------------------ conexion
+    paso("Conectando con la base de datos")
+    lista, _ = requisitos.probar_conexion(psql, password, host, puerto, usuario)
+    if lista:
+        bien("la conexion guardada sirve")
+    else:
+        # PostgreSQL estaba de antes y la contrasena no la sabe nadie. Se
+        # restablece sola en vez de parar a preguntar por un dato que no va a
+        # aparecer. Ver `requisitos.restablecer_password`.
+        aviso("la contrasena de PostgreSQL no la sabe el sistema: se restablece")
+        nueva = requisitos.contrasena_nueva()
+        ok, detalle = requisitos.restablecer_password(psql, nueva, avisar=print)
         if ok:
-            password, lista = intento, True
-            bien("conexion correcta")
-        else:
-            aviso(f"no entro: {error.splitlines()[0] if error else 'sin detalle'}")
+            lista, _ = requisitos.probar_conexion(psql, nueva, host, puerto, usuario)
+        if not lista:
+            parar("no se pudo entrar a PostgreSQL", f"""
+{detalle}
+
+PostgreSQL ya estaba instalado en este equipo y el sistema no sabe su
+contrasena. Se intento cambiarla y tampoco se pudo.
+
+Que hacer, cualquiera de las dos:
+
+  a) Si alguien sabe la contrasena del usuario 'postgres', escribirla en
+     el archivo .env, en la linea MES_DB_PASSWORD=, y volver a darle
+     doble clic a INSTALAR.bat.
+
+  b) Desinstalar PostgreSQL desde Panel de control y volver a darle
+     doble clic a INSTALAR.bat: lo instala solo y se pone una contrasena
+     el sistema. OJO: eso borra las bases de datos que hubiera.
+""")
+        password = nueva
+        bien("conexion correcta")
 
     nuevos = {
         "MES_DB_PASSWORD": password,

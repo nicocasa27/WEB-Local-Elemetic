@@ -1,8 +1,33 @@
 """Configuración compartida de la suite de tests."""
 
+import os
+
 import pytest
 from django.conf import settings
 from django.db import connections
+
+
+@pytest.fixture(autouse=True)
+def banderas_del_nucleo_apagadas(monkeypatch):
+    """La suite corre siempre con el núcleo apagado, diga lo que diga la máquina.
+
+    Las banderas se leen del entorno en cada llamada, así que hasta ahora los
+    tests salían distinto según qué tuviera puesto quien los corría: había que
+    acordarse de lanzar la suite con `env -u MES_NUCLEO_...`, y quien no lo
+    supiera veía fallar `test_configuracion` sin ninguna relación con lo que
+    estuviera tocando.
+
+    Dejó de ser un detalle el día que `.env` empezó a leerse de verdad: en el
+    servidor del taller ese archivo tiene las cuatro líneas en «doble», así que
+    correr la suite allí fallaría siempre.
+
+    Un test que necesite el núcleo encendido lo enciende él, que es donde se
+    lee para qué está encendido.
+    """
+    for linea in ("VIGAS", "HERRERIA", "CORTA", "ROBOTICA"):
+        monkeypatch.delenv(f"MES_NUCLEO_{linea}", raising=False)
+    monkeypatch.delenv("MES_NUCLEO_ESTRICTO", raising=False)
+    yield
 
 RUTA_ESQUEMA_HEREDADO = "tests/sql/esquema_heredado.sql"
 

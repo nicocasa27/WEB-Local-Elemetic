@@ -13,44 +13,51 @@ y todos los demas entran desde su navegador, incluidos los celulares del
 piso. No hay que instalar nada en las otras computadoras.
 
 
-ANTES DE EMPEZAR: DOS PROGRAMAS
--------------------------------
-
-Hay que instalar estos dos en la computadora que va a ser el servidor.
-Si ya estan, saltarse este paso.
-
-  1) PYTHON 3.12
-     https://www.python.org/downloads/windows/
-
-     IMPORTANTE: en la primera pantalla del instalador, abajo del todo,
-     hay una casilla que dice "Add python.exe to PATH". HAY QUE
-     MARCARLA. Si no se marca, la instalacion no lo va a encontrar.
-
-  2) POSTGRESQL
-     https://www.postgresql.org/download/windows/
-
-     Durante la instalacion pide inventar una contrasena para el
-     usuario "postgres". APUNTARLA EN UN PAPEL. Se va a pedir una vez
-     y despues nunca mas.
-
-     Lo demas que pregunte, dejarlo como viene.
-
-
 INSTALAR
 --------
 
 Doble clic en:      INSTALAR.bat
 
-Va a salir un aviso de Windows pidiendo permiso de administrador:
-darle a SI. Hace falta para que las demas computadoras del taller
-puedan entrar.
+Va a salir un aviso de Windows pidiendo permiso: darle a SI.
 
-Tarda un par de minutos. Al final dice LISTO y ensena la direccion con
-la que entra todo el mundo. Apuntarla y repartirla.
+Y ya. No pregunta nada mas.
 
-Si algo falta, la ventana lo dice en castellano y explica que hacer.
-No pasa nada por volver a darle doble clic las veces que haga falta:
-lo que ya este hecho se salta y no se borra nada.
+Lo que hace solo, sin que haya que tocar nada:
+
+  - Si falta Python, lo instala.
+  - Si falta PostgreSQL, lo instala. La contrasena se la pone el
+    sistema, asi que no hay que inventarla ni apuntarla.
+  - Monta todo lo demas y deja el sistema arrancando solo cada vez que
+    se encienda la computadora.
+
+Tarda entre cinco y quince minutos la primera vez, segun lo que falte.
+La ventana va diciendo por donde va. NO CERRARLA hasta que diga LISTO.
+
+Al final ensena la direccion con la que entra todo el mundo. Apuntarla
+y repartirla.
+
+Si algo falla, la ventana lo dice en castellano y explica que hacer. No
+pasa nada por volver a darle doble clic las veces que haga falta: lo
+que ya este hecho se salta y no se borra nada.
+
+
+SI ESTA COMPUTADORA NO TIENE INTERNET
+-------------------------------------
+
+PostgreSQL son 350 MB y no caben dentro de este paquete, asi que la
+primera vez hay que bajarlo. Dos formas:
+
+  a) Conectar esta computadora a internet un rato. Solo la primera vez.
+
+  b) Desde otra computadora que si tenga internet, con este mismo
+     paquete, correr:
+
+         python tools\descargar_requisitos.py
+
+     y despues copiar la carpeta entera aqui. Ya no necesita internet.
+
+Todo lo demas -Python y las librerias- viene dentro y no hace falta
+bajar nada.
 
 
 ENTRAR

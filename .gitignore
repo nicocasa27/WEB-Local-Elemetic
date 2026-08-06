@@ -49,3 +49,10 @@ Thumbs.db
 *.dump
 *.sql.gz
 backups/
+
+# El instalador de PostgreSQL son 350 MB y GitHub no admite archivos de mas
+# de 100. Lo baja INSTALAR.bat la primera vez, o se deja preparado a mano con
+# tools/descargar_requisitos.py. El de Python son 27 MB y ese si va incluido,
+# porque es justo el paso donde la gente se salta la casilla de "Add to PATH".
+vendor/instaladores/postgresql-*.exe
+vendor/instaladores/*.parcial

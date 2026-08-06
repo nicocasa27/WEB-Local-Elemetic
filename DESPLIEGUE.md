@@ -38,8 +38,33 @@ entran los demás.
 salta y se dice que ya estaba. Importa porque el modo de uso real de un
 instalador que no se entiende es volver a darle doble clic.
 
-Lo único que no puede instalar solo es **Python 3.12 y PostgreSQL**. Si faltan,
-para y dice de dónde bajarlos y qué casilla marcar.
+**No pregunta nada.** Ni siquiera la contraseña de PostgreSQL:
+
+- **Si Python no está**, lo instala. Su instalador va en `vendor/instaladores/`
+  —27 MB— así que este paso no necesita internet. Se instala con
+  `PrependPath=1`, que es la casilla que todo el mundo se salta al hacerlo a
+  mano y sin la cual nada vuelve a encontrar Python.
+- **Si PostgreSQL no está**, lo instala en silencio, **y la contraseña se la
+  pone el sistema**: se genera al azar y se guarda en `.env`. Nadie tiene que
+  inventarla ni apuntarla, porque nadie la va a teclear nunca.
+- **Si PostgreSQL ya estaba y la contraseña no la sabe nadie** —lo normal si lo
+  instaló otra persona hace meses— se restablece sola. Ver
+  `tools/requisitos.py:restablecer_password`: se cambia la regla de
+  `pg_hba.conf` por «desde esta misma máquina, sin contraseña», se recarga, se
+  cambia la contraseña y **se deja el archivo como estaba**, pase lo que pase.
+  La ventana sin contraseña dura segundos y sólo vale desde ese equipo.
+
+Los 350 MB del instalador de PostgreSQL **no caben en el repositorio**: GitHub
+no admite archivos de más de 100 MB. Se bajan la primera vez. Para un equipo
+sin internet, se preparan desde otro con:
+
+```bash
+python tools/descargar_requisitos.py
+```
+
+y después se copia la carpeta entera. La descarga a medias se guarda como
+`.parcial` y sólo pasa a tener el nombre bueno cuando termina: si no, un corte
+de red dejaría un instalador roto que la siguiente vez se da por bueno.
 
 ### Lo que el repositorio no trae, y no puede traer
 

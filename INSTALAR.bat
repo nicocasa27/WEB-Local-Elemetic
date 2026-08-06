@@ -40,17 +40,32 @@ if errorlevel 1 (
 )
 
 rem --- Python --------------------------------------------------------
-set "PY="
-where py >nul 2>&1 && set "PY=py -3"
-if not defined PY (
-  where python >nul 2>&1 && set "PY=python"
-)
-if not defined PY goto :sin_python
+call :buscar_python
+if defined PY goto :hay_python
 
-%PY% -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
-if errorlevel 1 goto :python_viejo
+rem No esta, o el que hay es demasiado viejo. Se instala solo: el instalador
+rem viene en el paquete, asi que no hace falta internet para este paso.
+rem
+rem PrependPath=1 es lo importante: es la casilla que todo el mundo se salta
+rem al instalarlo a mano, y sin ella nada encuentra Python despues.
+echo  [1/3] Python no esta. Instalandolo, tarda un par de minutos...
+echo.
+set "INST_PY=vendor\instaladores\python-3.12.10-amd64.exe"
+if not exist "%INST_PY%" goto :sin_instalador_python
 
-echo  [1/3] Python encontrado
+"%INST_PY%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_launcher=1
+if errorlevel 1 goto :fallo_python
+
+rem El PATH de esta ventana se quedo con el de antes de instalarlo. Se busca
+rem tambien donde lo deja el instalador, para no obligar a reiniciar nada.
+set "PATH=%PATH%;%ProgramFiles%\Python312;%ProgramFiles%\Python312\Scripts;%LocalAppData%\Programs\Python\Python312"
+call :buscar_python
+if not defined PY goto :python_no_aparece
+echo.
+echo  Python instalado.
+
+:hay_python
+echo  [1/3] Python
 %PY% --version
 
 rem --- Entorno virtual -----------------------------------------------
@@ -83,35 +98,47 @@ echo  Se puede cerrar esta ventana.
 goto :fin
 
 
-:sin_python
+rem --- Encontrar un Python que sirva ---------------------------------
+rem Deja PY puesto, o vacio si no hay ninguno de 3.10 para arriba. Se prueba
+rem el lanzador `py` primero porque elige la version mas nueva instalada.
+:buscar_python
+set "PY="
+py -3 -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
+if not errorlevel 1 (
+  set "PY=py -3"
+  exit /b
+)
+python -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
+if not errorlevel 1 set "PY=python"
+exit /b
+
+
+:sin_instalador_python
 echo.
 echo  ==================================================================
-echo   FALTA PYTHON
+echo   FALTA PYTHON Y NO ESTA SU INSTALADOR
 echo  ==================================================================
 echo.
-echo   Python es el programa que hace funcionar el sistema.
-echo.
-echo   Que hacer:
-echo     1. Ir a  https://www.python.org/downloads/windows/
-echo     2. Bajar Python 3.12 para Windows, 64 bits
-echo     3. Al instalarlo, MARCAR LA CASILLA "Add python.exe to PATH".
-echo        Es la de abajo del todo en la primera pantalla. Si no se
-echo        marca, esta instalacion no lo va a encontrar.
-echo     4. Volver a darle doble clic a INSTALAR.bat
+echo   Deberia estar en  vendor\instaladores\
+echo   Si se descargo el repositorio sin esa carpeta, instalar Python a
+echo   mano desde  https://www.python.org/downloads/windows/  MARCANDO
+echo   la casilla "Add python.exe to PATH", y volver a intentarlo.
 echo.
 goto :fin
 
-:python_viejo
+:fallo_python
 echo.
-echo  ==================================================================
-echo   PYTHON ES DEMASIADO VIEJO
-echo  ==================================================================
+echo   El instalador de Python termino con error. Suele ser que ya hay
+echo   una version a medio instalar: desinstalar Python desde Panel de
+echo   control y volver a darle doble clic a INSTALAR.bat.
 echo.
-%PY% --version
+goto :fin
+
+:python_no_aparece
 echo.
-echo   Hace falta 3.10 o mas nuevo. Instalar Python 3.12 desde
-echo   https://www.python.org/downloads/windows/  y marcar la casilla
-echo   "Add python.exe to PATH".
+echo   Python se instalo pero esta ventana no lo encuentra. Cerrarla y
+echo   volver a darle doble clic a INSTALAR.bat: la ventana nueva ya lo
+echo   va a ver.
 echo.
 goto :fin
 
