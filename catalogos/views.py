@@ -25,6 +25,7 @@ from openpyxl.utils import get_column_letter
 from produccion.models import ESTADOS, Viga
 
 from core.excepciones import ErrorDeDominio
+from core.campos import CampoDeFecha
 from core.estados import clase as clase_de_estado
 from core.servicios import almacen as servicio_almacen
 from core.servicios import cierres as servicio_cierres
@@ -1058,7 +1059,7 @@ class RobotPiezaForm(forms.ModelForm):
 
 
 class RobotProduccionForm(forms.Form):
-    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha = forms.DateField(widget=CampoDeFecha())
     robot = forms.ModelChoiceField(queryset=Maquina.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     operadores = forms.ModelMultipleChoiceField(
         queryset=Colaborador.objects.none(),
@@ -1143,7 +1144,7 @@ class RobotOrdenItemForm(forms.ModelForm):
 
 
 class RobotOrdenRegistroProduccionForm(forms.Form):
-    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha = forms.DateField(widget=CampoDeFecha())
     orden_item = forms.ModelChoiceField(queryset=RobotOrdenItem.objects.none(), widget=forms.Select(attrs={"class": "form-control"}))
     cantidad = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     robot = forms.ModelChoiceField(queryset=Maquina.objects.none(), widget=forms.Select(attrs={"class": "form-control"}))
@@ -1325,7 +1326,7 @@ class HerrOrdenItemForm(forms.ModelForm):
 
 
 class HerrOrdenRegistroProduccionForm(forms.Form):
-    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha = forms.DateField(widget=CampoDeFecha())
     orden_item = forms.ModelChoiceField(queryset=HerrOrdenItem.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     cantidad = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     operador = forms.ModelMultipleChoiceField(
@@ -1460,7 +1461,7 @@ class LaserOrdenItemForm(forms.ModelForm):
 
 
 class LaserOrdenRegistroProduccionForm(forms.Form):
-    fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha = forms.DateField(widget=CampoDeFecha())
     orden_item = forms.ModelChoiceField(queryset=LaserOrdenItem.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     cantidad = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     operador = forms.ModelMultipleChoiceField(
@@ -1617,7 +1618,7 @@ class HerrTrabajoEditForm(forms.Form):
 class HerrSolicitudForm(forms.Form):
     producto = forms.ModelChoiceField(queryset=HerrPiezaCatalogo.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     cantidad = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
-    fecha_compromiso = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha_compromiso = forms.DateField(required=False, widget=CampoDeFecha())
     cliente = forms.ModelChoiceField(queryset=HerrCliente.objects.none(), required=False, widget=forms.Select(attrs={"class": "form-select"}))
     cliente_nuevo = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
 
@@ -1643,14 +1644,14 @@ class HerrSolicitudForm(forms.Form):
 class PedidoProduccionForm(forms.Form):
     cliente = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
-    fecha_compromiso = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha_compromiso = forms.DateField(widget=CampoDeFecha())
     comentarios = forms.CharField(required=False, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
 
 
 class PedidoProduccionEditForm(forms.Form):
     cliente = forms.CharField(widget=forms.TextInput(attrs={"class": "form-control"}))
     telefono = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
-    fecha_compromiso = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha_compromiso = forms.DateField(widget=CampoDeFecha())
     comentarios = forms.CharField(required=False, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
 
 
@@ -1776,9 +1777,9 @@ class ComentarioForm(forms.Form):
 
 
 class EnergiaForm(forms.Form):
-    inicio_fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    inicio_fecha = forms.DateField(widget=CampoDeFecha())
     inicio_hora = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time", "class": "form-control"}))
-    fin_fecha = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fin_fecha = forms.DateField(widget=CampoDeFecha())
     fin_hora = forms.TimeField(widget=forms.TimeInput(attrs={"type": "time", "class": "form-control"}))
     comentario = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     aplicar_maquinas = forms.BooleanField(required=False)
@@ -2886,7 +2887,7 @@ class HerrVigaLikeForm(forms.Form):
     proyecto = forms.ModelChoiceField(queryset=Proyecto.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     descripcion = forms.CharField(required=False, widget=forms.TextInput(attrs={"class": "form-control"}))
     pieza = forms.ModelChoiceField(queryset=HerrPiezaCatalogo.objects.none(), required=False, widget=forms.Select(attrs={"class": "form-select"}))
-    fecha_compromiso = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha_compromiso = forms.DateField(widget=CampoDeFecha())
     estado = forms.ChoiceField(choices=[], widget=forms.Select(attrs={"class": "form-select"}))
     prioridad = forms.ChoiceField(
         choices=[("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5")],
@@ -2938,7 +2939,7 @@ class LaserVigaLikeForm(forms.Form):
     material = forms.ModelChoiceField(queryset=LaserMaterialPlaca.objects.none(), widget=forms.Select(attrs={"class": "form-select"}))
     pieza_ancho_mm = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
     pieza_alto_mm = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={"class": "form-control"}))
-    fecha_compromiso = forms.DateField(widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}))
+    fecha_compromiso = forms.DateField(widget=CampoDeFecha())
     estado = forms.ChoiceField(choices=[], widget=forms.Select(attrs={"class": "form-select"}))
     prioridad = forms.ChoiceField(
         choices=[("1", "1"), ("2", "2"), ("3", "3"), ("4", "4"), ("5", "5")],

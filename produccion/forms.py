@@ -1,6 +1,7 @@
 from django import forms
 
 from catalogos.models import Proyecto
+from core.campos import CampoDeFecha
 
 from .models import ESTADOS, Viga
 
@@ -23,7 +24,7 @@ class VigaForm(forms.ModelForm):
             "peso_kg",
         ]
         widgets = {
-            "fecha_compromiso": forms.DateInput(attrs={"type": "date"}),
+            "fecha_compromiso": CampoDeFecha(),
             "codigo_viga": forms.TextInput(),
             "descripcion": forms.TextInput(),
             "observaciones": forms.Textarea(attrs={"rows": 3}),
@@ -85,7 +86,7 @@ class VigaBatchCreateForm(forms.ModelForm):
             "peso_kg",
         ]
         widgets = {
-            "fecha_compromiso": forms.DateInput(attrs={"type": "date"}),
+            "fecha_compromiso": CampoDeFecha(),
             "codigo_viga": forms.TextInput(),
             "descripcion": forms.TextInput(),
             "observaciones": forms.Textarea(attrs={"rows": 3}),
@@ -120,7 +121,7 @@ class VigaBatchCreateForm(forms.ModelForm):
 class StatusChangeForm(forms.Form):
     estado_nuevo = forms.ChoiceField(choices=[(s, s) for s in ESTADOS])
     fecha_operacion = forms.DateField(
-        widget=forms.DateInput(attrs={"type": "date", "required": "required"}),
+        widget=CampoDeFecha(attrs={"required": "required"}),
     )
     comentario = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 

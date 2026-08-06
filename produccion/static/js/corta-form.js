@@ -31,6 +31,10 @@ const cfg = document.getElementById("mesCfg").dataset;
     const cpInput = document.getElementById(cfg.campoCliente);
     if (cpInput) cpInput.setAttribute("list", "cortaClienteProyectoList");
 
+    // El alta de placa la rellena y la lectura de la cotización la llama.
+    // Compartida aquí y no en `window`, que es de todos y de nadie.
+    let proponerPlaca = null;
+
     const matMap = {};
     (payload || []).forEach((m) => {
       if (!m || !m.id) return;
@@ -250,6 +254,10 @@ const cfg = document.getElementById("mesCfg").dataset;
      * y los kilos estimados salen vacíos porque `calc` la busca en `matMap`.
      */
     (function () {
+      // Lo que se pueda saber de la placa antes de abrir el recuadro. Lo pone
+      // la lectura de la cotización: ver `proponerPlaca` más abajo.
+      let propuesta = null;
+
       const abrir = document.getElementById("nuevaPlacaAbrir");
       const panel = document.getElementById("nuevaPlacaPanel");
       const guardar = document.getElementById("nuevaPlacaGuardar");
@@ -297,9 +305,8 @@ const cfg = document.getElementById("mesCfg").dataset;
         decir("", "");
       }
 
-      abrir.addEventListener("click", () => {
-        panel.classList.toggle("d-none");
-        if (panel.classList.contains("d-none")) return;
+      function mostrar() {
+        panel.classList.remove("d-none");
         sugerencias();
         // Arranca con lo que ya esté filtrado arriba: casi siempre es lo que
         // la persona estuvo buscando antes de no encontrarlo.
@@ -309,7 +316,43 @@ const cfg = document.getElementById("mesCfg").dataset;
         if (tipoSel && tipoSel.value && campos.tipo_material && !campos.tipo_material.value) {
           campos.tipo_material.value = tipoSel.value;
         }
-        if (campos.nombre) campos.nombre.focus();
+        // Y con lo que dijera la cotización, que es más concreto todavía. Así
+        // sólo queda por teclear el tamaño de la placa, que la cotización no
+        // dice: da la medida de la pieza, no la de la lámina de donde sale.
+        if (propuesta) {
+          if (campos.categoria_material && propuesta.categoria && !campos.categoria_material.value) {
+            campos.categoria_material.value = propuesta.categoria;
+          }
+          if (campos.nombre && propuesta.nombre && !campos.nombre.value) {
+            campos.nombre.value = propuesta.nombre;
+          }
+          if (campos.espesor_mm && propuesta.espesor && !campos.espesor_mm.value) {
+            campos.espesor_mm.value = propuesta.espesor;
+          }
+        }
+        const primeroVacio = ["nombre", "espesor_mm", "largo_cm", "ancho_cm"]
+          .map((k) => campos[k])
+          .find((e) => e && !String(e.value || "").trim());
+        (primeroVacio || campos.nombre).focus();
+      }
+
+      // Lo que la cotización sabe de la placa, para no volver a teclearlo.
+      // «Acero A36» se parte en categoría y nombre por la primera palabra, que
+      // es como lo escribe Corta.mx.
+      proponerPlaca = function (renglon) {
+        const texto = String((renglon && renglon.material) || "").trim();
+        const trozos = texto.split(/\s+/);
+        propuesta = {
+          categoria: trozos.length > 1 ? trozos[0] : "",
+          nombre: trozos.length > 1 ? trozos.slice(1).join(" ") : texto,
+          espesor: renglon && renglon.espesor_mm ? String(renglon.espesor_mm) : "",
+        };
+        return mostrar;
+      };
+
+      abrir.addEventListener("click", () => {
+        if (panel.classList.contains("d-none")) mostrar();
+        else cerrar();
       });
 
       if (cancelar) cancelar.addEventListener("click", cerrar);
@@ -513,9 +556,22 @@ const cfg = document.getElementById("mesCfg").dataset;
 
           const placa = document.createElement("div");
           placa.className = "small " + (r.placa_id ? "text-success" : "text-warning-emphasis");
-          placa.textContent = r.placa_id
-            ? "Placa: " + r.placa_nombre
-            : "La placa no está en el catálogo: elígela o dala de alta arriba.";
+          if (r.placa_id) {
+            placa.textContent = "Placa: " + r.placa_nombre;
+          } else {
+            // La cotización no dice el tamaño de la lámina -da la medida de la
+            // pieza, no la de donde sale-, así que la placa no se puede crear
+            // sola. Lo que sí se puede es dejar escrito todo lo demás.
+            placa.append("Esta placa no está en el catálogo. ");
+            const alta = document.createElement("button");
+            alta.type = "button";
+            alta.className = "btn btn-link btn-sm p-0 align-baseline";
+            alta.textContent = "Darla de alta con estos datos";
+            alta.addEventListener("click", () => {
+              if (proponerPlaca) proponerPlaca(r)();
+            });
+            placa.appendChild(alta);
+          }
           texto.appendChild(placa);
 
           const boton = document.createElement("button");
