@@ -286,23 +286,43 @@ qué departamento está, ni cuánto suma la nómina.
 .venv\Scripts\python.exe manage.py sembrar_personal
 ```
 
-`sembrar_personal` crea los cuatro puestos que el sistema ya usaba —Soldador,
-Auxiliar, Pintor, Operador— y le enlaza el suyo a cada persona que ya está dada
-de alta, para que la pantalla no salga vacía el primer día. Es idempotente.
-**No siembra departamentos**: cómo se divide este taller lo sabe el taller, e
-inventar cuatro nombres plausibles sólo conseguiría que alguien los diera por
-buenos.
+`sembrar_personal` deja el taller organizado sin teclear nada: diez
+departamentos y veintidós puestos, y a las 18 personas que ya están dadas de
+alta les pone su puesto y su departamento. Es idempotente y no pisa nada que se
+haya cambiado a mano.
 
-### Lo que hay que hacer una vez
+**Nada de eso está inventado.** Sale de lo que el sistema ya sabía del taller:
 
-1. **Crear los departamentos**, en Departamentos y puestos.
-2. **Crear los puestos que falten.** Cada uno dice a cuál de los cuatro papeles
-   de producción se parece: eso es lo que hace que inventar «Pailero» no rompa
-   el reparto de órdenes, que sigue funcionando con los de siempre. Un puesto
-   de oficina o de almacén se deja sin equivalencia.
-3. **Completar la ficha de las 18 personas**: sexo, nacimiento, ingreso,
-   departamento, puesto y sueldo. Hasta que no se capture el sueldo, la nómina
-   sale en cero y la pantalla lo dice.
+| De dónde sale | Qué produce |
+|---|---|
+| Las etapas del proceso (`core/estados.py`) | Corte, Armado, Soldadura, Pintura |
+| Las áreas de las cuadrillas que existen | El departamento de cada persona |
+| Las máquinas dadas de alta | Operador de plasma, de oxicorte, de sierra, de láser |
+| Los roles del sistema (`core/roles.py`) | Herrería, Robótica, Corta.mx, Almacén, Logística, Administración |
+
+Cada puesto dice **a cuál de los cuatro papeles de producción se parece**, y
+eso es lo que hace que inventar «Pailero» no rompa el reparto de órdenes, que
+sigue funcionando con los de siempre. Los de oficina, almacén y logística se
+quedan sin equivalencia a propósito: un almacenista no puede salir propuesto
+para soldar una viga.
+
+«Auxiliar» se queda sin departamento, también a propósito: hay auxiliares en
+corte, en soldadura y en pintura, y meterlo en uno solo sería mentir sobre los
+otros dos.
+
+Es **un punto de partida, no una verdad**. Lo que sobre se desactiva y lo que
+falte se añade desde la pantalla, sin tocar el programa: para eso se hicieron
+tablas en vez de listas en el código.
+
+### Lo que queda por hacer a mano
+
+1. **Repasar departamentos y puestos** y quitar los que este taller no use.
+2. **Afinar el puesto de cada quien.** El sembrado deja a todo el mundo en el
+   puesto genérico que le tocaba por su rol; quien sea Soldador TIG o ayudante
+   de armado se cambia desde su ficha.
+3. **Completar los datos de las 18 personas**: sexo, nacimiento, ingreso,
+   teléfono y sueldo. Hasta que no se capture el sueldo, la nómina sale en cero
+   y la pantalla lo dice.
 
 ### Detalles que conviene saber
 

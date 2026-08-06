@@ -434,39 +434,118 @@ class TestQuienPuedeEntrar:
         assert "Recursos humanos" in html
 
 
-class TestSembrarLosPuestosQueYaExistian:
-    def test_crea_los_cuatro_y_enlaza_a_quien_ya_estaba(self, equipo):
+class TestSembrarLaOrganizacion:
+    """`sembrar_personal` deja el taller organizado sin teclear nada.
+
+    Nada de lo que siembra está inventado: sale de las etapas del proceso, de
+    las áreas de las cuadrillas que existen, de las máquinas dadas de alta y de
+    los roles del sistema. Es un punto de partida, no una verdad: lo que sobre
+    se desactiva desde la pantalla.
+    """
+
+    def sembrar(self):
         from io import StringIO
 
         from django.core.management import call_command
 
+        salida = StringIO()
+        call_command("sembrar_personal", stdout=salida)
+        return salida.getvalue()
+
+    def test_crea_los_departamentos_por_los_que_pasa_el_trabajo(self, equipo):
+        self.sembrar()
+
+        nombres = set(Departamento.objects.values_list("nombre", flat=True))
+        assert {"Corte", "Armado", "Soldadura", "Pintura"} <= nombres
+
+    def test_crea_los_departamentos_de_las_otras_lineas(self, equipo):
+        self.sembrar()
+
+        nombres = set(Departamento.objects.values_list("nombre", flat=True))
+        assert {"Herrería", "Robótica", "Corta.mx", "Almacén"} <= nombres
+
+    def test_los_puestos_de_corte_dicen_que_cortan(self, equipo):
+        """Salen de las máquinas que hay dadas de alta: plasma, oxicorte,
+        sierra cinta."""
+        self.sembrar()
+
+        corte = Departamento.objects.get(nombre="Corte")
+        puestos = set(corte.puestos.values_list("nombre", flat=True))
+        assert "Operador de plasma" in puestos
+        assert "Operador de oxicorte" in puestos
+        assert "Ayudante de corte" in puestos
+
+    def test_cada_puesto_dice_a_que_papel_se_parece(self, equipo):
+        """Es lo que hace que un puesto nuevo no rompa el reparto de órdenes."""
+        self.sembrar()
+
+        assert Puesto.objects.get(nombre="Armador").rol_de_produccion == "Soldador"
+        assert Puesto.objects.get(nombre="Soldador MIG").rol_de_produccion == "Soldador"
+        assert Puesto.objects.get(nombre="Operador de plasma").rol_de_produccion == "Operador"
+
+    def test_los_de_oficina_no_entran_en_el_reparto(self, equipo):
+        """Un almacenista no puede salir propuesto para soldar una viga."""
+        self.sembrar()
+
+        assert Puesto.objects.get(nombre="Almacenista").rol_de_produccion == ""
+        assert Puesto.objects.get(nombre="Chofer").rol_de_produccion == ""
+
+    def test_auxiliar_se_queda_sin_departamento_a_proposito(self, equipo):
+        """Hay auxiliares en corte, en soldadura y en pintura: meterlo en uno
+        solo sería mentir sobre los otros dos."""
+        self.sembrar()
+
+        assert Puesto.objects.get(nombre="Auxiliar").departamento is None
+        assert Puesto.objects.get(nombre="Soldador").departamento.nombre == "Soldadura"
+
+    def test_a_quien_ya_estaba_se_le_pone_su_puesto(self, equipo):
         ficha = Colaborador.objects.create(
             nombre="Antiguo", rol="Pintor", equipo=equipo, activo=True
         )
 
-        call_command("sembrar_personal", stdout=StringIO())
+        self.sembrar()
 
-        assert Puesto.objects.filter(rol_de_produccion="Pintor").exists()
         ficha.refresh_from_db()
         assert ficha.puesto.rol_de_produccion == "Pintor"
 
-    def test_correrlo_dos_veces_no_duplica(self, equipo):
-        from io import StringIO
+    def test_el_departamento_sale_del_area_de_su_cuadrilla(self, equipo):
+        """Otro dato que ya estaba en la base y que nadie había puesto en su
+        sitio: la cuadrilla sabe de qué área es."""
+        ficha = Colaborador.objects.create(
+            nombre="Antiguo", rol="Soldador", equipo=equipo, activo=True
+        )
 
-        from django.core.management import call_command
+        self.sembrar()
 
-        call_command("sembrar_personal", stdout=StringIO())
-        call_command("sembrar_personal", stdout=StringIO())
+        ficha.refresh_from_db()
+        assert ficha.departamento.nombre == "Soldadura"
 
-        assert Puesto.objects.count() == 4
+    def test_no_pisa_el_departamento_que_alguien_ya_puso_a_mano(self, equipo, departamento):
+        ficha = Colaborador.objects.create(
+            nombre="Antiguo", rol="Soldador", equipo=equipo, activo=True,
+            departamento=departamento,
+        )
 
-    def test_no_inventa_departamentos(self, equipo):
-        """Cómo se divide este taller lo sabe el taller. Inventar cuatro
-        nombres plausibles sólo conseguiría que alguien los diera por buenos."""
-        from io import StringIO
+        self.sembrar()
 
-        from django.core.management import call_command
+        ficha.refresh_from_db()
+        assert ficha.departamento == departamento
 
-        call_command("sembrar_personal", stdout=StringIO())
+    def test_correrlo_dos_veces_no_duplica_nada(self, equipo):
+        self.sembrar()
+        cuantos = (Departamento.objects.count(), Puesto.objects.count())
 
-        assert not Departamento.objects.exists()
+        self.sembrar()
+
+        assert (Departamento.objects.count(), Puesto.objects.count()) == cuantos
+
+    def test_avisa_de_quien_se_queda_suelto(self, equipo):
+        """Una cuadrilla de un área que no es ninguno de los departamentos."""
+        rara = EquipoTrabajo.objects.create(
+            nombre="Cuadrilla X", area="Lo que sea", integrantes=1, activo=True
+        )
+        Colaborador.objects.create(nombre="Suelto", rol="Auxiliar", equipo=rara, activo=True)
+
+        salida = self.sembrar()
+
+        assert "sin departamento" in salida
