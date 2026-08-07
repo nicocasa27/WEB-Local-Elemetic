@@ -160,19 +160,39 @@ WSGI_APPLICATION = "mes_vigas_web.wsgi.application"
 
 # ------------------------------------------------------------ base de datos
 #
-# Dos bases: `default` (SQLite) guarda autenticación y sesiones, `mes`
-# (PostgreSQL) todos los datos de negocio. El reparto lo hace
-# mes_vigas_web.db_router.
+# Hay dos formas, y se elige con `MES_UNA_SOLA_BASE`.
 #
-# La contraseña de `mes` no tiene valor por defecto aquí. dev.py pone uno para
-# trabajar en local; prod.py exige que venga del entorno.
+# **Como está hoy (por defecto).** Dos bases: `default` (SQLite) guarda
+# autenticación y sesiones, `mes` (PostgreSQL) todos los datos de negocio. El
+# reparto lo hace mes_vigas_web.db_router. Eso no responde a ninguna decisión
+# de diseño: es lo que deja `startproject` y nadie lo cambió. Cuesta caro —
+# ningún registro puede apuntar con una clave foránea a quien lo hizo, así que
+# la identidad se guarda como texto en 28 campos de 22 modelos.
+#
+# **Con `MES_UNA_SOLA_BASE=1`.** Una sola base PostgreSQL, con las tablas del
+# negocio en un esquema propio. `mes` sigue existiendo como **alias del mismo
+# sitio**, para que las 346 llamadas `.using("mes")` que hay repartidas por el
+# código sigan funcionando sin tocar ni una. Retirarlas es un commit aparte.
+#
+# La contraseña no tiene valor por defecto aquí. dev.py pone uno para trabajar
+# en local; prod.py exige que venga del entorno.
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    },
-    "mes": {
+UNA_SOLA_BASE = env_bool("MES_UNA_SOLA_BASE", False)
+
+#: El esquema donde viven las tablas del negocio cuando hay una sola base.
+#: Un esquema por ERP es lo que permite meter Producción, RRHH y Ventas en la
+#: misma base de Supabase sin que puedan verse entre ellos.
+MES_DB_ESQUEMA = os.getenv("MES_DB_ESQUEMA", "produccion").strip()
+
+
+def _postgres(esquema=""):
+    opciones = ["-c lc_messages=C"]
+    if esquema:
+        # Django no sabe de esquemas y no le hace falta: crea las tablas en el
+        # primero del `search_path`. `public` se queda detrás porque ahí viven
+        # las extensiones.
+        opciones.append(f"-c search_path={esquema},public")
+    return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("MES_DB_NAME", "mes_vigas"),
         "USER": os.getenv("MES_DB_USER", "postgres").strip(),
@@ -187,9 +207,23 @@ DATABASES = {
         "HOST": os.getenv("MES_DB_HOST", "127.0.0.1"),
         "PORT": int(os.getenv("MES_DB_PORT", "5432")),
         "CONN_MAX_AGE": 60,
-        "OPTIONS": {"options": "-c lc_messages=C"},
-    },
-}
+        "OPTIONS": {"options": " ".join(opciones)},
+    }
+
+
+if UNA_SOLA_BASE:
+    DATABASES = {
+        "default": _postgres(MES_DB_ESQUEMA),
+        "mes": _postgres(MES_DB_ESQUEMA),
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        },
+        "mes": _postgres(),
+    }
 
 DATABASE_ROUTERS = ["mes_vigas_web.db_router.MESRouter"]
 

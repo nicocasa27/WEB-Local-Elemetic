@@ -18,8 +18,13 @@ SECRET_KEY = "clave-solo-para-tests-no-se-usa-fuera-de-la-suite"
 
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS", "testserver,127.0.0.1,localhost")
 
-DATABASES["mes"]["PASSWORD"] = os.getenv("MES_DB_PASSWORD", "elemetic")
-DATABASES["mes"]["HOST"] = os.getenv("MES_DB_HOST", "127.0.0.1")
+# A todas las conexiones de PostgreSQL, no sólo a `mes`: con una sola base
+# (`MES_UNA_SOLA_BASE=1`) `default` también lo es, y sin esto se quedaba sin
+# contraseña y la suite entera fallaba al conectarse, sin decir por qué.
+for _alias, _config in DATABASES.items():
+    if "postgresql" in _config.get("ENGINE", ""):
+        _config["PASSWORD"] = os.getenv("MES_DB_PASSWORD", "elemetic")
+        _config["HOST"] = os.getenv("MES_DB_HOST", "127.0.0.1")
 
 # Hash rápido: cada test que crea un usuario deja de pagar el coste de PBKDF2.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

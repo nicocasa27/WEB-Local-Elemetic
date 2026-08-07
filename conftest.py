@@ -32,6 +32,39 @@ def banderas_del_nucleo_apagadas(monkeypatch):
 RUTA_ESQUEMA_HEREDADO = "tests/sql/esquema_heredado.sql"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def esquema_del_erp():
+    """Crea el esquema del ERP en la base de pruebas, antes de las migraciones.
+
+    Sólo hace algo con `MES_UNA_SOLA_BASE=1`, que es el modo en el que cada ERP
+    vive en su propio esquema de PostgreSQL.
+
+    Hace falta porque Django crea la base de pruebas vacía y luego se conecta
+    con `search_path=produccion,public`. Si `produccion` no existe, PostgreSQL
+    **no se queja**: se salta esa entrada y crea todo en `public`. La suite
+    pasaría en verde sin haber probado nada del reparto por esquemas, que es
+    justo lo que se quiere comprobar.
+    """
+    from django.db.backends.signals import connection_created
+
+    esquema = (getattr(settings, "MES_DB_ESQUEMA", "") or "").strip()
+    if not getattr(settings, "UNA_SOLA_BASE", False) or not esquema:
+        yield
+        return
+
+    def crear(sender, connection, **kwargs):
+        if connection.vendor != "postgresql":
+            return
+        with connection.cursor() as cur:
+            cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{esquema}"')
+
+    connection_created.connect(crear)
+    try:
+        yield
+    finally:
+        connection_created.disconnect(crear)
+
+
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker):
     """Deja las tablas heredadas con el esquema que tienen en producción.
@@ -66,8 +99,12 @@ def django_db_setup(django_db_setup, django_db_blocker):
 
         sql = (settings.BASE_DIR / RUTA_ESQUEMA_HEREDADO).read_text(encoding="utf-8")
         with connections["mes"].cursor() as cur:
-            cur.execute("DROP TABLE IF EXISTS public.production_log CASCADE")
-            cur.execute("DROP TABLE IF EXISTS public.vigas CASCADE")
+            # Sin nombre de esquema: manda el `search_path` de la conexión, que
+            # es `public` con una sola base y `produccion` cuando cada ERP tiene
+            # el suyo. Con `public.` escrito aquí, las tablas heredadas se
+            # creaban fuera de donde Django iba a buscarlas.
+            cur.execute("DROP TABLE IF EXISTS production_log CASCADE")
+            cur.execute("DROP TABLE IF EXISTS vigas CASCADE")
             cur.execute(sql)
 
 

@@ -25,6 +25,31 @@ render y no haya otra forma. En ese caso, una pasada, no diez.
 
 ## Django
 
+### Dos alias a la misma base son dos transacciones, no una
+
+**Qué pasó:** para unificar las dos bases sin tocar las 846 llamadas
+`.using("mes")`, dejé los dos alias apuntando al mismo PostgreSQL. Django abre
+**una conexión por alias**, así que lo escrito por `default` no lo veía `mes` y
+las claves foráneas reventaban: 26 fallos y 8 errores en la suite.
+
+**Por qué importa:** en pruebas se ve. En producción no: `transaction.atomic(using="mes")`
+simplemente dejaría de cubrir lo que se escribe por el otro alias, y eso no
+falla, sólo deja los datos a medias de vez en cuando.
+
+**La regla:** un alias por base física. Si dos alias apuntan al mismo sitio, no
+hay atomicidad entre ellos por mucho que la base sea una. Cambiar de base y
+retirar el alias son **el mismo movimiento**.
+
+### El nombre del esquema escrito dentro del SQL ignora el `search_path`
+
+**Qué pasó:** `esquema_heredado.sql` venía de un `pg_dump` con `public.` en cada
+tabla, secuencia e índice. Con un esquema por ERP, las tablas heredadas
+aterrizaban en `public` y Django no las encontraba.
+
+**La regla:** un volcado que vaya a cargarse en un esquema distinto del de
+origen se limpia de nombres de esquema y decide la conexión. Y el `pg_dump` es
+el de la versión del **destino**, no el que esté en el PATH.
+
 ### `{# … #}` es de una sola línea
 
 **Qué pasó:** un comentario de dos líneas con esa sintaxis, dentro del `<head>`.
