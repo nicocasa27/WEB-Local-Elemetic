@@ -30,13 +30,25 @@ allá: es el mismo PostgreSQL.
 - [ ] Cargar los datos y correr `migrar_auth_a_postgres`
 - [ ] **Las 1.004 pruebas contra la base de ensayo**
 
-Lo que **necesita claves** y queda a la espera:
+Contra Supabase de verdad (proyecto `bxenduifswrbjiruhlzx`, PostgreSQL 17.6,
+us-east-2, vacío):
 
-- [ ] Proyecto de Supabase de pruebas, y la suite contra él
-- [ ] Los 98 bloques `transaction.atomic`/`select_for_update` contra el
-      *pooler*. Modo transacción rompe sentencias preparadas: **no se puede
-      saber sin probarlo**, y si falla se replantea
-- [ ] `pg_cron` con `consolidar_cierres`
+- [x] **El pooler aguanta.** Las cuatro cosas que podían romperse funcionan por
+      el pooler en modo sesión: `atomic` revierte, el `atomic` anidado hace
+      punto de retorno, `select_for_update` **bloquea de verdad** a otra
+      conexión (2,07 s de espera medidos), y el rol tiene `createdb`. Era el
+      riesgo que podía tumbar la arquitectura: **descartado**.
+- [x] `pg_cron` **disponible** para instalar. Es lo que permite quitar Django.
+- [ ] `consolidar_cierres` con `pg_cron`: pendiente, va en la Fase 6.
+
+**El problema nuevo: la distancia.** 77 ms de ida y vuelta por consulta desde
+Mérida a Ohio. El dashboard hace entre 60 y 80 consultas por carga, o sea
+**unos 5 segundos por pantalla**. Y la suite completa no termina: se cortó a
+los 13 minutos (en local tarda 3).
+
+Eso **invalida el paso de la Fase 1** que decía dejar Django corriendo en el PC
+de la nave apuntando a Supabase. No es un ajuste: es que no se puede usar.
+Decisión pendiente, ver abajo.
 
 ### Hallazgos del ensayo (7 de agosto)
 

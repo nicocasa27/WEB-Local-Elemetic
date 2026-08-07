@@ -5,6 +5,36 @@ evita repetirlo**. Se repasa al empezar la sesión.
 
 ---
 
+## Cómo contestar
+
+### Pedir algo: qué es, dónde está, para qué
+
+**Qué pasó:** pedí «la contraseña de la base». ¿De qué base? ¿De dónde se saca?
+
+**La regla:** al pedir un dato, tres cosas en la misma frase: **qué** es
+exactamente, **dónde** se encuentra —ruta de clics o URL, no «en el panel»— y
+**para qué** hace falta. Si puede no saberlo, decir también cómo obtenerlo.
+
+### Decir si algo quedó hecho o pendiente
+
+**Qué pasó:** «encontré este error, pero ya lo arreglé» sin que quede claro si
+está resuelto, a medias o pendiente.
+
+**La regla:** cada cosa que se menciona lleva su estado sin ambigüedad: hecho /
+pendiente / bloqueado por X. Si hay varias, una tabla. Nunca dejar al lector
+deduciendo en qué quedó algo.
+
+### Corto
+
+**Qué pasó:** «tienes que preguntar más conciso, dices mucha mamada».
+
+**La regla:** el resultado primero, en una línea. Las preguntas, una línea cada
+una. Explicar el porqué **sólo** si cambia una decisión, y en una frase.
+
+Nada de recapitular lo hecho, repetir lo que ya está en el commit, ni justificar
+cada elección. Si hace falta el detalle, está en `tasks/todo.md` y en el mensaje
+del commit — ahí es donde se busca, no en el chat.
+
 ## Herramientas
 
 ### No abrir Chrome salvo que se pida
