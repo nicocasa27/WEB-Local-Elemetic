@@ -32,21 +32,21 @@ select l.id, produccion.siguiente_folio(l.id), 10, 10, e.id
 
 -- 1 · El folio sale de una secuencia, no de contar filas.
 insert into resultado
-select 1, 'el folio se genera solo', 'E-00001', folio from produccion.orden;
+select 1, 'el folio se genera solo', 'E-00001', folio from produccion.orden o2 where o2.folio like 'E-%';
 
 -- 2 · Un avance suma. Dos avances iguales suman dos veces: son diferencias.
 insert into produccion.evento (orden, tipo, contador, delta)
-select id, 'avance', 'producida', 4 from produccion.orden;
+select id, 'avance', 'producida', 4 from produccion.orden o2 where o2.folio like 'E-%';
 insert into produccion.evento (orden, tipo, contador, delta)
-select id, 'avance', 'producida', 4 from produccion.orden;
+select id, 'avance', 'producida', 4 from produccion.orden o2 where o2.folio like 'E-%';
 insert into resultado
-select 2, 'dos avances de +4 suman 8', '8', cantidad_producida::text from produccion.orden;
+select 2, 'dos avances de +4 suman 8', '8', cantidad_producida::text from produccion.orden o2 where o2.folio like 'E-%';
 
 -- 3 · No se puede terminar lo que no se pintó.  ← el fallo conocido de años
 do $$
 begin
   insert into produccion.evento (orden, tipo, contador, delta)
-  select id, 'avance', 'terminada', 5 from produccion.orden;
+  select id, 'avance', 'terminada', 5 from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado values (3, 'terminar sin pintar', 'RECHAZADO', 'lo aceptó');
 exception when check_violation then
   insert into resultado values (3, 'terminar sin pintar', 'RECHAZADO', 'RECHAZADO');
@@ -56,7 +56,7 @@ end $$;
 do $$
 begin
   insert into produccion.evento (orden, tipo, contador, delta)
-  select id, 'avance', 'producida', 99 from produccion.orden;
+  select id, 'avance', 'producida', 99 from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado values (4, 'producir de más', 'RECHAZADO', 'lo aceptó');
 exception when check_violation then
   insert into resultado values (4, 'producir de más', 'RECHAZADO', 'RECHAZADO');
@@ -66,10 +66,12 @@ end $$;
 do $$
 declare e_pintura bigint;
 begin
-  select id into e_pintura from produccion.etapa where codigo='pintura';
+  select e.id into e_pintura from produccion.etapa e
+    join produccion.linea l on l.id = e.linea
+   where l.codigo='ensayo' and e.codigo='pintura';
   -- De «ninguna» a pintura no existe: sólo de corte a pintura.
   insert into produccion.evento (orden, tipo, etapa, etapa_anterior)
-  select id, 'cambio_etapa', e_pintura, null from produccion.orden;
+  select id, 'cambio_etapa', e_pintura, null from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado values (5, 'transición no declarada', 'RECHAZADA', 'la aceptó');
 exception when check_violation then
   insert into resultado values (5, 'transición no declarada', 'RECHAZADA', 'RECHAZADA');
@@ -79,13 +81,19 @@ end $$;
 do $$
 declare e_corte bigint; e_pintura bigint;
 begin
-  select id into e_corte   from produccion.etapa where codigo='corte';
-  select id into e_pintura from produccion.etapa where codigo='pintura';
+  -- Filtrando por la línea de ensayo: con el taller sembrado hay cuatro
+  -- etapas llamadas «corte» y sin esto cogía una cualquiera.
+  select e.id into e_corte from produccion.etapa e
+    join produccion.linea l on l.id = e.linea
+   where l.codigo='ensayo' and e.codigo='corte';
+  select e.id into e_pintura from produccion.etapa e
+    join produccion.linea l on l.id = e.linea
+   where l.codigo='ensayo' and e.codigo='pintura';
   insert into produccion.evento (orden, tipo, etapa, etapa_anterior)
-  select id, 'cambio_etapa', e_pintura, e_corte from produccion.orden;
+  select id, 'cambio_etapa', e_pintura, e_corte from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado
   select 6, 'transición declarada', 'pintura', e.codigo
-    from produccion.orden o join produccion.etapa e on e.id = o.etapa_actual;
+    from produccion.orden o join produccion.etapa e on e.id = o.etapa_actual where o.folio like 'E-%';
 exception when others then
   insert into resultado values (6, 'transición declarada', 'pintura', 'falló: ' || sqlerrm);
 end $$;
@@ -94,9 +102,9 @@ end $$;
 do $$
 begin
   insert into produccion.evento (orden, tipo, contador, delta, clave_idempotencia)
-  select id, 'avance', 'pintada', 1, 'la-misma' from produccion.orden;
+  select id, 'avance', 'pintada', 1, 'la-misma' from produccion.orden o2 where o2.folio like 'E-%';
   insert into produccion.evento (orden, tipo, contador, delta, clave_idempotencia)
-  select id, 'avance', 'pintada', 1, 'la-misma' from produccion.orden;
+  select id, 'avance', 'pintada', 1, 'la-misma' from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado values (7, 'reenvío con la misma clave', 'RECHAZADO', 'lo contó dos veces');
 exception when unique_violation then
   insert into resultado values (7, 'reenvío con la misma clave', 'RECHAZADO', 'RECHAZADO');
@@ -105,7 +113,7 @@ end $$;
 -- 8 · El historial no se edita.
 do $$
 begin
-  update produccion.evento set delta = 999 where id = (select min(id) from produccion.evento);
+  update produccion.evento set delta = 999 where id = (select min(e.id) from produccion.evento e join produccion.orden o on o.id=e.orden where o.folio like 'E-%');
   insert into resultado values (8, 'editar un evento', 'RECHAZADO', 'lo dejó');
 exception when restrict_violation then
   insert into resultado values (8, 'editar un evento', 'RECHAZADO', 'RECHAZADO');
@@ -114,7 +122,7 @@ end $$;
 -- 9 · Ni se borra.
 do $$
 begin
-  delete from produccion.evento where id = (select min(id) from produccion.evento);
+  delete from produccion.evento where id = (select min(e.id) from produccion.evento e join produccion.orden o on o.id=e.orden where o.folio like 'E-%');
   insert into resultado values (9, 'borrar un evento', 'RECHAZADO', 'lo borró');
 exception when restrict_violation then
   insert into resultado values (9, 'borrar un evento', 'RECHAZADO', 'RECHAZADO');
@@ -134,10 +142,10 @@ end $$;
 do $$
 declare antes int; despues int;
 begin
-  select cantidad_producida into antes from produccion.orden;
-  update produccion.orden set cantidad_producida = 0;   -- se estropea a mano
-  perform produccion.recalcular((select id from produccion.orden));
-  select cantidad_producida into despues from produccion.orden;
+  select cantidad_producida into antes from produccion.orden o2 where o2.folio like 'E-%';
+  update produccion.orden set cantidad_producida = 0 where folio like 'E-%';   -- se estropea a mano
+  perform produccion.recalcular((select id from produccion.orden where folio like 'E-%'));
+  select cantidad_producida into despues from produccion.orden o2 where o2.folio like 'E-%';
   insert into resultado values (11, 'reconstruir desde el registro', antes::text, despues::text);
 end $$;
 
