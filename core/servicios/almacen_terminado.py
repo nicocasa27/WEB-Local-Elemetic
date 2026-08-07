@@ -37,8 +37,8 @@ las dos y se enseñan con su nombre.
 from dataclasses import dataclass, field
 
 from django.db.models import Sum
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 HERRERIA = "herreria"
 CORTA = "corta"

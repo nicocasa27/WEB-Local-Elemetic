@@ -2,6 +2,7 @@ import os
 import sys
 
 import django
+from core.bases import BASE  # noqa: F401
 
 
 def _add(rows, *, categoria, tipo, nombre, calibre, espesor_mm, ancho_cm, largo_cm, peso_kg):
@@ -220,7 +221,7 @@ def main():
     for r in rows:
         nombre_norm = (r["nombre"] or "").strip().upper()
         obj = (
-            LaserMaterialPlaca.objects.using("mes")
+            LaserMaterialPlaca.objects.using(BASE)
             .filter(
                 categoria_material=r["categoria_material"],
                 tipo_material=r["tipo_material"],
@@ -239,10 +240,10 @@ def main():
                     setattr(obj, k, r[k])
                     changed = True
             if changed:
-                obj.save(using="mes")
+                obj.save(using=BASE)
                 updated += 1
             continue
-        LaserMaterialPlaca.objects.using("mes").create(**r)
+        LaserMaterialPlaca.objects.using(BASE).create(**r)
         created += 1
 
     print(f"rows={len(rows)} created={created} updated={updated}")

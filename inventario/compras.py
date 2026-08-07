@@ -27,8 +27,8 @@ from django.views.decorators.http import require_POST
 from core import roles
 from core.servicios import inventario as servicio
 from inventario.models import Material, Proveedor, SeguimientoCompra
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 CERO = Decimal("0")
 
 

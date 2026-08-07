@@ -35,10 +35,10 @@ from django.utils import timezone
 from core import roles
 from core.servicios import inventario as servicio
 from inventario.models import Almacen, LoteMaterial, Material, Proveedor
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-BASE = "mes"
 CERO = Decimal("0")
 
 #: Las columnas que se esperan. El nombre se compara sin acentos ni mayúsculas,

@@ -53,10 +53,10 @@ from nucleo.models import (
     OrdenProduccion,
     TransicionPermitida,
 )
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.nucleo")
 
-BASE = "mes"
 
 #: Orden en que se comprueban los contadores. Cada uno no puede pasar del
 #: anterior: no se termina lo que no se pintó, ni se pinta lo que no se soldó.

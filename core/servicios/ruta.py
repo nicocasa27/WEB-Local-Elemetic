@@ -28,8 +28,8 @@ etapas, nunca añadirlas.
 from django.utils import timezone
 
 from core import estados
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Las etapas que no se pueden quitar de una ruta.
 #:

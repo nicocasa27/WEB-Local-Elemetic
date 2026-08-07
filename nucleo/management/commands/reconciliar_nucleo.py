@@ -31,8 +31,8 @@ from core import banderas
 from nucleo.management.commands.sembrar_nucleo import clave
 from nucleo.models import DivergenciaReconciliacion, LineaNegocio, OrdenProduccion
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Días seguidos sin diferencias que hacen falta antes de cortar una línea.
 RACHA_EXIGIDA = 7

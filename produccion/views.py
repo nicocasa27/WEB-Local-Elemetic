@@ -25,6 +25,7 @@ from django.utils import timezone
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
+from core.bases import BASE  # noqa: F401
 try:
     from pypdf import PdfReader
 except ModuleNotFoundError:
@@ -651,17 +652,17 @@ def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, a
             return False, "Debes asignar 1 soldador para Armado."
         if len(auxiliares_ids) < 1 or len(auxiliares_ids) > 2:
             return False, "Debes asignar 1 o 2 auxiliares para Armado."
-        soldador = Colaborador.objects.using("mes").filter(id=soldador_id, activo=True, equipo=equipo, rol="Soldador").first()
+        soldador = Colaborador.objects.using(BASE).filter(id=soldador_id, activo=True, equipo=equipo, rol="Soldador").first()
         if not soldador:
             return False, "Soldador inválido para Armado."
         auxiliares = list(
-            Colaborador.objects.using("mes").filter(id__in=auxiliares_ids, activo=True, equipo=equipo, rol="Auxiliar")
+            Colaborador.objects.using(BASE).filter(id__in=auxiliares_ids, activo=True, equipo=equipo, rol="Auxiliar")
         )
         if len(auxiliares) != len(auxiliares_ids):
             return False, "Auxiliares inválidos para Armado."
 
-        VigaAsignacion.objects.using("mes").filter(viga_internal_id=viga_internal_id, etapa=etapa, vigente=True).update(vigente=False)
-        VigaAsignacion.objects.using("mes").create(
+        VigaAsignacion.objects.using(BASE).filter(viga_internal_id=viga_internal_id, etapa=etapa, vigente=True).update(vigente=False)
+        VigaAsignacion.objects.using(BASE).create(
             viga_internal_id=viga_internal_id,
             etapa=etapa,
             rol="Soldador",
@@ -670,7 +671,7 @@ def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, a
             asignado_por=actor,
         )
         for a in auxiliares:
-            VigaAsignacion.objects.using("mes").create(
+            VigaAsignacion.objects.using(BASE).create(
                 viga_internal_id=viga_internal_id,
                 etapa=etapa,
                 rol="Auxiliar",
@@ -687,11 +688,11 @@ def _save_asignaciones_for_etapa(viga_internal_id: int, etapa: str, post_data, a
         equipo, error = con_equipo()
         if error:
             return False, error
-        pintor = Colaborador.objects.using("mes").filter(id=pintor_id, activo=True, equipo=equipo, rol="Pintor").first()
+        pintor = Colaborador.objects.using(BASE).filter(id=pintor_id, activo=True, equipo=equipo, rol="Pintor").first()
         if not pintor:
             return False, "Pintor inválido para Pintura."
-        VigaAsignacion.objects.using("mes").filter(viga_internal_id=viga_internal_id, etapa=etapa, vigente=True).update(vigente=False)
-        VigaAsignacion.objects.using("mes").create(
+        VigaAsignacion.objects.using(BASE).filter(viga_internal_id=viga_internal_id, etapa=etapa, vigente=True).update(vigente=False)
+        VigaAsignacion.objects.using(BASE).create(
             viga_internal_id=viga_internal_id,
             etapa=etapa,
             rol="Pintor",
@@ -708,7 +709,7 @@ def _delete_asignaciones_for_vigas(internal_ids):
     ids = [int(x) for x in (internal_ids or []) if str(x).isdigit()]
     if not ids:
         return
-    VigaAsignacion.objects.using("mes").filter(viga_internal_id__in=ids).delete()
+    VigaAsignacion.objects.using(BASE).filter(viga_internal_id__in=ids).delete()
 
 
 def _equipos_de_corte():
@@ -718,7 +719,7 @@ def _equipos_de_corte():
     nombre, que es como los llama en el piso.
     """
     return list(
-        Maquina.objects.using("mes")
+        Maquina.objects.using(BASE)
         .filter(activo=True, tipo="Corte", es_robot=False)
         .order_by("nombre")
         .values("id", "nombre", "funcion")
@@ -733,7 +734,7 @@ def _maquina_asignada(viga_internal_id, etapa):
     la forma más rápida de que la gente deje de darlo.
     """
     identificador = (
-        VigaAsignacion.objects.using("mes")
+        VigaAsignacion.objects.using(BASE)
         .filter(
             viga_internal_id=int(viga_internal_id),
             etapa=etapa,
@@ -745,7 +746,7 @@ def _maquina_asignada(viga_internal_id, etapa):
     )
     if not identificador:
         return None
-    return Maquina.objects.using("mes").filter(id=int(identificador)).first()
+    return Maquina.objects.using(BASE).filter(id=int(identificador)).first()
 
 
 def _validate_corte_asignacion(corte_operadores_ids, corte_maquina_ids):
@@ -785,9 +786,9 @@ def _save_corte_asignaciones_for_vigas(internal_ids, corte_operadores_ids, corte
     if not ids:
         return
     for vid in ids:
-        VigaAsignacion.objects.using("mes").filter(viga_internal_id=vid, etapa="Corte", vigente=True).update(vigente=False)
+        VigaAsignacion.objects.using(BASE).filter(viga_internal_id=vid, etapa="Corte", vigente=True).update(vigente=False)
         for cid in corte_operadores_ids:
-            VigaAsignacion.objects.using("mes").create(
+            VigaAsignacion.objects.using(BASE).create(
                 viga_internal_id=vid,
                 etapa="Corte",
                 rol="Operador",
@@ -797,7 +798,7 @@ def _save_corte_asignaciones_for_vigas(internal_ids, corte_operadores_ids, corte
                 asignado_por=actor,
             )
         for mid in corte_maquina_ids:
-            VigaAsignacion.objects.using("mes").create(
+            VigaAsignacion.objects.using(BASE).create(
                 viga_internal_id=vid,
                 etapa="Corte",
                 rol="Maquina",
@@ -822,7 +823,7 @@ def _fijar_maquina_de_corte(internal_id, maquina, actor=""):
     """
     if maquina is None:
         return
-    ya_puesta = VigaAsignacion.objects.using("mes").filter(
+    ya_puesta = VigaAsignacion.objects.using(BASE).filter(
         viga_internal_id=int(internal_id),
         etapa="Corte",
         rol="Maquina",
@@ -831,10 +832,10 @@ def _fijar_maquina_de_corte(internal_id, maquina, actor=""):
     )
     if ya_puesta.exists():
         return
-    VigaAsignacion.objects.using("mes").filter(
+    VigaAsignacion.objects.using(BASE).filter(
         viga_internal_id=int(internal_id), etapa="Corte", rol="Maquina", vigente=True
     ).update(vigente=False)
-    VigaAsignacion.objects.using("mes").create(
+    VigaAsignacion.objects.using(BASE).create(
         viga_internal_id=int(internal_id),
         etapa="Corte",
         rol="Maquina",
@@ -862,7 +863,7 @@ def _save_plano_for_vigas(internal_ids, uploaded_file):
         defaults = {
             "nombre_original": getattr(uploaded_file, "name", "") or "",
         }
-        plano, created = VigaPlano.objects.using("mes").get_or_create(viga_internal_id=internal_id, defaults=defaults)
+        plano, created = VigaPlano.objects.using(BASE).get_or_create(viga_internal_id=internal_id, defaults=defaults)
         if not created and plano.archivo_pdf:
             try:
                 plano.archivo_pdf.delete(save=False)
@@ -982,7 +983,7 @@ def _pendientes_del_dia(usuario):
     # La cuadrilla es distinta: lo que importa es que falte, no que haya.
     if roles.puede_administrar_usuarios(usuario) or can_ver_cuadrillas(usuario):
         try:
-            armadas = Cuadrilla.objects.using("mes").filter(
+            armadas = Cuadrilla.objects.using(BASE).filter(
                 fecha=timezone.localdate()
             ).count()
         except Exception:
@@ -1356,7 +1357,7 @@ def area_corte(request):
         v.plano_url = plano_map.get(int(v.internal_id), "")
 
     asigns = (
-        VigaAsignacion.objects.using("mes")
+        VigaAsignacion.objects.using(BASE)
         .filter(viga_internal_id__in=ids, vigente=True, etapa__in=["Corte"])
         .values_list("viga_internal_id", "etapa", "rol", "colaborador_id", "maquina_id")
     )
@@ -1483,7 +1484,7 @@ def area_soldadura(request):
         v.plano_url = plano_map.get(int(v.internal_id), "")
 
     asigns = (
-        VigaAsignacion.objects.using("mes")
+        VigaAsignacion.objects.using(BASE)
         .filter(viga_internal_id__in=ids, vigente=True, etapa__in=["Soldadura", "Pintura"])
         .values_list("viga_internal_id", "etapa", "rol", "colaborador_id", "maquina_id")
     )
@@ -1798,7 +1799,7 @@ def viga_create(request):
             except Exception:
                 actor = ""
             try:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     base_codigo = (base.codigo_viga or "").strip()
                     for i in range(1, cantidad + 1):
                         v = Viga.objects.create(
@@ -1835,11 +1836,11 @@ def viga_create(request):
 
             try:
                 if selected_corte_ops or selected_corte_maqs:
-                    with transaction.atomic(using="mes"):
+                    with transaction.atomic(using=BASE):
                         _save_corte_asignaciones_for_vigas(created_ids, selected_corte_ops, selected_corte_maqs, actor=actor)
             except Exception as e:
                 if created_ids:
-                    with transaction.atomic(using="mes"):
+                    with transaction.atomic(using=BASE):
                         _delete_asignaciones_for_vigas(created_ids)
                         Viga.objects.filter(internal_id__in=created_ids).delete()
                 form.add_error(None, f"No se pudieron guardar las asignaciones iniciales de Corte. ({type(e).__name__})")
@@ -1860,11 +1861,11 @@ def viga_create(request):
 
             try:
                 if plano_file and created_ids:
-                    with transaction.atomic(using="mes"):
+                    with transaction.atomic(using=BASE):
                         _save_plano_for_vigas(created_ids, plano_file)
             except Exception as e:
                 if created_ids:
-                    with transaction.atomic(using="mes"):
+                    with transaction.atomic(using=BASE):
                         _delete_asignaciones_for_vigas(created_ids)
                         Viga.objects.filter(internal_id__in=created_ids).delete()
                 form.add_error(None, f"No se pudo guardar el plano PDF. ({type(e).__name__})")
@@ -1944,7 +1945,7 @@ def viga_delete(request, pk: int):
     next_url = _safe_next(request.GET.get("next", ""))
     if request.method == "POST":
         internal_id = viga.internal_id
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             ProductionLog.objects.filter(viga_internal_id=viga.internal_id).delete()
             viga.delete()
         _delete_plano_for_vigas([internal_id])
@@ -1972,7 +1973,7 @@ def viga_enviar(request, pk: int):
         return redirect("produccion:viga_list")
 
     now = timezone.now()
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         estado_anterior = viga.estado
         viga.estado = "Enviado"
         viga.ultimo_cambio = now
@@ -2004,7 +2005,7 @@ def viga_regresar_produccion(request, pk: int):
         return redirect("produccion:viga_list")
 
     now = timezone.now()
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         estado_anterior = viga.estado
         viga.estado = "Terminado"
         viga.ultimo_cambio = now
@@ -2047,7 +2048,7 @@ def viga_delete_decote(request, pk: int):
         return redirect("produccion:viga_list")
 
     internal_id = viga.internal_id
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         ProductionLog.objects.filter(viga_internal_id=viga.internal_id).delete()
         viga.delete()
     _delete_plano_for_vigas([internal_id])
@@ -2108,7 +2109,7 @@ def viga_delete_decote_all(request):
             return redirect(next_post)
         return redirect("produccion:viga_list")
 
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         ProductionLog.objects.filter(viga_internal_id__in=ids).delete()
         Viga.objects.filter(internal_id__in=ids).delete()
     _delete_plano_for_vigas(ids)
@@ -2201,7 +2202,7 @@ def viga_change_status(request, pk: int):
                 actor = ""
 
             try:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     if estado_nuevo in ("Armado", "Pintura"):
                         ok, err = _save_asignaciones_for_etapa(viga.internal_id, estado_nuevo, request.POST, actor=actor)
                         if not ok:
@@ -2386,7 +2387,7 @@ def _firmar_el_traspaso(*, viga, etapa_anterior, etapa_nueva, actor, peticion, m
     justo lo que se quería evitar.
     """
     try:
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             pendiente = servicio_entrega.pendiente("Viga", viga.internal_id)
             if pendiente is not None and servicio_entrega.area_de(etapa_nueva) == (
                 pendiente.area_destino
@@ -2507,7 +2508,7 @@ def viga_change_status_json(request, pk: int):
 
     if cur_estado == "Espera de corte" and new_estado == "Corte":
         mids = list(
-            VigaAsignacion.objects.using("mes")
+            VigaAsignacion.objects.using(BASE)
             .filter(viga_internal_id=int(viga.internal_id), vigente=True, etapa="Corte", maquina_id__isnull=False)
             .values_list("maquina_id", flat=True)
         )
@@ -2574,7 +2575,7 @@ def viga_change_status_json(request, pk: int):
         actor = ""
 
     try:
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             if estado_nuevo in ("Armado", "Pintura"):
                 ok, err = _save_asignaciones_for_etapa(viga.internal_id, estado_nuevo, request.POST, actor=actor)
                 if not ok:
@@ -2693,7 +2694,7 @@ def viga_asignaciones(request, pk: int):
         return redirect(next_url)
 
     try:
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             do_corte = ("corte_operador_ids" in request.POST) or ("corte_maquina_ids" in request.POST)
             if role in {"admin", "corte"} and do_corte:
                 etapa = "Corte"
@@ -2706,7 +2707,7 @@ def viga_asignaciones(request, pk: int):
                 if len(corte_operadores_ids) > 20:
                     return fail("Demasiados operadores en Corte.")
                 corte_allowed = set(
-                    Colaborador.objects.using("mes").filter(activo=True, equipo=corte_equipo).values_list("id", flat=True)
+                    Colaborador.objects.using(BASE).filter(activo=True, equipo=corte_equipo).values_list("id", flat=True)
                 )
                 if any(i not in corte_allowed for i in corte_operadores_ids):
                     return fail("Operadores inválidos en Corte. Revisa colaboradores activos del equipo.")
@@ -2715,21 +2716,21 @@ def viga_asignaciones(request, pk: int):
                     return fail("Demasiadas máquinas en Corte.")
                 if corte_maquina_ids:
                     ok_m = set(
-                        Maquina.objects.using("mes").filter(activo=True, tipo="Corte", es_robot=False, id__in=corte_maquina_ids).values_list("id", flat=True)
+                        Maquina.objects.using(BASE).filter(activo=True, tipo="Corte", es_robot=False, id__in=corte_maquina_ids).values_list("id", flat=True)
                     )
                     if any(i not in ok_m for i in corte_maquina_ids):
                         return fail("Máquinas de corte inválidas.")
 
-                VigaAsignacion.objects.using("mes").filter(viga_internal_id=viga.internal_id, etapa=etapa, vigente=True).update(vigente=False)
+                VigaAsignacion.objects.using(BASE).filter(viga_internal_id=viga.internal_id, etapa=etapa, vigente=True).update(vigente=False)
                 colabs = {
                     c.id: c
-                    for c in Colaborador.objects.using("mes").filter(id__in=corte_operadores_ids, activo=True, equipo=corte_equipo)
+                    for c in Colaborador.objects.using(BASE).filter(id__in=corte_operadores_ids, activo=True, equipo=corte_equipo)
                 }
                 for cid in corte_operadores_ids:
                     c = colabs.get(cid)
                     if not c:
                         continue
-                    VigaAsignacion.objects.using("mes").create(
+                    VigaAsignacion.objects.using(BASE).create(
                         viga_internal_id=viga.internal_id,
                         etapa=etapa,
                         rol="Operador",
@@ -2739,7 +2740,7 @@ def viga_asignaciones(request, pk: int):
                         asignado_por=actor,
                     )
                 for mid in corte_maquina_ids:
-                    VigaAsignacion.objects.using("mes").create(
+                    VigaAsignacion.objects.using(BASE).create(
                         viga_internal_id=viga.internal_id,
                         etapa=etapa,
                         rol="Maquina",
@@ -2760,9 +2761,9 @@ def viga_asignaciones(request, pk: int):
                 if not equipo:
                     return fail(f"No hay equipo configurado para la etapa {etapa}.")
 
-                VigaAsignacion.objects.using("mes").filter(viga_internal_id=viga.internal_id, etapa=etapa, vigente=True).update(vigente=False)
+                VigaAsignacion.objects.using(BASE).filter(viga_internal_id=viga.internal_id, etapa=etapa, vigente=True).update(vigente=False)
                 allowed = set(
-                    Colaborador.objects.using("mes").filter(activo=True, equipo=equipo).values_list("id", flat=True)
+                    Colaborador.objects.using(BASE).filter(activo=True, equipo=equipo).values_list("id", flat=True)
                 )
 
                 if any(i not in allowed for i in ids):
@@ -2771,13 +2772,13 @@ def viga_asignaciones(request, pk: int):
                 if ids:
                     colabs = {
                         c.id: c
-                        for c in Colaborador.objects.using("mes").filter(id__in=ids, activo=True, equipo=equipo)
+                        for c in Colaborador.objects.using(BASE).filter(id__in=ids, activo=True, equipo=equipo)
                     }
                     for cid in ids:
                         c = colabs.get(cid)
                         if not c:
                             continue
-                        VigaAsignacion.objects.using("mes").create(
+                        VigaAsignacion.objects.using(BASE).create(
                             viga_internal_id=viga.internal_id,
                             etapa=etapa,
                             rol=c.rol,
@@ -2791,7 +2792,7 @@ def viga_asignaciones(request, pk: int):
 
     if wants_json:
         asigns = list(
-            VigaAsignacion.objects.using("mes").filter(viga_internal_id=viga.internal_id, vigente=True)
+            VigaAsignacion.objects.using(BASE).filter(viga_internal_id=viga.internal_id, vigente=True)
             .values("etapa", "rol", "colaborador_id", "maquina_id")
         )
         corte_oper = sorted({int(a["colaborador_id"]) for a in asigns if a["etapa"] == "Corte" and a["rol"] == "Operador" and a["colaborador_id"]})
@@ -2836,7 +2837,7 @@ def viga_update_meta_json(request, pk: int):
         return JsonResponse({"ok": False, "error": "Prioridad debe ser 1 a 5."}, status=400)
 
     try:
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             viga.fecha_compromiso = fecha
             viga.prioridad = prioridad
             viga.save(update_fields=["fecha_compromiso", "prioridad"])

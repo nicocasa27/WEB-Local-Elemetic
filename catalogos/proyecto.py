@@ -18,8 +18,8 @@ from django.views.decorators.http import require_POST
 from catalogos.models import Proyecto
 from core.constantes import clave_de_codigo
 from core.servicios import proyecto as servicio
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 def _puede_planear(user):

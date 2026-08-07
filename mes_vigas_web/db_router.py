@@ -20,9 +20,13 @@ class MESRouter:
     sola tabla, y el `migrate --database=mes` siguiente no haría nada porque
     creería que ya está.
 
-    La salida es que con una sola base **todo se migra una vez, por `default`**,
-    y `mes` queda como un alias del mismo sitio para que las 346 llamadas
-    `.using("mes")` sigan funcionando sin tocar ninguna.
+    La salida es que con una sola base **todo se migra una vez, por `default`**.
+
+    El alias `mes` sigue declarado para que las marcas `databases=[...]` de la
+    suite no cambien, pero **ya no lo usa nadie**: el alias por el que se
+    escribe lo dice `core.bases.BASE`, y un guardia impide volver a escribirlo
+    a mano. Dos alias contra la misma base son dos transacciones, y eso no se
+    arregla con cuidado: se arregla no teniéndolos.
     """
 
     #: `nucleo` va a la misma base que el resto del negocio. Tiene que estar

@@ -25,6 +25,7 @@ from django.utils import timezone
 from core import estados
 from core.servicios import entrega as servicio
 from nucleo.models import ActaDeEntrega
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -128,7 +129,7 @@ class TestElActaSeLevantaAlAvanzar:
         client.force_login(soldador)
         avanzar(client, la_pieza, estados.ARMADO, firma_recibo=FIRMA)
 
-        acta = ActaDeEntrega.objects.using("mes").get(legacy_id=la_pieza.internal_id)
+        acta = ActaDeEntrega.objects.using(BASE).get(legacy_id=la_pieza.internal_id)
         assert acta.estado == ActaDeEntrega.Estado.ACEPTADA
         assert acta.recibe_por == "zz_soldador"
         assert acta.recibe_firma == FIRMA
@@ -140,7 +141,7 @@ class TestElActaSeLevantaAlAvanzar:
 
         avanzar(client, la_pieza, estados.ESPERA_SOLDADURA)
 
-        assert ActaDeEntrega.objects.using("mes").count() == 0
+        assert ActaDeEntrega.objects.using(BASE).count() == 0
 
     def test_sin_firma_el_acta_se_levanta_igual(self, client, django_user_model):
         """La firma la exige la pantalla del celular; el servidor no.
@@ -194,7 +195,7 @@ class TestDevolverUnaPiezaMal:
             "motivo": "Miden 90 cm y debían ser de un metro",
         })
 
-        assert Viga.objects.using("mes").get(pk=la_pieza.pk).estado == estados.ESPERA_CORTE
+        assert Viga.objects.using(BASE).get(pk=la_pieza.pk).estado == estados.ESPERA_CORTE
 
     def test_queda_registrado_quién_la_entregó_así(self, client, django_user_model):
         la_pieza, _, _ = self.preparar(client, django_user_model)
@@ -204,7 +205,7 @@ class TestDevolverUnaPiezaMal:
             "motivo": "Miden 90 cm",
         })
 
-        acta = ActaDeEntrega.objects.using("mes").get(legacy_id=la_pieza.internal_id)
+        acta = ActaDeEntrega.objects.using(BASE).get(legacy_id=la_pieza.internal_id)
         assert acta.estado == ActaDeEntrega.Estado.RECHAZADA
         assert acta.entrega_por == "zz_cortador"
         assert acta.recibe_por == "zz_soldador"
@@ -233,11 +234,11 @@ class TestDevolverUnaPiezaMal:
             "motivo": "Las dos miden 90 cm",
         })
 
-        rechazadas = ActaDeEntrega.objects.using("mes").filter(
+        rechazadas = ActaDeEntrega.objects.using(BASE).filter(
             estado=ActaDeEntrega.Estado.RECHAZADA
         )
         assert rechazadas.count() == 2
-        assert not ActaDeEntrega.objects.using("mes").filter(
+        assert not ActaDeEntrega.objects.using(BASE).filter(
             estado=ActaDeEntrega.Estado.PENDIENTE
         ).exists()
 
@@ -254,7 +255,7 @@ class TestDevolverUnaPiezaMal:
         # Ni se devuelve la pieza ni se cierra el acta: una devolución sin
         # motivo obliga a quien la recibe a llamar por teléfono, que es lo que
         # esto venía a ahorrar.
-        assert Viga.objects.using("mes").get(pk=la_pieza.pk).estado == estados.ESPERA_ARMADO
+        assert Viga.objects.using(BASE).get(pk=la_pieza.pk).estado == estados.ESPERA_ARMADO
         assert servicio.pendiente("Viga", la_pieza.internal_id) is not None
 
     def test_quien_la_entregó_no_puede_devolverse_su_propia_entrega(
@@ -271,7 +272,7 @@ class TestDevolverUnaPiezaMal:
             "motivo": "nada",
         })
 
-        assert Viga.objects.using("mes").get(pk=la_pieza.pk).estado == estados.ESPERA_ARMADO
+        assert Viga.objects.using(BASE).get(pk=la_pieza.pk).estado == estados.ESPERA_ARMADO
 
 
 # --------------------------------------------- quién la dio por buena

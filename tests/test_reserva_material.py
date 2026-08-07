@@ -33,10 +33,10 @@ from django.utils import timezone
 from core.excepciones import CantidadInvalida, StockInsuficiente
 from core.servicios import inventario as servicio
 from inventario.models import Existencia, LoteMaterial, Material, MovimientoMaterial
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
-BASE = "mes"
 
 
 @pytest.fixture

@@ -34,8 +34,8 @@ from catalogos.models import HerrOrdenProduccion, LaserOrdenProduccion, RobotOrd
 from nucleo.management.commands.sembrar_nucleo import clave
 from nucleo.models import EventoProduccion, LineaNegocio, OrdenProduccion
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 FUENTES = {
     "vigas": ("Viga", Viga, "estado", "peso_kg", 1),

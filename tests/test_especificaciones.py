@@ -13,6 +13,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from core.servicios import especificaciones
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -64,7 +65,7 @@ class TestGuardarYLeer:
 
         especificaciones.guardar(VIGAS, pieza.internal_id, TEXTO)
 
-        assert not OrdenProduccion.objects.using("mes").exists()
+        assert not OrdenProduccion.objects.using(BASE).exists()
         assert especificaciones.de(VIGAS, pieza.internal_id) == TEXTO
 
     def test_vaciarlo_lo_borra(self):
@@ -78,7 +79,7 @@ class TestGuardarYLeer:
         especificaciones.guardar(VIGAS, pieza.internal_id, "   ")
 
         assert especificaciones.de(VIGAS, pieza.internal_id) == ""
-        assert not EspecificacionOrden.objects.using("mes").exists()
+        assert not EspecificacionOrden.objects.using(BASE).exists()
 
     def test_sin_nada_escrito_responde_vacio(self):
         assert especificaciones.de(VIGAS, 999999) == ""
@@ -102,7 +103,7 @@ class TestGuardarYLeer:
         especificaciones.guardar(VIGAS, pieza.internal_id, TEXTO)
         especificaciones.guardar(VIGAS, pieza.internal_id, "Otra cosa.")
 
-        assert EspecificacionOrden.objects.using("mes").count() == 1
+        assert EspecificacionOrden.objects.using(BASE).count() == 1
         assert especificaciones.de(VIGAS, pieza.internal_id) == "Otra cosa."
 
 

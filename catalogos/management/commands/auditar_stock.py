@@ -21,6 +21,7 @@ registrada, y decidir cuál es el valor bueno no es cosa de un script.
 """
 from django.core.management.base import BaseCommand
 from django.db.models import Sum
+from core.bases import BASE  # noqa: F401
 
 # El material pasa por tres estados: disponible, apartado y enviado. Los
 # movimientos registran los saltos entre ellos, así que no todos afectan al
@@ -60,13 +61,13 @@ class Command(BaseCommand):
         # ---------------------------------------------------------- herrería
         self.stdout.write(self.style.MIGRATE_HEADING("\nAlmacén de herrería"))
         movimientos = dict(
-            LogisticaMovimiento.objects.using("mes")
+            LogisticaMovimiento.objects.using(BASE)
             .filter(tipo__in=TIPOS_QUE_MUEVEN_EL_DISPONIBLE)
             .values_list("producto_id")
             .annotate(total=Sum("cantidad"))
             .values_list("producto_id", "total")
         )
-        filas = LogisticaStock.objects.using("mes").select_related("producto")
+        filas = LogisticaStock.objects.using(BASE).select_related("producto")
         if not filas:
             self.stdout.write("  (sin registros)")
         for fila in filas:
@@ -86,13 +87,13 @@ class Command(BaseCommand):
         # -------------------------------------------------------------- corta
         self.stdout.write(self.style.MIGRATE_HEADING("\nAlmacén de Corta"))
         movimientos_corta = dict(
-            LogisticaMovimientoCorta.objects.using("mes")
+            LogisticaMovimientoCorta.objects.using(BASE)
             .filter(tipo__in=TIPOS_QUE_MUEVEN_EL_DISPONIBLE)
             .values_list("producto")
             .annotate(total=Sum("cantidad"))
             .values_list("producto", "total")
         )
-        filas_corta = LogisticaStockCorta.objects.using("mes")
+        filas_corta = LogisticaStockCorta.objects.using(BASE)
         if not filas_corta:
             self.stdout.write("  (sin registros)")
         for fila in filas_corta:
@@ -115,7 +116,7 @@ class Command(BaseCommand):
         # se ha comprometido más material del que se pidió.
         self.stdout.write(self.style.MIGRATE_HEADING("\nCoherencia de las líneas de pedido"))
         incoherentes = []
-        for item in PedidoProduccionItem.objects.using("mes").select_related("pedido", "producto"):
+        for item in PedidoProduccionItem.objects.using(BASE).select_related("pedido", "producto"):
             total = int(item.cantidad_total or 0)
             apartado = int(item.apartado or 0)
             enviado = int(item.enviado or 0)
@@ -133,9 +134,9 @@ class Command(BaseCommand):
 
         # ------------------------------------ movimientos históricos ambiguos
         self.stdout.write(self.style.MIGRATE_HEADING("\nMovimientos de tipo ambiguo"))
-        n_amb = LogisticaMovimiento.objects.using("mes").filter(tipo=TIPO_AMBIGUO_HISTORICO).count()
+        n_amb = LogisticaMovimiento.objects.using(BASE).filter(tipo=TIPO_AMBIGUO_HISTORICO).count()
         n_amb_corta = (
-            LogisticaMovimientoCorta.objects.using("mes")
+            LogisticaMovimientoCorta.objects.using(BASE)
             .filter(tipo=TIPO_AMBIGUO_HISTORICO)
             .count()
         )

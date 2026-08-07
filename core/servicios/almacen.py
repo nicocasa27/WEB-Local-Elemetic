@@ -39,8 +39,8 @@ from catalogos.models import (
     LogisticaStockCorta,
 )
 from core.excepciones import CantidadInvalida, StockInsuficiente
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 TIPO_ENTRADA = "stock_in"
 TIPO_APARTAR = "apartar"

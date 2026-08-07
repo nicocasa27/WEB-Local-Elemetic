@@ -31,11 +31,11 @@ from catalogos.models import HerrOrdenProduccion, SeguimientoDespacho
 from core import estados as est
 from core import roles
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
 Usuario = get_user_model()
-BASE = "mes"
 
 
 @pytest.fixture

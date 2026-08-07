@@ -31,11 +31,11 @@ from django.urls import reverse
 from core import opus, roles
 from inventario.models import Material
 from inventario.opus_import import agrupar, cotejar
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
 Usuario = get_user_model()
-BASE = "mes"
 ARCHIVO = Path(settings.BASE_DIR) / "tests" / "datos" / "opus_explosion.csv"
 
 

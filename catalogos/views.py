@@ -30,6 +30,7 @@ from core.estados import clase as clase_de_estado
 from core.servicios import almacen as servicio_almacen
 from core.servicios import cierres as servicio_cierres
 from core.servicios import cotizacion as servicio_cotizacion
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.catalogos")
 
@@ -471,17 +472,17 @@ def _xlsx_bytes_for_expediente(
 
 
 def _build_pedido_expediente_zip_bytes(pedido_id: int) -> bytes:
-    pedido = get_object_or_404(PedidoProduccion.objects.using("mes"), pk=pedido_id)
-    items = list(PedidoProduccionItem.objects.using("mes").select_related("producto").filter(pedido_id=int(pedido.id)).order_by("id"))
-    envios = list(LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)).order_by("fecha", "id"))
+    pedido = get_object_or_404(PedidoProduccion.objects.using(BASE), pk=pedido_id)
+    items = list(PedidoProduccionItem.objects.using(BASE).select_related("producto").filter(pedido_id=int(pedido.id)).order_by("id"))
+    envios = list(LogisticaEnvio.objects.using(BASE).filter(pedido_id=int(pedido.id)).order_by("fecha", "id"))
     envios_items = list(
-        LogisticaEnvioItem.objects.using("mes")
+        LogisticaEnvioItem.objects.using(BASE)
         .select_related("envio", "producto", "pedido_item")
         .filter(envio__pedido_id=int(pedido.id))
         .order_by("envio__fecha", "id")
     )
     movimientos = list(
-        LogisticaMovimiento.objects.using("mes")
+        LogisticaMovimiento.objects.using(BASE)
         .select_related("producto")
         .filter(pedido_item__pedido_id=int(pedido.id))
         .order_by("creado_en", "id")
@@ -596,9 +597,9 @@ def _xlsx_bytes_for_expediente_corta(
 
 
 def _build_corta_expediente_zip_bytes(orden_id: int) -> bytes:
-    orden = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_related("corta_cliente_proyecto"), pk=int(orden_id))
-    envios = list(LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(orden.id)).order_by("fecha", "id"))
-    movimientos = list(LogisticaMovimientoCorta.objects.using("mes").filter(orden_id=int(orden.id)).order_by("creado_en", "id"))
+    orden = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_related("corta_cliente_proyecto"), pk=int(orden_id))
+    envios = list(LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(orden.id)).order_by("fecha", "id"))
+    movimientos = list(LogisticaMovimientoCorta.objects.using(BASE).filter(orden_id=int(orden.id)).order_by("creado_en", "id"))
 
     root = f"Expediente_{((getattr(orden, 'folio_externo', '') or getattr(orden, 'codigo', '') or getattr(orden, 'folio', '') or str(orden.id)).strip())}"
     pdf_rows: list[dict] = []
@@ -2348,7 +2349,7 @@ def herreria_control(request):
                 except Exception:
                     actor = ""
                 now = timezone.now()
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update().select_related("pedido", "producto"), pk=item_id)
                     if it.estado_herreria != "Pendiente":
                         messages.error(request, "El registro ya no está pendiente.")
@@ -2411,7 +2412,7 @@ def herreria_control(request):
                 except Exception:
                     actor = ""
                 now = timezone.now()
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update().select_related("pedido", "producto"), pk=item_id)
                     if it.estado_herreria != "Espera de material":
                         messages.error(request, "El registro ya no está en Espera de Material.")
@@ -2460,7 +2461,7 @@ def herreria_control(request):
                 return redirect("catalogos:herreria_control")
             item_id = int(request.POST.get("pedido_item_id") or 0)
             if item_id:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update(), pk=item_id)
                     if it.estado_herreria not in {"Pendiente", "Espera de material"} or it.orden_herreria_id:
                         messages.error(request, "No se puede eliminar: ya está en producción.")
@@ -3329,7 +3330,7 @@ def herreria_update_avance_json(request, pk: int):
     except Exception:
         term = -1
 
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         orden = get_object_or_404(HerrOrdenProduccion.objects.select_for_update(), pk=pk)
         if orden.estado != "Abierta":
             return JsonResponse({"ok": False, "error": "La orden está cerrada/cancelada."}, status=409)
@@ -3376,7 +3377,7 @@ def herreria_update_avance_json(request, pk: int):
         if delta_term != 0:
             if pedido_item_id > 0:
                 pedido_item = (
-                    PedidoProduccionItem.objects.using("mes")
+                    PedidoProduccionItem.objects.using(BASE)
                     .select_for_update()
                     .filter(id=int(pedido_item_id), orden_herreria_id=int(orden.id))
                     .order_by("-id")
@@ -3384,7 +3385,7 @@ def herreria_update_avance_json(request, pk: int):
                 )
             if not pedido_item:
                 pedido_item = (
-                    PedidoProduccionItem.objects.using("mes")
+                    PedidoProduccionItem.objects.using(BASE)
                     .select_for_update()
                     .filter(orden_herreria_id=int(orden.id))
                     .order_by("-id")
@@ -3392,7 +3393,7 @@ def herreria_update_avance_json(request, pk: int):
                 )
             is_venta = bool(pedido_item)
             if delta_term > 0 and is_venta and not recibido_por:
-                transaction.set_rollback(True, using="mes")
+                transaction.set_rollback(True, using=BASE)
                 return JsonResponse({"ok": False, "error": "Recibe (Logística) requerido para generar acuse."}, status=400)
         orden.cantidad_producida = sold
         orden.cantidad_pintada = pint
@@ -3429,7 +3430,7 @@ def herreria_update_avance_json(request, pk: int):
                     actor=actor,
                 )
                 if delta_term > 0 and pedido_item:
-                    acuse = LogisticaAcuseEntrega.objects.using("mes").create(
+                    acuse = LogisticaAcuseEntrega.objects.using(BASE).create(
                         pedido_item=pedido_item,
                         cantidad=int(delta_term),
                         fecha=timezone.localdate(),
@@ -3527,8 +3528,8 @@ def herreria_revertir_cierre(request, pk: int):
     except Exception:
         actor = ""
     now = timezone.now()
-    with transaction.atomic(using="mes"):
-        orden = get_object_or_404(HerrOrdenProduccion.objects.using("mes").select_for_update(), pk=pk)
+    with transaction.atomic(using=BASE):
+        orden = get_object_or_404(HerrOrdenProduccion.objects.using(BASE).select_for_update(), pk=pk)
         if orden.estado != "Abierta":
             messages.error(request, "La orden está cerrada/cancelada.")
             return redirect(next_url) if next_url else redirect("catalogos:herreria_control")
@@ -4051,7 +4052,7 @@ def herreria_change_status_json(request, pk: int):
     except Exception:
         actor = ""
     now = timezone.now()
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         orden = get_object_or_404(HerrOrdenProduccion.objects.select_for_update(), pk=pk)
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = estado_nuevo
@@ -4135,7 +4136,7 @@ def herreria_enviar(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Enviado"
         orden.ultimo_cambio = now
@@ -4175,7 +4176,7 @@ def herreria_regresar_produccion(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Terminado"
         orden.ultimo_cambio = now
@@ -4231,7 +4232,7 @@ def herreria_delete_decote(request, pk: int):
         exp = LogisticaExpediente.objects.filter(pedido_id=int(pedido_id)).first()
         if not exp or not getattr(exp, "generado_en", None) or int(getattr(exp, "descargas_count", 0) or 0) <= 0:
             return redirect("catalogos:herreria_control")
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             HerrProduccion.objects.filter(orden_item__orden=orden).delete()
             HerrAsignacion.objects.filter(orden=orden).delete()
             orden.delete()
@@ -4242,7 +4243,7 @@ def herreria_delete_decote(request, pk: int):
         ult_fecha = timezone.localdate(ult) if ult else today
         if not ult_fecha or ult_fecha > cutoff:
             return redirect("catalogos:herreria_control")
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             HerrProduccion.objects.filter(orden_item__orden=orden).delete()
             HerrAsignacion.objects.filter(orden=orden).delete()
             orden.delete()
@@ -4328,7 +4329,7 @@ def herreria_delete_decote_all(request):
         )
         all_ids = list({int(x) for x in (decote_ids + obra_ids) if x})
         if all_ids:
-            with transaction.atomic(using="mes"):
+            with transaction.atomic(using=BASE):
                 HerrProduccion.objects.filter(orden_item__orden_id__in=all_ids).delete()
                 HerrAsignacion.objects.filter(orden_id__in=all_ids).delete()
                 HerrOrdenProduccion.objects.filter(id__in=all_ids).delete()
@@ -4351,9 +4352,9 @@ def herreria_acuse_create(request):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         it = (
-            PedidoProduccionItem.objects.using("mes")
+            PedidoProduccionItem.objects.using(BASE)
             .select_for_update()
             .select_related("pedido", "producto")
             .filter(id=item_id)
@@ -4366,20 +4367,20 @@ def herreria_acuse_create(request):
         if not getattr(it, "orden_herreria_id", None):
             return redirect("catalogos:herreria_control")
         orden = (
-            HerrOrdenProduccion.objects.using("mes")
+            HerrOrdenProduccion.objects.using(BASE)
             .select_for_update()
             .filter(id=int(getattr(it, "orden_herreria_id") or 0))
             .first()
         )
         terminadas = int(getattr(orden, "cantidad_terminada", 0) or 0) if orden else 0
         entregado = int(
-            LogisticaAcuseEntrega.objects.using("mes").filter(pedido_item_id=int(it.id)).aggregate(total=Sum("cantidad")).get("total")
+            LogisticaAcuseEntrega.objects.using(BASE).filter(pedido_item_id=int(it.id)).aggregate(total=Sum("cantidad")).get("total")
             or 0
         )
         disponible = max(0, terminadas - entregado)
         if cantidad > disponible:
             return redirect("catalogos:herreria_control")
-        acuse = LogisticaAcuseEntrega.objects.using("mes").create(
+        acuse = LogisticaAcuseEntrega.objects.using(BASE).create(
             pedido_item=it,
             cantidad=int(cantidad),
             fecha=timezone.localdate(),
@@ -4395,7 +4396,7 @@ def herreria_acuse_print(request, pk: int):
     if not _can_herreria(request.user):
         return redirect("/")
     acuse = (
-        LogisticaAcuseEntrega.objects.using("mes")
+        LogisticaAcuseEntrega.objects.using(BASE)
         .select_related("pedido_item", "pedido_item__pedido", "pedido_item__producto", "pedido_item__orden_herreria")
         .filter(id=int(pk))
         .first()
@@ -4409,7 +4410,7 @@ def herreria_acuse_print(request, pk: int):
     total_linea = int(getattr(it, "cantidad_total", 0) or 0) if it else 0
     terminadas = int(getattr(orden, "cantidad_terminada", 0) or 0) if orden else 0
     entregado_total = int(
-        LogisticaAcuseEntrega.objects.using("mes")
+        LogisticaAcuseEntrega.objects.using(BASE)
         .filter(pedido_item_id=int(getattr(it, "id", 0) or 0))
         .aggregate(total=Sum("cantidad"))
         .get("total")
@@ -5623,15 +5624,15 @@ def corte_laser_delete(request, pk: int):
     orden = get_object_or_404(LaserOrdenProduccion, pk=pk)
     next_url = _safe_next_url(request.GET.get("next") or request.POST.get("next") or "")
     if request.method == "POST":
-        with transaction.atomic(using="mes"):
-            orden_locked = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_for_update(), pk=pk)
-            if LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(orden_locked.id)).exists():
+        with transaction.atomic(using=BASE):
+            orden_locked = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_for_update(), pk=pk)
+            if LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(orden_locked.id)).exists():
                 messages.error(request, "No se puede eliminar: el pedido ya tiene envíos en Logística (historial).")
                 return redirect(next_url) if next_url else redirect("catalogos:corte_laser_control")
             try:
-                LaserProduccion.objects.using("mes").filter(orden_item__orden_id=int(orden_locked.id)).delete()
-                LaserAsignacion.objects.using("mes").filter(orden_id=int(orden_locked.id)).delete()
-                orden_locked.delete(using="mes")
+                LaserProduccion.objects.using(BASE).filter(orden_item__orden_id=int(orden_locked.id)).delete()
+                LaserAsignacion.objects.using(BASE).filter(orden_id=int(orden_locked.id)).delete()
+                orden_locked.delete(using=BASE)
             except ProtectedError:
                 messages.error(request, "No se puede eliminar: el pedido tiene registros protegidos (envíos/historial).")
                 return redirect(next_url) if next_url else redirect("catalogos:corte_laser_control")
@@ -5692,7 +5693,7 @@ def corte_laser_update_avance_json(request, pk: int):
         term = int(raw_term or 0)
     except Exception:
         term = -1
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         orden = get_object_or_404(LaserOrdenProduccion.objects.select_for_update(), pk=pk)
         if orden.estado != "Abierta":
             return JsonResponse({"ok": False, "error": "La orden está cerrada/cancelada."}, status=409)
@@ -5841,8 +5842,8 @@ def corte_laser_revertir_cierre(request, pk: int):
     except Exception:
         actor = ""
     now = timezone.now()
-    with transaction.atomic(using="mes"):
-        orden = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_for_update(), pk=pk)
+    with transaction.atomic(using=BASE):
+        orden = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_for_update(), pk=pk)
         if orden.estado != "Abierta":
             messages.error(request, "La orden está cerrada/cancelada.")
             return redirect(next_url) if next_url else redirect("catalogos:corte_laser_control")
@@ -6476,7 +6477,7 @@ def corte_laser_enviar(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Enviado"
         orden.ultimo_cambio = now
@@ -6509,7 +6510,7 @@ def corte_laser_regresar_produccion(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         prev = (orden.estado_etapa or "").strip()
         orden.estado_etapa = "Terminado"
         orden.ultimo_cambio = now
@@ -6554,7 +6555,7 @@ def corte_laser_delete_decote(request, pk: int):
     exp = LogisticaExpediente.objects.filter(orden_corta_id=int(orden.id)).first()
     if not exp or not getattr(exp, "generado_en", None) or int(getattr(exp, "descargas_count", 0) or 0) <= 0:
         return redirect("catalogos:corte_laser_control")
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         LaserProduccion.objects.filter(orden_item__orden=orden).delete()
         LaserAsignacion.objects.filter(orden=orden).delete()
         orden.delete()
@@ -6612,7 +6613,7 @@ def corte_laser_delete_decote_all(request):
                 continue
             decote_ids.append(int(oid))
         if decote_ids:
-            with transaction.atomic(using="mes"):
+            with transaction.atomic(using=BASE):
                 LaserProduccion.objects.filter(orden_item__orden_id__in=decote_ids).delete()
                 LaserAsignacion.objects.filter(orden_id__in=decote_ids).delete()
                 LaserOrdenProduccion.objects.filter(id__in=decote_ids).delete()
@@ -7068,11 +7069,11 @@ def paros(request):
             # El bloqueo evita que dos operadores registren a la vez dos paros
             # abiertos sobre la misma máquina, que es lo que la comprobación
             # exists() por sí sola no impide.
-            with transaction.atomic(using="mes"):
+            with transaction.atomic(using=BASE):
                 maquina = get_object_or_404(
-                    Maquina.objects.using("mes").select_for_update(), pk=maquina_id
+                    Maquina.objects.using(BASE).select_for_update(), pk=maquina_id
                 )
-                if MaquinaParo.objects.using("mes").filter(maquina=maquina, fin__isnull=True).exists():
+                if MaquinaParo.objects.using(BASE).filter(maquina=maquina, fin__isnull=True).exists():
                     messages.error(request, "Esa máquina ya está en paro.")
                 else:
                     MaquinaParo.objects.create(
@@ -7370,9 +7371,9 @@ def pedidos_ordenes(request):
                 if not items:
                     pedido_form.add_error(None, "Agrega al menos un producto.")
                 else:
-                    with transaction.atomic(using="mes"):
+                    with transaction.atomic(using=BASE):
                         folio = _next_pedido_folio()
-                        pedido = PedidoProduccion.objects.using("mes").create(
+                        pedido = PedidoProduccion.objects.using(BASE).create(
                             folio=folio,
                             cliente=(pedido_form.cleaned_data.get("cliente") or "").strip(),
                             telefono=(pedido_form.cleaned_data.get("telefono") or "").strip(),
@@ -7381,7 +7382,7 @@ def pedidos_ordenes(request):
                             estado="Activa",
                         )
                         for prod, qty in items:
-                            PedidoProduccionItem.objects.using("mes").create(
+                            PedidoProduccionItem.objects.using(BASE).create(
                                 pedido=pedido,
                                 producto=prod,
                                 cantidad_total=max(1, int(qty)),
@@ -7480,7 +7481,7 @@ def pedidos_orden_editar(request, pk: int):
             new_fecha = form.cleaned_data.get("fecha_compromiso")
             new_comentarios = (form.cleaned_data.get("comentarios") or "").strip()
 
-            with transaction.atomic(using="mes"):
+            with transaction.atomic(using=BASE):
                 pedido = get_object_or_404(PedidoProduccion.objects.select_for_update(), pk=int(pk))
                 locked_items = list(
                     PedidoProduccionItem.objects.select_for_update()
@@ -7547,7 +7548,7 @@ def pedidos_orden_editar(request, pk: int):
                         )
 
                 if errors:
-                    transaction.set_rollback(True, using="mes")
+                    transaction.set_rollback(True, using=BASE)
                 else:
                     old_fecha = pedido.fecha_compromiso
                     pedido.cliente = new_cliente
@@ -7583,7 +7584,7 @@ def pedidos_orden_cancelar(request, pk: int):
         actor = request.user.get_username() or ""
     except Exception:
         actor = ""
-    with transaction.atomic(using="mes"):
+    with transaction.atomic(using=BASE):
         pedido = get_object_or_404(PedidoProduccion.objects.select_for_update(), pk=int(pk))
         prev_estado = (pedido.estado or "").strip()
         if prev_estado not in {"Activa", "Cancelada"}:
@@ -7612,7 +7613,7 @@ def pedidos_orden_eliminar(request, pk: int):
     if not _can_pedidos(request.user):
         return redirect("/")
     try:
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             pedido = get_object_or_404(PedidoProduccion.objects.select_for_update(), pk=int(pk))
             if (pedido.estado or "") != "Cancelada":
                 messages.error(request, "Solo se puede eliminar una orden cancelada.")
@@ -7662,7 +7663,7 @@ def pedidos_logistica(request):
             item_id = int(request.POST.get("item_id") or 0)
             qty = int(request.POST.get("cantidad") or 0)
             if item_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update(), pk=item_id)
                     if it.saldo <= 0:
                         messages.error(request, "El pedido ya no tiene saldo.")
@@ -7682,7 +7683,7 @@ def pedidos_logistica(request):
             item_id = int(request.POST.get("item_id") or 0)
             qty = int(request.POST.get("cantidad") or 0)
             if item_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update().select_related("pedido", "producto"), pk=item_id)
                     if int(it.apartado or 0) <= 0:
                         messages.error(request, "No hay apartado para enviar.")
@@ -7721,7 +7722,7 @@ def pedidos_logistica(request):
             qty = int(request.POST.get("cantidad") or 0)
             destino = (request.POST.get("destino") or "stock").strip()
             if envio_item_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     ei = get_object_or_404(LogisticaEnvioItem.objects.select_for_update(), pk=envio_item_id)
                     it = get_object_or_404(PedidoProduccionItem.objects.select_for_update(), pk=int(ei.pedido_item_id))
                     disponible = int(ei.cantidad or 0) - int(ei.revertido or 0)
@@ -7747,14 +7748,14 @@ def pedidos_logistica(request):
             pedido_id = int(request.POST.get("pedido_id") or 0)
             if pedido_id:
                 today = timezone.localdate()
-                with transaction.atomic(using="mes"):
-                    pedido = get_object_or_404(PedidoProduccion.objects.using("mes").select_for_update(), pk=pedido_id)
-                    items = list(PedidoProduccionItem.objects.using("mes").select_for_update().filter(pedido_id=int(pedido.id)).order_by("id"))
+                with transaction.atomic(using=BASE):
+                    pedido = get_object_or_404(PedidoProduccion.objects.using(BASE).select_for_update(), pk=pedido_id)
+                    items = list(PedidoProduccionItem.objects.using(BASE).select_for_update().filter(pedido_id=int(pedido.id)).order_by("id"))
                     if not _pedido_is_completo(items):
                         messages.error(request, "No se puede eliminar: el pedido no está completamente enviado.")
                         return redirect("catalogos:pedidos_logistica")
                     last_fecha = (
-                        LogisticaEnvio.objects.using("mes")
+                        LogisticaEnvio.objects.using(BASE)
                         .filter(pedido_id=int(pedido.id))
                         .aggregate(mx=Max("fecha"))
                         .get("mx")
@@ -7763,7 +7764,7 @@ def pedidos_logistica(request):
                     if not last_fecha or age_days < 5:
                         messages.error(request, "No se puede eliminar: aún no cumple 5 días en Decote.")
                         return redirect("catalogos:pedidos_logistica")
-                    exp = LogisticaExpediente.objects.using("mes").select_for_update().filter(pedido_id=int(pedido.id)).first()
+                    exp = LogisticaExpediente.objects.using(BASE).select_for_update().filter(pedido_id=int(pedido.id)).first()
                     if not exp or not getattr(exp, "generado_en", None):
                         messages.error(request, "No se puede eliminar: el expediente no ha sido generado.")
                         return redirect("catalogos:pedidos_logistica")
@@ -7787,7 +7788,7 @@ def pedidos_logistica(request):
                     # en lugar de arrastrarlo. Queda por decidir con el taller si el
                     # Decote debe poder archivarlos.
                     n_acuses = (
-                        LogisticaAcuseEntrega.objects.using("mes")
+                        LogisticaAcuseEntrega.objects.using(BASE)
                         .filter(pedido_item__pedido_id=int(pedido.id))
                         .count()
                     )
@@ -7800,21 +7801,21 @@ def pedidos_logistica(request):
                         )
                         return redirect("catalogos:pedidos_logistica")
 
-                    envios_to_delete = list(LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)))
+                    envios_to_delete = list(LogisticaEnvio.objects.using(BASE).filter(pedido_id=int(pedido.id)))
                     for e in envios_to_delete:
                         try:
                             if getattr(e, "comprobante_pdf", None):
                                 e.comprobante_pdf.delete(save=False)
                         except Exception:
                             logger.exception("Error ignorado en pedidos_logistica()")
-                    LogisticaEnvioItem.objects.using("mes").filter(envio__pedido_id=int(pedido.id)).delete()
-                    LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                    LogisticaMovimiento.objects.using("mes").filter(pedido_item__pedido_id=int(pedido.id)).delete()
-                    LogisticaExpedienteDescarga.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                    LogisticaExpediente.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
+                    LogisticaEnvioItem.objects.using(BASE).filter(envio__pedido_id=int(pedido.id)).delete()
+                    LogisticaEnvio.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                    LogisticaMovimiento.objects.using(BASE).filter(pedido_item__pedido_id=int(pedido.id)).delete()
+                    LogisticaExpedienteDescarga.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                    LogisticaExpediente.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
                     try:
-                        PedidoProduccionItem.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                        pedido.delete(using="mes")
+                        PedidoProduccionItem.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                        pedido.delete(using=BASE)
                     except ProtectedError as e:
                         protegidos = list(getattr(e, "protected_objects", []) or [])
                         detalle = ", ".join(str(o) for o in protegidos[:3])
@@ -7832,8 +7833,8 @@ def pedidos_logistica(request):
             item_id = int(request.POST.get("item_id") or 0)
             cantidad = int(request.POST.get("cantidad") or 0)
             if item_id and cantidad > 0:
-                with transaction.atomic(using="mes"):
-                    item = get_object_or_404(PedidoProduccionItem.objects.using("mes").select_for_update(), pk=item_id)
+                with transaction.atomic(using=BASE):
+                    item = get_object_or_404(PedidoProduccionItem.objects.using(BASE).select_for_update(), pk=item_id)
                     if int(getattr(item, "apartado", 0) or 0) < cantidad:
                         messages.error(request, "Cantidad a liberar excede lo apartada.")
                         return redirect("catalogos:pedidos_logistica")
@@ -7847,10 +7848,10 @@ def pedidos_logistica(request):
             pedido_id = int(request.POST.get("pedido_id") or 0)
             if pedido_id:
                 today = timezone.localdate()
-                with transaction.atomic(using="mes"):
-                    pedido = get_object_or_404(PedidoProduccion.objects.using("mes").select_for_update(), pk=pedido_id)
+                with transaction.atomic(using=BASE):
+                    pedido = get_object_or_404(PedidoProduccion.objects.using(BASE).select_for_update(), pk=pedido_id)
                     items = list(
-                        PedidoProduccionItem.objects.using("mes")
+                        PedidoProduccionItem.objects.using(BASE)
                         .select_for_update()
                         .filter(pedido_id=int(pedido.id))
                         .exclude(estado_herreria="Cancelado")
@@ -7862,7 +7863,7 @@ def pedidos_logistica(request):
                             all_done = False
                             break
                     last_fecha = (
-                        LogisticaEnvio.objects.using("mes")
+                        LogisticaEnvio.objects.using(BASE)
                         .filter(pedido_id=int(pedido.id))
                         .aggregate(mx=Max("fecha"))
                         .get("mx")
@@ -7873,19 +7874,19 @@ def pedidos_logistica(request):
                     elif not last_fecha or age_days <= 5:
                         messages.error(request, "No se puede eliminar: aún no cumple más de 5 días en Enviados.")
                     else:
-                        exp = LogisticaExpediente.objects.using("mes").select_for_update().filter(pedido_id=int(pedido.id)).first()
+                        exp = LogisticaExpediente.objects.using(BASE).select_for_update().filter(pedido_id=int(pedido.id)).first()
                         if not exp or not getattr(exp, "generado_en", None):
                             messages.error(request, "No se puede eliminar: el expediente no ha sido generado.")
                         elif int(getattr(exp, "descargas_count", 0) or 0) <= 0:
                             messages.error(request, "No se puede eliminar: el expediente no ha sido descargado.")
                         else:
-                            LogisticaEnvioItem.objects.using("mes").filter(envio__pedido_id=int(pedido.id)).delete()
-                            LogisticaEnvio.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                            LogisticaMovimiento.objects.using("mes").filter(pedido_item__pedido_id=int(pedido.id)).delete()
-                            LogisticaExpedienteDescarga.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                            LogisticaExpediente.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                            PedidoProduccionItem.objects.using("mes").filter(pedido_id=int(pedido.id)).delete()
-                            pedido.delete(using="mes")
+                            LogisticaEnvioItem.objects.using(BASE).filter(envio__pedido_id=int(pedido.id)).delete()
+                            LogisticaEnvio.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                            LogisticaMovimiento.objects.using(BASE).filter(pedido_item__pedido_id=int(pedido.id)).delete()
+                            LogisticaExpedienteDescarga.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                            LogisticaExpediente.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                            PedidoProduccionItem.objects.using(BASE).filter(pedido_id=int(pedido.id)).delete()
+                            pedido.delete(using=BASE)
                             messages.success(request, "Pedido eliminado de Enviados.")
                 return redirect("catalogos:pedidos_logistica")
 
@@ -7989,8 +7990,8 @@ def pedidos_expediente_zip(request, pk: int):
 
     zip_bytes = _build_pedido_expediente_zip_bytes(int(pk))
     now = timezone.now()
-    with transaction.atomic(using="mes"):
-        pedido = get_object_or_404(PedidoProduccion.objects.using("mes").select_for_update(), pk=int(pk))
+    with transaction.atomic(using=BASE):
+        pedido = get_object_or_404(PedidoProduccion.objects.using(BASE).select_for_update(), pk=int(pk))
         exp = _ensure_logistica_expediente(pedido, actor=actor, now=now)
         first = not bool(int(getattr(exp, "descargas_count", 0) or 0) > 0)
         exp.descargas_count = int(getattr(exp, "descargas_count", 0) or 0) + 1
@@ -8034,8 +8035,8 @@ def corta_expediente_zip(request, pk: int):
         actor = ""
 
     now = timezone.now()
-    with transaction.atomic(using="mes"):
-        orden = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_for_update(), pk=int(pk))
+    with transaction.atomic(using=BASE):
+        orden = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_for_update(), pk=int(pk))
         if not _corta_is_completo(orden):
             return redirect("catalogos:logistica_corta")
         exp = _ensure_logistica_expediente_corta(orden, actor=actor, now=now)
@@ -8089,7 +8090,7 @@ def logistica_corta(request):
             orden_id = int(request.POST.get("orden_id") or 0)
             qty = int(request.POST.get("cantidad") or 0)
             if orden_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     o = get_object_or_404(LaserOrdenProduccion.objects.select_for_update(), pk=orden_id)
                     if (o.estado or "").strip() != "Abierta":
                         messages.error(request, "La orden está cerrada/cancelada.")
@@ -8118,7 +8119,7 @@ def logistica_corta(request):
             orden_id = int(request.POST.get("orden_id") or 0)
             qty = int(request.POST.get("cantidad") or 0)
             if orden_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     o = get_object_or_404(LaserOrdenProduccion.objects.select_for_update(), pk=orden_id)
                     if int(getattr(o, "apartado", 0) or 0) < qty:
                         messages.error(request, "Cantidad a liberar excede lo apartada.")
@@ -8135,13 +8136,13 @@ def logistica_corta(request):
             orden_id = int(request.POST.get("orden_id") or 0)
             if orden_id:
                 today = timezone.localdate()
-                with transaction.atomic(using="mes"):
-                    o = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_for_update(), pk=orden_id)
+                with transaction.atomic(using=BASE):
+                    o = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_for_update(), pk=orden_id)
                     if not _corta_is_completo(o):
                         messages.error(request, "No se puede eliminar: el pedido no está completamente enviado.")
                         return redirect("catalogos:logistica_corta")
                     last_fecha = (
-                        LogisticaEnvioCorta.objects.using("mes")
+                        LogisticaEnvioCorta.objects.using(BASE)
                         .filter(orden_id=int(o.id))
                         .aggregate(mx=Max("fecha"))
                         .get("mx")
@@ -8150,27 +8151,27 @@ def logistica_corta(request):
                     if not last_fecha or age_days < 5:
                         messages.error(request, "No se puede eliminar: aún no cumple 5 días en Decote.")
                         return redirect("catalogos:logistica_corta")
-                    exp = LogisticaExpediente.objects.using("mes").select_for_update().filter(orden_corta_id=int(o.id)).first()
+                    exp = LogisticaExpediente.objects.using(BASE).select_for_update().filter(orden_corta_id=int(o.id)).first()
                     if not exp or not getattr(exp, "generado_en", None):
                         messages.error(request, "No se puede eliminar: el expediente no ha sido generado.")
                         return redirect("catalogos:logistica_corta")
                     if int(getattr(exp, "descargas_count", 0) or 0) <= 0:
                         messages.error(request, "No se puede eliminar: el expediente no ha sido descargado.")
                         return redirect("catalogos:logistica_corta")
-                    envios_to_delete = list(LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)))
+                    envios_to_delete = list(LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(o.id)))
                     for e in envios_to_delete:
                         try:
                             if getattr(e, "comprobante_pdf", None):
                                 e.comprobante_pdf.delete(save=False)
                         except Exception:
                             logger.exception("Error ignorado en logistica_corta()")
-                    LogisticaMovimientoCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                    LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                    LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()
-                    LogisticaExpediente.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()
-                    LaserProduccion.objects.using("mes").filter(orden_item__orden_id=int(o.id)).delete()
-                    LaserAsignacion.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                    o.delete(using="mes")
+                    LogisticaMovimientoCorta.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                    LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                    LogisticaExpedienteDescarga.objects.using(BASE).filter(orden_corta_id=int(o.id)).delete()
+                    LogisticaExpediente.objects.using(BASE).filter(orden_corta_id=int(o.id)).delete()
+                    LaserProduccion.objects.using(BASE).filter(orden_item__orden_id=int(o.id)).delete()
+                    LaserAsignacion.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                    o.delete(using=BASE)
                     messages.success(request, "Pedido eliminado de Decote.")
             return redirect("catalogos:logistica_corta")
 
@@ -8178,10 +8179,10 @@ def logistica_corta(request):
             orden_id = int(request.POST.get("orden_id") or 0)
             if orden_id:
                 today = timezone.localdate()
-                with transaction.atomic(using="mes"):
-                    o = get_object_or_404(LaserOrdenProduccion.objects.using("mes").select_for_update(), pk=orden_id)
+                with transaction.atomic(using=BASE):
+                    o = get_object_or_404(LaserOrdenProduccion.objects.using(BASE).select_for_update(), pk=orden_id)
                     last_fecha = (
-                        LogisticaEnvioCorta.objects.using("mes")
+                        LogisticaEnvioCorta.objects.using(BASE)
                         .filter(orden_id=int(o.id))
                         .aggregate(mx=Max("fecha"))
                         .get("mx")
@@ -8192,26 +8193,26 @@ def logistica_corta(request):
                     elif not last_fecha or age_days <= 5:
                         messages.error(request, "No se puede eliminar: aún no cumple más de 5 días en Enviados.")
                     else:
-                        exp = LogisticaExpediente.objects.using("mes").select_for_update().filter(orden_corta_id=int(o.id)).first()
+                        exp = LogisticaExpediente.objects.using(BASE).select_for_update().filter(orden_corta_id=int(o.id)).first()
                         if not exp or not getattr(exp, "generado_en", None):
                             messages.error(request, "No se puede eliminar: el expediente no ha sido generado.")
                         elif int(getattr(exp, "descargas_count", 0) or 0) <= 0:
                             messages.error(request, "No se puede eliminar: el expediente no ha sido descargado.")
                         else:
-                            envios_to_delete = list(LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)))
+                            envios_to_delete = list(LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(o.id)))
                             for e in envios_to_delete:
                                 try:
                                     if getattr(e, "comprobante_pdf", None):
                                         e.comprobante_pdf.delete(save=False)
                                 except Exception:
                                     logger.exception("Error ignorado en logistica_corta()")
-                            LogisticaMovimientoCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                            LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                            LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()
-                            LogisticaExpediente.objects.using("mes").filter(orden_corta_id=int(o.id)).delete()
-                            LaserProduccion.objects.using("mes").filter(orden_item__orden_id=int(o.id)).delete()
-                            LaserAsignacion.objects.using("mes").filter(orden_id=int(o.id)).delete()
-                            o.delete(using="mes")
+                            LogisticaMovimientoCorta.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                            LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                            LogisticaExpedienteDescarga.objects.using(BASE).filter(orden_corta_id=int(o.id)).delete()
+                            LogisticaExpediente.objects.using(BASE).filter(orden_corta_id=int(o.id)).delete()
+                            LaserProduccion.objects.using(BASE).filter(orden_item__orden_id=int(o.id)).delete()
+                            LaserAsignacion.objects.using(BASE).filter(orden_id=int(o.id)).delete()
+                            o.delete(using=BASE)
                             messages.success(request, "Pedido eliminado de Enviados.")
             return redirect("catalogos:logistica_corta")
 
@@ -8219,7 +8220,7 @@ def logistica_corta(request):
             orden_id = int(request.POST.get("orden_id") or 0)
             qty = int(request.POST.get("cantidad") or 0)
             if orden_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     o = get_object_or_404(LaserOrdenProduccion.objects.select_for_update(), pk=orden_id)
                     if (o.estado or "").strip() != "Abierta":
                         messages.error(request, "La orden está cerrada/cancelada.")
@@ -8266,7 +8267,7 @@ def logistica_corta(request):
             qty = int(request.POST.get("cantidad") or 0)
             destino = (request.POST.get("destino") or "stock").strip()
             if envio_id and qty > 0:
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     e = get_object_or_404(LogisticaEnvioCorta.objects.select_for_update(), pk=envio_id)
                     o = get_object_or_404(LaserOrdenProduccion.objects.select_for_update(), pk=int(e.orden_id))
                     disponible = int(e.cantidad or 0) - int(e.revertido or 0)

@@ -25,6 +25,7 @@ from nucleo.models import (
     LineaNegocio,
     PiezaCatalogo,
 )
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -41,13 +42,13 @@ def linea():
     call_command("sembrar_nucleo", verbosity=0, stdout=StringIO())
     call_command("sembrar_inventario", verbosity=0, stdout=StringIO())
     call_command("sembrar_costeo", verbosity=0, stdout=StringIO())
-    return LineaNegocio.objects.using("mes").get(codigo="herreria")
+    return LineaNegocio.objects.using(BASE).get(codigo="herreria")
 
 
 @pytest.fixture
 def tarifa(linea):
-    centro = CentroCosto.objects.using("mes").get(codigo="herreria")
-    return Tarifa.objects.using("mes").create(
+    centro = CentroCosto.objects.using(BASE).get(codigo="herreria")
+    return Tarifa.objects.using(BASE).create(
         centro=centro,
         vigente_desde=momento(1, 0).date(),
         costo_hora_maquina=Decimal("200"),
@@ -64,7 +65,7 @@ def orden(linea):
 
 
 def etapa(linea, codigo):
-    return Etapa.objects.using("mes").get(linea=linea, codigo=codigo)
+    return Etapa.objects.using(BASE).get(linea=linea, codigo=codigo)
 
 
 def poner_en_etapa(orden, etapa_destino, cuando, anterior=None):
@@ -73,7 +74,7 @@ def poner_en_etapa(orden, etapa_destino, cuando, anterior=None):
     Los servicios usan la hora actual, y aquí hace falta controlar el reloj
     para poder comprobar el cálculo de jornada.
     """
-    return EventoProduccion.objects.using("mes").create(
+    return EventoProduccion.objects.using(BASE).create(
         orden=orden,
         tipo=EventoProduccion.Tipo.CAMBIO_ETAPA,
         etapa=etapa_destino,
@@ -87,18 +88,18 @@ def crear_colaborador(nombre, rol="Soldador"):
     """Un colaborador con su equipo: `Colaborador.equipo` es obligatorio."""
     from catalogos.models import Colaborador, EquipoTrabajo
 
-    equipo, _ = EquipoTrabajo.objects.using("mes").get_or_create(
+    equipo, _ = EquipoTrabajo.objects.using(BASE).get_or_create(
         nombre="Equipo de pruebas",
         defaults={"area": "Herrería", "integrantes": 4},
     )
-    return Colaborador.objects.using("mes").create(
+    return Colaborador.objects.using(BASE).create(
         nombre=nombre, rol=rol, equipo=equipo, activo=True
     )
 
 
 def asignar(orden, etapa_destino, nombre="Juan", maquina=None):
     colaborador = crear_colaborador(nombre)
-    return Asignacion.objects.using("mes").create(
+    return Asignacion.objects.using(BASE).create(
         orden=orden, etapa=etapa_destino, colaborador=colaborador,
         maquina=maquina, vigente=True, asignado_en=momento(2, 8),
     )
@@ -124,7 +125,7 @@ class TestHorasDeducidasDelHistorial:
         tardó dos horas, no dieciséis."""
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 16))
         poner_en_etapa(orden, soldadura, momento(3, 8), anterior=corte)
         asignar(orden, corte)
@@ -138,7 +139,7 @@ class TestHorasDeducidasDelHistorial:
     def test_el_fin_de_semana_tampoco(self, orden, linea, tarifa):
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         # Viernes 6 a las 16:00 → lunes 9 a las 8:00.
         poner_en_etapa(orden, corte, momento(6, 16))
         poner_en_etapa(orden, soldadura, momento(9, 8), anterior=corte)
@@ -155,12 +156,12 @@ class TestHorasDeducidasDelHistorial:
 
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        maquina = Maquina.objects.using("mes").create(nombre="Sierra 1", activo=True)
-        EventoProduccion.objects.using("mes").all().delete()
+        maquina = Maquina.objects.using(BASE).create(nombre="Sierra 1", activo=True)
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
         asignar(orden, corte, maquina=maquina)
-        EventoMaquina.objects.using("mes").create(
+        EventoMaquina.objects.using(BASE).create(
             maquina=maquina, clase=EventoMaquina.Clase.PARO,
             inicio=momento(2, 9), fin=momento(2, 10),
         )
@@ -177,12 +178,12 @@ class TestHorasDeducidasDelHistorial:
 
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        maquina = Maquina.objects.using("mes").create(nombre="Sierra 1", activo=True)
-        EventoProduccion.objects.using("mes").all().delete()
+        maquina = Maquina.objects.using(BASE).create(nombre="Sierra 1", activo=True)
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(3, 12), anterior=corte)
         asignar(orden, corte, maquina=maquina)
-        EventoMaquina.objects.using("mes").create(
+        EventoMaquina.objects.using(BASE).create(
             maquina=maquina, clase=EventoMaquina.Clase.PARO,
             inicio=momento(2, 16, 50), fin=momento(3, 8),
         )
@@ -198,7 +199,7 @@ class TestHorasDeducidasDelHistorial:
         """Un retroceso no debe crear dos filas de la misma etapa."""
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 10), anterior=corte)
         poner_en_etapa(orden, corte, momento(2, 11), anterior=soldadura)
@@ -224,7 +225,7 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
     def test_una_orden_parada_semanas_se_cobra_al_tope(self, orden, linea, tarifa):
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         # Tres semanas en corte: unas 135 horas laborables.
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(23, 8), anterior=corte)
@@ -245,7 +246,7 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
         """
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(23, 8), anterior=corte)
         asignar(orden, corte)
@@ -262,7 +263,7 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
     def test_por_debajo_del_tope_no_se_toca_nada(self, orden, linea, tarifa):
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
         asignar(orden, corte)
@@ -275,13 +276,13 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
 
     def test_el_tope_se_puede_ajustar_por_centro(self, orden, linea, tarifa):
         """Cada línea trabaja distinto: el tope es un ajuste, no una constante."""
-        centro = CentroCosto.objects.using("mes").get(codigo="herreria")
+        centro = CentroCosto.objects.using(BASE).get(codigo="herreria")
         centro.horas_max_por_visita = Decimal("27")  # tres jornadas
-        centro.save(using="mes")
+        centro.save(using=BASE)
 
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(23, 8), anterior=corte)
         asignar(orden, corte)
@@ -296,7 +297,7 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
         """No se cobra, pero es la medida real de cuánto tarda el taller."""
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(23, 8), anterior=corte)
         asignar(orden, corte)
@@ -309,12 +310,12 @@ class TestTiempoTranscurridoNoEsTiempoTrabajado:
 class TestTarifas:
     def test_manda_la_que_regia_el_dia_del_trabajo(self, orden, linea):
         """Subir los sueldos hoy no puede cambiar lo que costó una orden vieja."""
-        centro = CentroCosto.objects.using("mes").get(codigo="herreria")
-        Tarifa.objects.using("mes").create(
+        centro = CentroCosto.objects.using(BASE).get(codigo="herreria")
+        Tarifa.objects.using(BASE).create(
             centro=centro, vigente_desde=momento(1, 0).date(),
             costo_hora_mano_obra=Decimal("100"),
         )
-        Tarifa.objects.using("mes").create(
+        Tarifa.objects.using(BASE).create(
             centro=centro, vigente_desde=momento(20, 0).date(),
             costo_hora_mano_obra=Decimal("500"),
         )
@@ -327,7 +328,7 @@ class TestTarifas:
 
     def test_la_tarifa_de_la_persona_gana_a_la_del_centro(self, orden, linea, tarifa):
         colaborador = crear_colaborador("Especialista")
-        TarifaManoObra.objects.using("mes").create(
+        TarifaManoObra.objects.using(BASE).create(
             colaborador=colaborador, vigente_desde=momento(1, 0).date(),
             costo_hora=Decimal("250"),
         )
@@ -341,7 +342,7 @@ class TestTarifas:
 
     def test_sin_tarifa_de_persona_se_usa_la_del_rol(self, orden, linea, tarifa):
         colaborador = crear_colaborador("Ayudante", rol="Auxiliar")
-        TarifaManoObra.objects.using("mes").create(
+        TarifaManoObra.objects.using(BASE).create(
             colaborador=None, rol="soldador", vigente_desde=momento(1, 0).date(),
             costo_hora=Decimal("140"),
         )
@@ -363,7 +364,7 @@ class TestCoberturaYHonestidad:
     def test_una_etapa_sin_asignacion_no_inventa_un_operador(self, orden, linea, tarifa):
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
 
@@ -378,7 +379,7 @@ class TestCoberturaYHonestidad:
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
         pintura = etapa(linea, "pintura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 10), anterior=corte)
         poner_en_etapa(orden, pintura, momento(2, 12), anterior=soldadura)
@@ -406,8 +407,8 @@ class TestElDinero:
 
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        maquina = Maquina.objects.using("mes").create(nombre="Sierra 1", activo=True)
-        EventoProduccion.objects.using("mes").all().delete()
+        maquina = Maquina.objects.using(BASE).create(nombre="Sierra 1", activo=True)
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
         asignar(orden, corte, maquina=maquina)
@@ -444,10 +445,10 @@ class TestElDinero:
         from inventario.models import LoteMaterial, Material
 
         _, orden = calculada
-        material = Material.objects.using("mes").create(
+        material = Material.objects.using(BASE).create(
             codigo="M-1", nombre="Placa", nombre_normalizado="PLACA"
         )
-        lote = LoteMaterial.objects.using("mes").create(
+        lote = LoteMaterial.objects.using(BASE).create(
             material=material, codigo="L-1", costo_unitario=D("300"),
             recibido_en=momento(1, 0).date(),
         )
@@ -465,18 +466,18 @@ class TestVarianza:
 
     @pytest.fixture
     def con_estandar(self, orden, linea, tarifa):
-        pieza = PiezaCatalogo.objects.using("mes").create(
+        pieza = PiezaCatalogo.objects.using(BASE).create(
             linea=linea, nombre="Marco", nombre_normalizado="MARCO"
         )
         orden.pieza = pieza
-        orden.save(using="mes")
+        orden.save(using=BASE)
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        TiempoEstandar.objects.using("mes").create(
+        TiempoEstandar.objects.using(BASE).create(
             pieza=pieza, etapa=corte, horas_por_pieza=Decimal("0.2"),
             operadores=1, vigente_desde=momento(1, 0).date(),
         )
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
         asignar(orden, corte)
@@ -516,14 +517,14 @@ class TestMargen:
         """El número que justifica todo el proyecto: margen real por orden."""
         corte = etapa(linea, "corte")
         soldadura = etapa(linea, "soldadura")
-        EventoProduccion.objects.using("mes").all().delete()
+        EventoProduccion.objects.using(BASE).all().delete()
         poner_en_etapa(orden, corte, momento(2, 8))
         poner_en_etapa(orden, soldadura, momento(2, 12), anterior=corte)
         asignar(orden, corte)
 
         costo = servicio.calcular(orden)
         costo.precio_venta = Decimal("2000")
-        costo.save(using="mes")
+        costo.save(using=BASE)
 
         # Sin máquina asignada no hay costo de máquina ni indirectos: sólo las
         # cuatro horas de mano de obra a cien. Que salga así y no «lo de
@@ -544,7 +545,7 @@ class TestComando:
 
     def test_el_metodo_directo_desde_la_consola(self, orden, linea, tarifa):
         call_command("calcular_costos", "--orden", orden.folio, "--directo", stdout=StringIO())
-        costo = CostoOrden.objects.using("mes").get(orden=orden)
+        costo = CostoOrden.objects.using(BASE).get(orden=orden)
         assert costo.metodo == CostoOrden.Metodo.DIRECTO
 
     def test_se_puede_filtrar_por_linea(self, orden, linea, tarifa):
@@ -559,6 +560,6 @@ class TestComando:
             "sembrar_costeo", "--tarifa", "herreria:999:999:999",
             "--desde", str(tarifa.vigente_desde), stdout=salida,
         )
-        tarifa.refresh_from_db(using="mes")
+        tarifa.refresh_from_db(using=BASE)
         assert tarifa.costo_hora_maquina == Decimal("200.0000")
         assert "no se toca" in salida.getvalue()

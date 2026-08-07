@@ -19,8 +19,8 @@ de la orden, no el de una pieza. La orden 20 son 70 piezas y 1.876 kg.
 from datetime import date
 
 from core.estados import TERMINADO
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 def _peso_unitario(orden):

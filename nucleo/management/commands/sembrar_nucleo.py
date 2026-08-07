@@ -43,8 +43,8 @@ from core import estados as estados_core
 from core import folios
 from nucleo.models import Etapa, EtapaAlias, LineaNegocio, MotivoEvento, TransicionPermitida
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 def clave(valor):

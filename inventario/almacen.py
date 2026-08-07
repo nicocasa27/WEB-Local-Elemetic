@@ -28,8 +28,8 @@ from core import roles
 from core.excepciones import ErrorDeDominio
 from core.servicios import inventario as servicio
 from inventario.models import Existencia, Material, MovimientoMaterial
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 CERO = Decimal("0")
 
 solo_almacen = user_passes_test(roles.puede_entregar_material, login_url="login")

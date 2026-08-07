@@ -24,8 +24,8 @@ from django.core.management.base import BaseCommand, CommandError
 from core.servicios import costeo as servicio
 from costeo.models import CostoOrden
 from nucleo.models import OrdenProduccion
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 class Command(BaseCommand):

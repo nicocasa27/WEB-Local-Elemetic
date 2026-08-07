@@ -36,10 +36,10 @@ from catalogos.models import (
 )
 from core import estados
 from core.constantes import CIERRE_LOTE
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.cierres")
 
-BASE = "mes"
 
 #: Cada línea con su modelo de orden y su modelo de bitácora. Cuando el núcleo
 #: esté unificado, esta tabla desaparece porque habrá un solo modelo.

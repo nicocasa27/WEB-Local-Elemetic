@@ -58,8 +58,8 @@ from core.servicios import entrega as servicio_entrega
 from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio_ruta
 from core.servicios import trabajo as servicio_trabajo
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Las etapas que salen en la cola de un área.
 #:

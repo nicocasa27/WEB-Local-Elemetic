@@ -34,6 +34,7 @@ from django.db import transaction
 
 from catalogos.models import Colaborador
 from personal.models import Departamento, Puesto, normalizar
+from core.bases import BASE  # noqa: F401
 
 #: Los departamentos, en el orden en que pasa el trabajo por ellos.
 DEPARTAMENTOS = [
@@ -114,7 +115,7 @@ class Command(BaseCommand):
         creados = {"departamentos": 0, "puestos": 0}
         enlazados = {"puesto": 0, "departamento": 0}
 
-        with transaction.atomic(using="mes"):
+        with transaction.atomic(using=BASE):
             departamentos = {}
             for nombre, descripcion in DEPARTAMENTOS:
                 obj, nuevo = Departamento.objects.get_or_create(

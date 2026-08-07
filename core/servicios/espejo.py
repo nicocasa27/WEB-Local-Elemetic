@@ -26,10 +26,10 @@ import logging
 from django.db import transaction
 
 from core import banderas
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.nucleo.espejo")
 
-BASE = "mes"
 
 #: De qué modelo heredado sale cada línea de negocio.
 LINEA_DE = {

@@ -23,8 +23,8 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from catalogos.models import ApunteDeTrabajo, Colaborador, Cuadrilla, Maquina
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Ventana por defecto. Una semana es lo que dura la conversación de «cómo
 #: fuimos»; un mes obliga a esperar y a filtrar.

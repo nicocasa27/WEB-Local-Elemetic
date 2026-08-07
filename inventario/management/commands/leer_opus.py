@@ -14,8 +14,8 @@ from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
 
 from core import opus
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 class Command(BaseCommand):

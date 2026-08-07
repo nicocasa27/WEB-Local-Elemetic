@@ -29,11 +29,11 @@ from django.utils import timezone
 
 from catalogos.management.commands.crear_admin import USUARIO as USUARIO_ADMIN
 from core import estados as est
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
 Usuario = get_user_model()
-BASE = "mes"
 
 
 def sembrar():

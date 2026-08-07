@@ -15,6 +15,7 @@ from io import StringIO
 
 from core import estados
 from core.servicios import ruta
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -111,7 +112,7 @@ class TestGuardarYLeer:
 
         ruta.guardar(VIGAS, pieza.internal_id, ruta.CONFIGURABLES)
 
-        orden = OrdenProduccion.objects.using("mes").get(
+        orden = OrdenProduccion.objects.using(BASE).get(
             legacy_modelo=VIGAS, legacy_id=pieza.internal_id
         )
         assert orden.ruta == []

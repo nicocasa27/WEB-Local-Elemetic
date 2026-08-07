@@ -22,6 +22,7 @@ from django.db.models import Count, Max, Min
 
 from catalogos.models import HerrOrdenProduccion, LaserOrdenProduccion, RobotOrdenProduccion
 from produccion.models import ESTADOS, Viga
+from core.bases import BASE  # noqa: F401
 
 # (etiqueta, modelo, campo)
 FUENTES = [
@@ -61,7 +62,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.MIGRATE_HEADING(f"\n{etiqueta}  ({modelo.__name__}.{campo})"))
             try:
                 filas = (
-                    modelo.objects.using("mes")
+                    modelo.objects.using(BASE)
                     .values(campo)
                     .annotate(n=Count("pk"), primero=Min("creado_en" if hasattr(modelo, "creado_en") else "pk"),
                               ultimo=Max("creado_en" if hasattr(modelo, "creado_en") else "pk"))

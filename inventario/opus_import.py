@@ -34,8 +34,8 @@ from django.shortcuts import redirect, render
 
 from core import opus, roles
 from inventario.models import Material
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 CERO = Decimal("0")
 
 #: Cómo se traduce la unidad de OPUS a la del catálogo. Lo que no esté aquí

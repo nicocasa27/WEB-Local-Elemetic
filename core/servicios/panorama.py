@@ -41,8 +41,8 @@ from django.db.models.functions import Coalesce
 
 from core import estados
 from core.servicios import ruta as servicio_ruta
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Las etapas en las que una pieza está viva. Terminado y Enviado ya no son
 #: producción: son almacén y logística, y tienen sus propias pantallas.

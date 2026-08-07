@@ -32,6 +32,7 @@ from django.views.decorators.http import require_POST
 
 from core.servicios import especificaciones as servicio_especificaciones
 from core.servicios import ruta as servicio
+from core.bases import BASE  # noqa: F401
 
 #: Qué se puede configurar y cómo se encuentra cada cosa. La clave es la que
 #: viaja en la dirección; el resto es lo que hace falta para enseñarla.
@@ -91,7 +92,7 @@ def _buscar(linea, identificador):
     config = LINEAS[linea]
     modulo, clase = config["modelo"]
     modelo = getattr(import_module(modulo), clase)
-    return modelo.objects.using("mes").filter(pk=identificador).first()
+    return modelo.objects.using(BASE).filter(pk=identificador).first()
 
 
 @login_required

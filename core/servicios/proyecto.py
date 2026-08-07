@@ -41,8 +41,8 @@ from django.db.models.functions import Upper
 
 from core import estados
 from core.constantes import clave_de_codigo
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Lo que ya no está en producción. Enviado incluido: una pieza en la obra
 #: está hecha, y no contarla haría que un proyecto entregado se viera a

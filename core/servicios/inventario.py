@@ -53,10 +53,10 @@ from inventario.models import (
     MovimientoMaterial,
     RenglonOrdenCompra,
 )
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.inventario")
 
-BASE = "mes"
 CERO = Decimal("0")
 PRECISION = Decimal("0.000001")
 

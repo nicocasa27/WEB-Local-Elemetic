@@ -28,10 +28,10 @@ from core import roles
 from core.servicios import inventario as servicio
 from inventario import carga_inicial
 from inventario.models import Almacen, LoteMaterial, Material
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
-BASE = "mes"
 Usuario = get_user_model()
 
 

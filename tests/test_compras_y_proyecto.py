@@ -34,10 +34,10 @@ from inventario.models import (
     Proveedor,
     SeguimientoCompra,
 )
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
-BASE = "mes"
 Usuario = get_user_model()
 
 

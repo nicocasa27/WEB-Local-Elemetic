@@ -13,6 +13,7 @@ from django.utils import timezone
 from catalogos.models import HerrOrdenProduccion, LaserOrdenProduccion
 from core import estados
 from core.servicios import cierres
+from core.bases import BASE  # noqa: F401
 
 
 class Command(BaseCommand):
@@ -57,7 +58,7 @@ class Command(BaseCommand):
         for nombre in lineas:
             pendientes = (
                 modelos[nombre]
-                .objects.using("mes")
+                .objects.using(BASE)
                 .filter(
                     estado="Abierta",
                     estado_etapa=estados.CIERRE_PENDIENTE,

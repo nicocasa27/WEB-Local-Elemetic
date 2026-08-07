@@ -17,6 +17,7 @@ Devuelve código de salida 1 si encuentra alguno, para poder encadenarlo en CI.
 """
 import ast
 import sys
+from core.bases import BASE  # noqa: F401
 
 
 def revisar(ruta):
@@ -53,7 +54,7 @@ def main(rutas):
             print(f"{ruta}: correcto")
     if total:
         print(f"\nFALLO: {total} transacción(es) abiertas sobre la base equivocada.")
-        print('Usar transaction.atomic(using="mes") para los datos de negocio.')
+        print('Usar transaction.atomic(using=BASE) para los datos de negocio.')
         return 1
     return 0
 

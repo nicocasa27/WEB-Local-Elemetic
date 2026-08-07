@@ -17,8 +17,8 @@ por debajo de su mínimo, y cuánto dinero hay parado en el almacén.
 from django.core.management.base import BaseCommand
 
 from core.servicios import inventario as servicio
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 class Command(BaseCommand):

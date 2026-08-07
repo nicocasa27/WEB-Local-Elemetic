@@ -19,8 +19,8 @@ sistema se queda como estaba. En cuanto se corre, el reparto se separa.
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 GRUPO_PINTURA = "pintura"
 GRUPO_SOLDADURA = "soldadura"

@@ -29,8 +29,8 @@ quien las detecta y en contra de quien entregó.
 from django.utils import timezone
 
 from core.servicios.trabajo import CENTRO_DE_ETAPA, centro_de
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Dónde acaba la pieza cuando sale de la última área. No es un centro de
 #: trabajo: es el almacén, y no hay nadie que firme el recibo desde el celular.

@@ -133,7 +133,46 @@ def test_las_transacciones_indican_siempre_la_base(ruta_modulo):
 
     assert not culpables, (
         f"{ruta_modulo}: transaction.atomic() sin `using` en las líneas {culpables}. "
-        'Los datos de negocio viven en la base "mes".'
+        "Los datos de negocio viven en la base que dice `core.bases.BASE`."
+    )
+
+
+@pytest.mark.parametrize("ruta_modulo", MODULOS_VIGILADOS)
+def test_nadie_escribe_el_alias_de_la_base_a_mano(ruta_modulo):
+    """El alias sale de `core.bases.BASE`, nunca escrito como cadena.
+
+    No es estilo. Django abre **una conexión por alias**, así que el nombre
+    correcto depende de si hay una base o dos, y eso lo decide la
+    configuración:
+
+    - con dos bases, `"default"` es SQLite: abrir ahí la transacción mientras
+      se escribe en PostgreSQL es la «atomicidad falsa» que este proyecto ya
+      arregló una vez;
+    - con una sola, `"mes"` es un segundo alias del mismo PostgreSQL, o sea una
+      segunda transacción que no ve lo que escribe la primera.
+
+    Un literal acierta en un modo y falla en el otro **sin avisar**: no lanza
+    ningún error, sólo deja los datos a medias de vez en cuando. Por eso se
+    prohíbe escribirlo.
+    """
+    arbol, ruta = _arbol(ruta_modulo)
+    culpables = []
+    for nodo in ast.walk(arbol):
+        if not isinstance(nodo, ast.Call):
+            continue
+        for clave in nodo.keywords:
+            if clave.arg == "using" and isinstance(clave.value, ast.Constant):
+                culpables.append(f"línea {clave.value.lineno}: using={clave.value.value!r}")
+        f = nodo.func
+        if isinstance(f, ast.Attribute) and f.attr == "using":
+            for arg in nodo.args:
+                if isinstance(arg, ast.Constant):
+                    culpables.append(f"línea {arg.lineno}: .using({arg.value!r})")
+
+    assert not culpables, (
+        f"{ruta_modulo}: el alias de la base escrito a mano.\n  "
+        + "\n  ".join(culpables)
+        + "\nUsar `from core.bases import BASE` y `using=BASE`."
     )
 
 

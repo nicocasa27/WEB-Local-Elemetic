@@ -23,11 +23,11 @@ from django.urls import reverse
 from catalogos.management.commands.crear_admin import USUARIO as USUARIO_ADMIN
 from catalogos.models import Colaborador, EquipoTrabajo
 from core import roles
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
 Usuario = get_user_model()
-BASE = "mes"
 
 
 @pytest.fixture

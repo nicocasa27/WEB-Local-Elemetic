@@ -33,8 +33,8 @@ from catalogos.models import (
 )
 from core import estados as est
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Los estados que significan «ya salió». Lo que esté en uno de ellos no
 #: aparece en la bandeja.

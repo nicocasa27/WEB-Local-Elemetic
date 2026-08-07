@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import sys
+from core.bases import BASE  # noqa: F401
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE_DIR))
@@ -62,21 +63,21 @@ def _pick_pdf_bytes(base_dir: Path) -> bytes:
 
 
 def _cleanup_previous_simulations(tag_prefix: str):
-    qs = LaserOrdenProduccion.objects.using("mes").filter(folio_externo_normalizado__startswith=tag_prefix.upper())
+    qs = LaserOrdenProduccion.objects.using(BASE).filter(folio_externo_normalizado__startswith=tag_prefix.upper())
     ids = list(qs.values_list("id", flat=True)[:200])
     if not ids:
         return 0
-    LogisticaMovimientoCorta.objects.using("mes").filter(orden_id__in=ids).delete()
-    for e in LogisticaEnvioCorta.objects.using("mes").filter(orden_id__in=ids):
+    LogisticaMovimientoCorta.objects.using(BASE).filter(orden_id__in=ids).delete()
+    for e in LogisticaEnvioCorta.objects.using(BASE).filter(orden_id__in=ids):
         try:
             if getattr(e, "comprobante_pdf", None):
                 e.comprobante_pdf.delete(save=False)
         except Exception:
             pass
-    LogisticaEnvioCorta.objects.using("mes").filter(orden_id__in=ids).delete()
-    LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id__in=ids).delete()
-    LogisticaExpediente.objects.using("mes").filter(orden_corta_id__in=ids).delete()
-    deleted, _ = LaserOrdenProduccion.objects.using("mes").filter(id__in=ids).delete()
+    LogisticaEnvioCorta.objects.using(BASE).filter(orden_id__in=ids).delete()
+    LogisticaExpedienteDescarga.objects.using(BASE).filter(orden_corta_id__in=ids).delete()
+    LogisticaExpediente.objects.using(BASE).filter(orden_corta_id__in=ids).delete()
+    deleted, _ = LaserOrdenProduccion.objects.using(BASE).filter(id__in=ids).delete()
     return int(deleted or 0)
 
 
@@ -89,13 +90,13 @@ def main():
     tag = _now_tag()
     folio_externo = f"{tag_prefix}{tag}"
 
-    cliente, _ = CortaClienteProyecto.objects.using("mes").get_or_create(
+    cliente, _ = CortaClienteProyecto.objects.using(BASE).get_or_create(
         nombre_normalizado="SIM CORTA",
         defaults={"nombre": "SIM CORTA", "tipo": "mixto", "activo": True},
     )
 
     producto = f"Pieza simulada corta ({tag})"
-    orden = LaserOrdenProduccion.objects.using("mes").create(
+    orden = LaserOrdenProduccion.objects.using(BASE).create(
         corta_cliente_proyecto=cliente,
         folio_externo=folio_externo,
         codigo=f"SIM-{tag}",
@@ -107,9 +108,9 @@ def main():
         prioridad=3,
     )
 
-    stock = LogisticaStockCorta.objects.using("mes").filter(producto_normalizado=producto.upper()).first()
+    stock = LogisticaStockCorta.objects.using(BASE).filter(producto_normalizado=producto.upper()).first()
     if not stock:
-        stock = LogisticaStockCorta.objects.using("mes").create(producto=producto, stock=0)
+        stock = LogisticaStockCorta.objects.using(BASE).create(producto=producto, stock=0)
     stock.stock = 10
     stock.save(update_fields=["stock", "actualizado_en"])
 
@@ -134,21 +135,21 @@ def main():
     )
     r3_status = int(getattr(r3, "status_code", 0) or 0)
 
-    orden.refresh_from_db(using="mes")
-    envios = list(LogisticaEnvioCorta.objects.using("mes").filter(orden_id=int(orden.id)).order_by("id"))
-    exp = LogisticaExpediente.objects.using("mes").filter(orden_corta_id=int(orden.id)).first()
+    orden.refresh_from_db(using=BASE)
+    envios = list(LogisticaEnvioCorta.objects.using(BASE).filter(orden_id=int(orden.id)).order_by("id"))
+    exp = LogisticaExpediente.objects.using(BASE).filter(orden_corta_id=int(orden.id)).first()
 
     zip_resp = client.get(f"/catalogos/pedidos/logistica/corta/{int(orden.id)}/expediente.zip")
     zip_status = int(getattr(zip_resp, "status_code", 0) or 0)
     zip_bytes = bytes(getattr(zip_resp, "content", b"") or b"")
 
-    exp.refresh_from_db(using="mes")
-    descargas = list(LogisticaExpedienteDescarga.objects.using("mes").filter(orden_corta_id=int(orden.id)).order_by("-id"))
+    exp.refresh_from_db(using=BASE)
+    descargas = list(LogisticaExpedienteDescarga.objects.using(BASE).filter(orden_corta_id=int(orden.id)).order_by("-id"))
 
-    decote_before = LaserOrdenProduccion.objects.using("mes").filter(id=int(orden.id)).exists()
+    decote_before = LaserOrdenProduccion.objects.using(BASE).filter(id=int(orden.id)).exists()
     r_del = client.post("/catalogos/pedidos/logistica/corta/", {"action": "decote_delete", "orden_id": int(orden.id)})
     r_del_status = int(getattr(r_del, "status_code", 0) or 0)
-    decote_after = LaserOrdenProduccion.objects.using("mes").filter(id=int(orden.id)).exists()
+    decote_after = LaserOrdenProduccion.objects.using(BASE).filter(id=int(orden.id)).exists()
 
     out_dir = base_dir / "media" / "expedientes_simulados"
     out_dir.mkdir(parents=True, exist_ok=True)

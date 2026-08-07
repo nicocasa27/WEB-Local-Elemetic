@@ -31,8 +31,8 @@ from catalogos.models import LaserMaterialPlaca
 from core import folios
 from inventario.models import Almacen, Material
 from nucleo.models import MotivoEvento
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Densidades en kg/dm³. Hoy esta decisión se toma buscando trozos de texto
 #: dentro del nombre del material («ALUMIN», «INOX») en medio del método que

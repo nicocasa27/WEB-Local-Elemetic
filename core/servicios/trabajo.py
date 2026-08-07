@@ -23,10 +23,10 @@ import logging
 from django.utils import timezone
 
 from catalogos.models import ApunteDeTrabajo, Cuadrilla, Maquina, SeguimientoDespacho
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
-BASE = "mes"
 
 #: Qué centro de trabajo corresponde a cada etapa. Es lo que permite encontrar
 #: la cuadrilla sin preguntárselo a nadie.

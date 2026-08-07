@@ -66,7 +66,7 @@ aquí falla allá.
 
 **El hallazgo que corrige el plan**
 
-- [ ] **El paso 6 de la Fase 1 no puede ser un commit aparte.** El plan decía
+- [x] **RESUELTO.** El paso 6 de la Fase 1 no podía ser un commit aparte. El plan decía
       conservar `mes` como alias del mismo sitio para no tocar las llamadas
       `.using("mes")`, y **eso no funciona**: Django abre *una conexión por
       alias*, así que son dos transacciones contra la misma base. En la suite
@@ -81,10 +81,14 @@ aquí falla allá.
       hace saltar su guardia
       (`test_guardias.py::test_las_transacciones_indican_siempre_la_base`).
 
-      **Conclusión: retirar el alias y cambiar de base son un solo movimiento.**
-      Más barato de lo que parecía: de las 846 llamadas, **558 pasan por una
-      constante** —54 líneas `BASE = "mes"`—, y sólo quedan 264 literales y 57
-      `atomic(using="mes")`.
+      **Resuelto haciéndolo un interruptor.** El alias sale de
+      `core.bases.BASE`, que lo lee de la configuración: `"mes"` con dos bases,
+      `"default"` con una. 75 archivos tocados, ni un literal en el código, y un
+      guardia nuevo que impide volver a escribirlo a mano
+      (`test_nadie_escribe_el_alias_de_la_base_a_mano`).
+
+      **Los dos modos pasan las 1.117 pruebas.** Cambiar de base es ahora una
+      variable de entorno, y volver atrás también.
 
 **Una tabla que nadie sabía que estaba**
 
@@ -105,7 +109,9 @@ aquí falla allá.
 
 ### Fases siguientes
 
-- [ ] **Fase 1** · Una sola base, y Django repuntado a ella
+- [~] **Fase 1** · Una sola base. Hecho lo que no necesita claves: el alias
+      retirado y el modo de una sola base probado de punta a punta contra
+      PostgreSQL local. Falta apuntar a Supabase y mover `media/` a Storage.
 - [ ] **Fase 2** · Plataforma, identidad y portal en Next
 - [ ] **Fase 3** · RRHH, el primer ERP nativo
 - [ ] **Fase 4** · Producción, de lectura

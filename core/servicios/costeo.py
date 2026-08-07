@@ -60,10 +60,10 @@ from costeo.models import (
     TiempoEstandar,
 )
 from nucleo.models import Asignacion, EventoProduccion
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.costeo")
 
-BASE = "mes"
 CERO = Decimal("0")
 CUATRO = Decimal("0.0001")
 

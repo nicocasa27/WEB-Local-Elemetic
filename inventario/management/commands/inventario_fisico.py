@@ -30,8 +30,8 @@ from django.utils import timezone
 from core.servicios import inventario as servicio
 from inventario.models import Existencia, LoteMaterial, Material, MovimientoMaterial
 from nucleo.models import MotivoEvento
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 CERO = Decimal("0")
 
 #: Qué le pasó a una línea de la hoja. Tres estados y no un texto suelto:

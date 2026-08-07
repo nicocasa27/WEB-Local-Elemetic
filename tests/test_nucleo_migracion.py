@@ -25,6 +25,7 @@ from nucleo.models import (
     PiezaCatalogo,
     TransicionPermitida,
 )
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -51,9 +52,9 @@ def orden_heredada(codigo="H-70100", etapa="Soldadura", **campos):
 class TestSembrado:
     def test_deja_las_cuatro_lineas_con_sus_etapas(self):
         sembrar()
-        assert LineaNegocio.objects.using("mes").count() == 4
+        assert LineaNegocio.objects.using(BASE).count() == 4
         for codigo in ("vigas", "herreria", "corta", "robotica"):
-            linea = LineaNegocio.objects.using("mes").get(codigo=codigo)
+            linea = LineaNegocio.objects.using(BASE).get(codigo=codigo)
             assert linea.etapas.count() > 0
             assert linea.transiciones.filter(desde__isnull=True).count() == 1, (
                 "cada línea necesita exactamente una etapa de entrada"
@@ -62,15 +63,15 @@ class TestSembrado:
     def test_repetirlo_no_duplica_nada(self):
         sembrar()
         antes = (
-            LineaNegocio.objects.using("mes").count(),
-            Etapa.objects.using("mes").count(),
-            TransicionPermitida.objects.using("mes").count(),
+            LineaNegocio.objects.using(BASE).count(),
+            Etapa.objects.using(BASE).count(),
+            TransicionPermitida.objects.using(BASE).count(),
         )
         sembrar()
         despues = (
-            LineaNegocio.objects.using("mes").count(),
-            Etapa.objects.using("mes").count(),
-            TransicionPermitida.objects.using("mes").count(),
+            LineaNegocio.objects.using(BASE).count(),
+            Etapa.objects.using(BASE).count(),
+            TransicionPermitida.objects.using(BASE).count(),
         )
         assert antes == despues
 
@@ -81,8 +82,8 @@ class TestSembrado:
         filtros, porque la comparación era de cadenas y nadie normalizaba.
         """
         sembrar()
-        herreria = LineaNegocio.objects.using("mes").get(codigo="herreria")
-        alias = EtapaAlias.objects.using("mes").filter(
+        herreria = LineaNegocio.objects.using(BASE).get(codigo="herreria")
+        alias = EtapaAlias.objects.using(BASE).filter(
             etapa__linea=herreria, valor_normalizado__in=["espera armado", "espera de armado"]
         )
         assert alias.count() == 2
@@ -100,7 +101,7 @@ class TestSembrado:
 
     def test_la_simulacion_no_escribe(self):
         call_command("sembrar_nucleo", "--simular", verbosity=0, stdout=StringIO())
-        assert LineaNegocio.objects.using("mes").count() == 0
+        assert LineaNegocio.objects.using(BASE).count() == 0
 
 
 class TestVolcado:
@@ -109,7 +110,7 @@ class TestVolcado:
         sembrar()
         call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        orden = OrdenProduccion.objects.using("mes").get(
+        orden = OrdenProduccion.objects.using(BASE).get(
             legacy_modelo="HerrOrdenProduccion", legacy_id=heredada.pk
         )
         assert orden.etapa_actual.nombre == "Soldadura"
@@ -122,9 +123,9 @@ class TestVolcado:
         for _ in range(2):
             call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        assert OrdenProduccion.objects.using("mes").count() == 1
+        assert OrdenProduccion.objects.using(BASE).count() == 1
         assert (
-            EventoProduccion.objects.using("mes")
+            EventoProduccion.objects.using(BASE)
             .filter(tipo=EventoProduccion.Tipo.CREACION)
             .count()
             == 1
@@ -147,14 +148,14 @@ class TestVolcado:
             nombre="Barandal tipo A", nombre_normalizado="BARANDAL TIPO A", peso_kg=45.2
         )
         sembrar()
-        linea = LineaNegocio.objects.using("mes").get(codigo="herreria")
-        suelta = PiezaCatalogo.objects.using("mes").create(
+        linea = LineaNegocio.objects.using(BASE).get(codigo="herreria")
+        suelta = PiezaCatalogo.objects.using(BASE).create(
             linea=linea, nombre="Barandal tipo A", nombre_normalizado="BARANDAL TIPO A"
         )
 
         call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        piezas = PiezaCatalogo.objects.using("mes").filter(
+        piezas = PiezaCatalogo.objects.using(BASE).filter(
             linea=linea, nombre_normalizado="BARANDAL TIPO A"
         )
         assert piezas.count() == 1, "duplicó el catálogo en vez de adoptarlo"
@@ -170,14 +171,14 @@ class TestVolcado:
             nombre="Ancla J de 3/4", nombre_normalizado="ANCLA J DE 3/4", peso_kg=2.4
         )
         sembrar()
-        linea = LineaNegocio.objects.using("mes").get(codigo="herreria")
-        PiezaCatalogo.objects.using("mes").create(
+        linea = LineaNegocio.objects.using(BASE).get(codigo="herreria")
+        PiezaCatalogo.objects.using(BASE).create(
             linea=linea, nombre="Ancla J de 3/4", nombre_normalizado="ANCLA J DE 3/4"
         )
 
         call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        pieza = PiezaCatalogo.objects.using("mes").get(nombre_normalizado="ANCLA J DE 3/4")
+        pieza = PiezaCatalogo.objects.using(BASE).get(nombre_normalizado="ANCLA J DE 3/4")
         assert float(pieza.peso_kg) == pytest.approx(2.4)
 
     def test_no_toca_las_tablas_heredadas(self):
@@ -198,7 +199,7 @@ class TestVolcado:
         sembrar()
         call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        ajustes = EventoProduccion.objects.using("mes").filter(sin_historico=True).exclude(
+        ajustes = EventoProduccion.objects.using(BASE).filter(sin_historico=True).exclude(
             tipo=EventoProduccion.Tipo.CREACION
         )
         assert ajustes.count() == 3
@@ -209,9 +210,9 @@ class TestVolcado:
         sembrar()
         call_command("backfill_nucleo", "--linea", "herreria", verbosity=0, stdout=StringIO())
 
-        orden = OrdenProduccion.objects.using("mes").get()
+        orden = OrdenProduccion.objects.using(BASE).get()
         suma = {"producida": 0, "pintada": 0, "terminada": 0}
-        for evento in EventoProduccion.objects.using("mes").filter(orden=orden).exclude(contador=""):
+        for evento in EventoProduccion.objects.using(BASE).filter(orden=orden).exclude(contador=""):
             suma[evento.contador] += evento.delta_cantidad
         assert suma == {"producida": 3, "pintada": 2, "terminada": 1}
 
@@ -249,7 +250,7 @@ class TestVerificacion:
         call_command("backfill_nucleo", verbosity=0, stdout=StringIO())
 
         with pytest.raises(ProtectedError):
-            OrdenProduccion.objects.using("mes").all().delete()
+            OrdenProduccion.objects.using(BASE).all().delete()
 
 
 class TestEscrituraDoble:
@@ -260,7 +261,7 @@ class TestEscrituraDoble:
         sembrar()
 
         assert espejo.reflejar("HerrOrdenProduccion", heredada.pk) is None
-        assert OrdenProduccion.objects.using("mes").count() == 0
+        assert OrdenProduccion.objects.using(BASE).count() == 0
 
     def test_en_doble_refleja_la_orden(self, monkeypatch):
         monkeypatch.setenv("MES_NUCLEO_HERRERIA", banderas.DOBLE)
@@ -283,7 +284,7 @@ class TestEscrituraDoble:
         heredada.save()
         espejo.reflejar("HerrOrdenProduccion", heredada.pk)
 
-        orden = OrdenProduccion.objects.using("mes").get()
+        orden = OrdenProduccion.objects.using(BASE).get()
         assert orden.etapa_actual.nombre == "Pintura"
 
     def test_un_fallo_del_reflejo_no_tumba_la_operacion(self, monkeypatch):
@@ -323,7 +324,7 @@ class TestReconciliacion:
 
         from nucleo.models import DivergenciaReconciliacion
 
-        assert DivergenciaReconciliacion.objects.using("mes").count() == 0
+        assert DivergenciaReconciliacion.objects.using(BASE).count() == 0
         assert "Sin divergencias" in salida.getvalue()
 
     def test_detecta_una_escritura_en_bloque_que_las_señales_no_ven(self):
@@ -345,7 +346,7 @@ class TestReconciliacion:
 
         from nucleo.models import DivergenciaReconciliacion
 
-        divergencia = DivergenciaReconciliacion.objects.using("mes").get()
+        divergencia = DivergenciaReconciliacion.objects.using(BASE).get()
         assert divergencia.campo == "etapa"
         assert divergencia.valor_heredado == "Pintura"
         assert divergencia.valor_nucleo == "Corte"
@@ -358,7 +359,7 @@ class TestReconciliacion:
 
         call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
 
-        orden = OrdenProduccion.objects.using("mes").get()
+        orden = OrdenProduccion.objects.using(BASE).get()
         assert orden.etapa_actual.nombre == "Pintura"
 
     def test_avisa_de_una_orden_que_esta_solo_en_el_nucleo(self):
@@ -371,7 +372,7 @@ class TestReconciliacion:
 
         from nucleo.models import DivergenciaReconciliacion
 
-        divergencia = DivergenciaReconciliacion.objects.using("mes").get()
+        divergencia = DivergenciaReconciliacion.objects.using(BASE).get()
         assert divergencia.campo == "existencia"
 
 
@@ -399,11 +400,11 @@ class TestUnaOrdenBorradaNoBloqueaElCorteParaSiempre:
 
         call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
 
-        orden = OrdenProduccion.objects.using("mes").get(
+        orden = OrdenProduccion.objects.using(BASE).get(
             legacy_modelo="HerrOrdenProduccion", legacy_id=heredada.pk
         )
         assert orden.retirada_en is not None
-        assert EventoProduccion.objects.using("mes").filter(orden=orden).exists()
+        assert EventoProduccion.objects.using(BASE).filter(orden=orden).exists()
 
     def test_y_al_dia_siguiente_ya_no_hay_diferencias(self):
         self._borrada()
@@ -424,7 +425,7 @@ class TestUnaOrdenBorradaNoBloqueaElCorteParaSiempre:
         call_command("reconciliar_nucleo", "--corregir", verbosity=0, stdout=StringIO())
 
         assert (
-            OrdenProduccion.objects.using("mes")
+            OrdenProduccion.objects.using(BASE)
             .get(legacy_modelo="HerrOrdenProduccion", legacy_id=vuelta.pk)
             .retirada_en
             is None
@@ -439,6 +440,6 @@ class TestPiezas:
 
         from nucleo.models import PiezaCatalogo
 
-        pieza = PiezaCatalogo.objects.using("mes").get(legacy_modelo="HerrPiezaCatalogo")
+        pieza = PiezaCatalogo.objects.using(BASE).get(legacy_modelo="HerrPiezaCatalogo")
         assert pieza.linea.codigo == "herreria"
         assert pieza.peso_kg == pytest.approx(5.0)

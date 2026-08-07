@@ -18,8 +18,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.servicios import inventario as servicio
 from nucleo.models import OrdenProduccion
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 class Command(BaseCommand):

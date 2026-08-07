@@ -19,8 +19,8 @@ donde nadie la va a leer.
 from django.utils import timezone
 
 from core.servicios import ruta as servicio_ruta
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Tope de lo que se puede escribir. No es una restricción de la base —el
 #: campo es de texto libre— sino de la pantalla en la que se lee: una tarjeta

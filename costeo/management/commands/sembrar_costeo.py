@@ -25,8 +25,8 @@ from django.utils import timezone
 
 from costeo.models import CentroCosto, Tarifa
 from nucleo.models import LineaNegocio
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 
 class Command(BaseCommand):

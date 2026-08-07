@@ -41,10 +41,10 @@ from catalogos.usuarios import _aplicar_grupos, _guardar_enlace, _guardar_pin
 from core import roles
 from core.campos import CampoDeFecha
 from personal.models import Departamento, Puesto, normalizar
+from core.bases import BASE  # noqa: F401
 
 Usuario = get_user_model()
 
-BASE = "mes"
 
 solo_administradores = user_passes_test(
     roles.puede_administrar_usuarios, login_url="login"

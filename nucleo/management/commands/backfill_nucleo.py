@@ -81,8 +81,8 @@ from nucleo.models import (
     PiezaCatalogo,
 )
 from produccion.models import ProductionLog, Viga
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Cuando una orden heredada tiene proyecto pero no cliente —que es la
 #: mayoría—, la obra tiene que colgar de algo. Este cliente marcador existe

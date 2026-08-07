@@ -28,6 +28,7 @@ from django.dispatch import receiver
 
 from core import banderas
 from core.servicios import espejo
+from core.bases import BASE  # noqa: F401
 
 logger = logging.getLogger("mes.nucleo.espejo")
 
@@ -39,7 +40,7 @@ def _reflejar_al_confirmar(etiqueta, pk):
     quedar en el núcleo una orden que en realidad no existe. Y al revés, un
     fallo del reflejo no puede tumbar una operación que ya salió bien.
     """
-    transaction.on_commit(lambda: espejo.reflejar(etiqueta, pk), using="mes")
+    transaction.on_commit(lambda: espejo.reflejar(etiqueta, pk), using=BASE)
 
 
 def conectar():

@@ -27,6 +27,7 @@ from nucleo.models import (
     OrdenProduccion,
     TransicionPermitida,
 )
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -37,7 +38,7 @@ CONTADOR = EventoProduccion.Contador
 def nucleo():
     """La configuración sembrada, igual que en el taller."""
     call_command("sembrar_nucleo", verbosity=0)
-    return LineaNegocio.objects.using("mes").get(codigo="herreria")
+    return LineaNegocio.objects.using(BASE).get(codigo="herreria")
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ def orden(nucleo):
 
 
 def etapa(linea, codigo):
-    return Etapa.objects.using("mes").get(linea=linea, codigo=codigo)
+    return Etapa.objects.using(BASE).get(linea=linea, codigo=codigo)
 
 
 class TestAltaYFolios:
@@ -70,7 +71,7 @@ class TestAltaYFolios:
         assert len(folios) == 5
 
     def test_el_alta_deja_su_evento(self, orden):
-        evento = EventoProduccion.objects.using("mes").get(
+        evento = EventoProduccion.objects.using(BASE).get(
             orden=orden, tipo=EventoProduccion.Tipo.CREACION
         )
         assert evento.actor_username == "ana"
@@ -87,18 +88,18 @@ class TestAltaYFolios:
             linea=nucleo, actor="ana", codigo="X", clave_idempotencia="alta-1"
         )
         assert primera.pk == segunda.pk
-        assert OrdenProduccion.objects.using("mes").count() == 1
+        assert OrdenProduccion.objects.using(BASE).count() == 1
 
 
 class TestCambioDeEtapa:
     def test_avanza_a_la_etapa_siguiente(self, orden, nucleo):
         produccion.cambiar_etapa(orden, destino="corte", actor="ana")
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert orden.etapa_actual.codigo == "corte"
 
     def test_una_transicion_que_no_esta_en_la_tabla_se_rechaza(self, orden, nucleo):
         """La máquina de estados vive en datos: si la fila no está, no se puede."""
-        TransicionPermitida.objects.using("mes").filter(
+        TransicionPermitida.objects.using(BASE).filter(
             linea=nucleo, desde=orden.etapa_actual, hasta=etapa(nucleo, "corte")
         ).delete()
         with pytest.raises(TransicionInvalida):
@@ -135,14 +136,14 @@ class TestCambioDeEtapa:
         """
         from catalogos.models import Maquina
 
-        maquina = Maquina.objects.using("mes").create(nombre="Láser 1", activo=True)
-        Asignacion.objects.using("mes").create(
+        maquina = Maquina.objects.using(BASE).create(nombre="Láser 1", activo=True)
+        Asignacion.objects.using(BASE).create(
             orden=orden, maquina=maquina, vigente=True, asignado_en=timezone.now()
         )
-        EventoMaquina.objects.using("mes").create(
+        EventoMaquina.objects.using(BASE).create(
             maquina=maquina, clase=EventoMaquina.Clase.PARO, inicio=timezone.now()
         )
-        TransicionPermitida.objects.using("mes").filter(
+        TransicionPermitida.objects.using(BASE).filter(
             linea=nucleo, desde=orden.etapa_actual, hasta=etapa(nucleo, "corte")
         ).update(bloquea_si_maquina_en_paro=True)
 
@@ -162,7 +163,7 @@ class TestAvance:
         produccion.registrar_avance(orden, contador=CONTADOR.PRODUCIDA, delta=5, actor="ana")
         produccion.registrar_avance(orden, contador=CONTADOR.PRODUCIDA, delta=5, actor="beto")
 
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert orden.cantidad_producida == 10
 
     def test_el_mismo_envio_repetido_solo_cuenta_una_vez(self, orden):
@@ -176,9 +177,9 @@ class TestAvance:
             clave_idempotencia="pieza-abc",
         )
 
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert orden.cantidad_producida == 3
-        assert EventoProduccion.objects.using("mes").filter(
+        assert EventoProduccion.objects.using(BASE).filter(
             orden=orden, tipo=EventoProduccion.Tipo.AVANCE
         ).count() == 1
 
@@ -209,7 +210,7 @@ class TestAvance:
     def test_la_cascada_completa_avanza(self, orden):
         for contador in (CONTADOR.PRODUCIDA, CONTADOR.PINTADA, CONTADOR.TERMINADA):
             produccion.registrar_avance(orden, contador=contador, delta=10, actor="ana")
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert (orden.cantidad_producida, orden.cantidad_pintada, orden.cantidad_terminada) == (
             10, 10, 10
         )
@@ -217,11 +218,11 @@ class TestAvance:
     def test_los_contadores_se_reconstruyen_desde_el_historial(self, orden):
         """Los contadores son caché: la verdad está en los eventos."""
         produccion.registrar_avance(orden, contador=CONTADOR.PRODUCIDA, delta=4, actor="ana")
-        OrdenProduccion.objects.using("mes").filter(pk=orden.pk).update(cantidad_producida=99)
+        OrdenProduccion.objects.using(BASE).filter(pk=orden.pk).update(cantidad_producida=99)
 
         produccion.recalcular_contadores(orden)
 
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert orden.cantidad_producida == 4
 
 
@@ -230,7 +231,7 @@ class TestCierreYReversion:
     def terminada(self, orden):
         for contador in (CONTADOR.PRODUCIDA, CONTADOR.PINTADA, CONTADOR.TERMINADA):
             produccion.registrar_avance(orden, contador=contador, delta=10, actor="ana")
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         return orden
 
     def test_al_llegar_al_objetivo_se_abre_la_ventana(self, terminada):
@@ -242,7 +243,7 @@ class TestCierreYReversion:
 
         produccion.consolidar_cierre(terminada, ahora=futuro)
 
-        terminada.refresh_from_db(using="mes")
+        terminada.refresh_from_db(using=BASE)
         assert terminada.estado == OrdenProduccion.Estado.CERRADA
         assert terminada.etapa_actual.codigo == "terminado"
 
@@ -265,30 +266,30 @@ class TestCierreYReversion:
 
         produccion.revertir_cierre(terminada, actor="ana", motivo=motivo)
 
-        terminada.refresh_from_db(using="mes")
+        terminada.refresh_from_db(using=BASE)
         assert terminada.etapa_actual_id == etapa_previa.pk
         assert terminada.cierre_pendiente_hasta is None
         assert terminada.cierre_revertido_por == "ana"
 
-        anulaciones = EventoProduccion.objects.using("mes").filter(
+        anulaciones = EventoProduccion.objects.using(BASE).filter(
             orden=terminada, tipo=EventoProduccion.Tipo.ANULACION
         )
         assert anulaciones.exists()
         assert all(a.anula_a_id is not None for a in anulaciones)
 
     def test_el_historial_no_se_borra_al_revertir(self, terminada):
-        antes = EventoProduccion.objects.using("mes").filter(orden=terminada).count()
+        antes = EventoProduccion.objects.using(BASE).filter(orden=terminada).count()
         motivo = produccion.motivo(MotivoEvento.Ambito.REVERSION, "error_de_captura")
 
         produccion.revertir_cierre(terminada, actor="ana", motivo=motivo)
 
-        despues = EventoProduccion.objects.using("mes").filter(orden=terminada).count()
+        despues = EventoProduccion.objects.using(BASE).filter(orden=terminada).count()
         assert despues > antes, "revertir añade eventos, nunca quita"
 
     def test_un_cierre_firme_ya_no_se_revierte(self, terminada):
         futuro = terminada.cierre_pendiente_hasta + timezone.timedelta(minutes=1)
         produccion.consolidar_cierre(terminada, ahora=futuro)
-        terminada.refresh_from_db(using="mes")
+        terminada.refresh_from_db(using=BASE)
         motivo = produccion.motivo(MotivoEvento.Ambito.REVERSION, "error_de_captura")
 
         with pytest.raises(OrdenBloqueada):
@@ -297,7 +298,7 @@ class TestCierreYReversion:
     def test_una_orden_cerrada_no_admite_mas_avances(self, terminada):
         futuro = terminada.cierre_pendiente_hasta + timezone.timedelta(minutes=1)
         produccion.consolidar_cierre(terminada, ahora=futuro)
-        terminada.refresh_from_db(using="mes")
+        terminada.refresh_from_db(using=BASE)
 
         with pytest.raises(OrdenBloqueada):
             produccion.registrar_avance(
@@ -314,7 +315,7 @@ class TestLaMismaLogicaSirveParaLasCuatroLineas:
 
     @pytest.mark.parametrize("codigo", ["vigas", "herreria", "corta", "robotica"])
     def test_alta_y_avance_de_etapa(self, nucleo, codigo):
-        linea = LineaNegocio.objects.using("mes").get(codigo=codigo)
+        linea = LineaNegocio.objects.using(BASE).get(codigo=codigo)
         orden = produccion.crear_orden(
             linea=linea, actor="ana", codigo=f"{codigo}-1", total_piezas=3
         )
@@ -328,5 +329,5 @@ class TestLaMismaLogicaSirveParaLasCuatroLineas:
         )
         produccion.cambiar_etapa(orden, destino=destino, actor="ana")
 
-        orden.refresh_from_db(using="mes")
+        orden.refresh_from_db(using=BASE)
         assert orden.etapa_actual_id == destino.pk

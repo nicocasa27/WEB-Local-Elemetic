@@ -33,10 +33,10 @@ from catalogos.management.commands.crear_admin import (
     usa_la_de_fabrica,
 )
 from core import roles
+from core.bases import BASE  # noqa: F401
 
 Usuario = get_user_model()
 
-BASE = "mes"
 
 #: Longitud mínima de una contraseña nueva. Corta a propósito: en el piso se
 #: teclea con guantes, y una regla imposible acaba en la contraseña escrita en

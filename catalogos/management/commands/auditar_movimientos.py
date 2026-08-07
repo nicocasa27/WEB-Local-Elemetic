@@ -19,6 +19,7 @@ from django.db import transaction
 from django.db.models import Count
 
 from catalogos.models import LogisticaMovimiento, LogisticaMovimientoCorta
+from core.bases import BASE  # noqa: F401
 
 # Tipos históricos y el valor declarado al que corresponden.
 EQUIVALENCIAS = {
@@ -43,7 +44,7 @@ class Command(BaseCommand):
         for modelo in (LogisticaMovimiento, LogisticaMovimientoCorta):
             declarados = {c[0] for c in (modelo._meta.get_field("tipo").choices or [])}
             filas = (
-                modelo.objects.using("mes")
+                modelo.objects.using(BASE)
                 .values("tipo")
                 .annotate(n=Count("id"))
                 .order_by("-n")
@@ -79,9 +80,9 @@ class Command(BaseCommand):
                     self.stdout.write(f"      se reescribiría como {destino!r} (usar --corregir)")
                     continue
 
-                with transaction.atomic(using="mes"):
+                with transaction.atomic(using=BASE):
                     actualizadas = (
-                        modelo.objects.using("mes").filter(tipo=tipo).update(tipo=destino)
+                        modelo.objects.using(BASE).filter(tipo=tipo).update(tipo=destino)
                     )
                 self.stdout.write(
                     self.style.SUCCESS(f"      {actualizadas} fila(s) reescritas como {destino!r}")

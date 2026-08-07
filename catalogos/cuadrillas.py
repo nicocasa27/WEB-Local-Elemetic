@@ -33,8 +33,8 @@ from catalogos.models import (
     EquipoTrabajo,
     Maquina,
 )
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Cuántos días atrás se enseñan en la lista. Más que eso es historia, y para
 #: eso está la pantalla de trazabilidad.

@@ -26,6 +26,7 @@ from django.utils import timezone
 
 from core import estados
 from core.servicios import rendimiento as servicio
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -33,7 +34,7 @@ pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 def apunte(referencia, etapa, cuando, actor, etapa_anterior=""):
     from catalogos.models import ApunteDeTrabajo, SeguimientoDespacho
 
-    return ApunteDeTrabajo.objects.using("mes").create(
+    return ApunteDeTrabajo.objects.using(BASE).create(
         linea=SeguimientoDespacho.Linea.VIGAS,
         referencia=referencia,
         codigo="ZZ-1",
@@ -222,7 +223,7 @@ class TestQuiénEntregaBien:
             "recibido_en": timezone.now(),
         }
         datos.update(campos)
-        return ActaDeEntrega.objects.using("mes").create(**datos)
+        return ActaDeEntrega.objects.using(BASE).create(**datos)
 
     def test_una_entrega_aceptada_cuenta_a_favor_de_quien_la_hizo(self, rango):
         desde, hasta = rango

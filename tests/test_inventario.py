@@ -27,6 +27,7 @@ from inventario.models import (
     RenglonListaMateriales,
 )
 from nucleo.models import LineaNegocio, MotivoEvento, PiezaCatalogo
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -40,14 +41,14 @@ def almacen():
 
 @pytest.fixture
 def material(almacen):
-    return Material.objects.using("mes").create(
+    return Material.objects.using(BASE).create(
         codigo="PL-TEST", nombre="Lámina negra 3.4mm", nombre_normalizado="LÁMINA NEGRA 3.4MM",
         unidad=Material.Unidad.PIEZA, peso_kg=Decimal("75.820"), stock_minimo=Decimal("5"),
     )
 
 
 def crear_lote(material, codigo, colada, costo, dia, proveedor=None):
-    return LoteMaterial.objects.using("mes").create(
+    return LoteMaterial.objects.using(BASE).create(
         material=material,
         codigo=codigo,
         colada=colada,
@@ -58,7 +59,7 @@ def crear_lote(material, codigo, colada, costo, dia, proveedor=None):
 
 
 def motivo(codigo, ambito=MotivoEvento.Ambito.AJUSTE):
-    return MotivoEvento.objects.using("mes").get(ambito=ambito, codigo=codigo)
+    return MotivoEvento.objects.using(BASE).get(ambito=ambito, codigo=codigo)
 
 
 class TestSembrado:
@@ -78,7 +79,7 @@ class TestSembrado:
         call_command("sembrar_nucleo", verbosity=0, stdout=StringIO())
         call_command("sembrar_inventario", verbosity=0, stdout=StringIO())
 
-        material = Material.objects.using("mes").get(legacy_modelo="LaserMaterialPlaca")
+        material = Material.objects.using(BASE).get(legacy_modelo="LaserMaterialPlaca")
         assert material.peso_kg == Decimal("75.820")
         assert "3048×914" in material.nombre, "el nombre tiene que distinguir la medida"
 
@@ -92,7 +93,7 @@ class TestSembrado:
         call_command("sembrar_nucleo", verbosity=0, stdout=StringIO())
         call_command("sembrar_inventario", verbosity=0, stdout=StringIO())
 
-        material = Material.objects.using("mes").get(legacy_modelo="LaserMaterialPlaca")
+        material = Material.objects.using(BASE).get(legacy_modelo="LaserMaterialPlaca")
         # 2000 × 1000 × 3 mm de acero a 7.85 kg/dm³ son 47.1 kg.
         assert material.peso_kg == Decimal("47.100")
 
@@ -102,7 +103,7 @@ class TestSembrado:
         Un almacén que empieza con cifras inventadas no vuelve a cuadrar
         nunca, y encima se cree.
         """
-        assert Existencia.objects.using("mes").exclude(cantidad=0).count() == 0
+        assert Existencia.objects.using(BASE).exclude(cantidad=0).count() == 0
 
 
 class TestEntradasYSalidas:
@@ -134,7 +135,7 @@ class TestEntradasYSalidas:
         servicio.registrar_entrada(lote=lote, cantidad=3, actor="ana")
 
         with pytest.raises(IntegrityError):
-            Existencia.objects.using("mes").filter(material=material).update(
+            Existencia.objects.using(BASE).filter(material=material).update(
                 cantidad=Decimal("-1")
             )
 
@@ -203,11 +204,11 @@ class TestTrazabilidad:
 
     @pytest.fixture
     def orden_con_material(self, material, almacen):
-        linea = LineaNegocio.objects.using("mes").get(codigo="corta")
+        linea = LineaNegocio.objects.using(BASE).get(codigo="corta")
         orden = produccion.crear_orden(
             linea=linea, actor="ana", codigo="CORTE-1", total_piezas=4
         )
-        proveedor = Proveedor.objects.using("mes").create(nombre="Aceros del Sureste")
+        proveedor = Proveedor.objects.using(BASE).create(nombre="Aceros del Sureste")
         lote = crear_lote(material, "L-A", "COLADA-48213", "1200", dia=5, proveedor=proveedor)
         servicio.registrar_entrada(lote=lote, cantidad=10, actor="ana")
         servicio.consumir(material=material, cantidad=4, actor="beto", orden=orden)
@@ -235,7 +236,7 @@ class TestTrazabilidad:
 
     def test_devolver_material_baja_el_costo_de_la_orden(self, orden_con_material):
         orden, _ = orden_con_material
-        consumo = MovimientoMaterial.objects.using("mes").get(
+        consumo = MovimientoMaterial.objects.using(BASE).get(
             tipo=MovimientoMaterial.Tipo.CONSUMO
         )
 
@@ -246,17 +247,17 @@ class TestTrazabilidad:
 
     def test_devolver_no_borra_el_consumo(self, orden_con_material):
         """Corregir es añadir el apunte contrario, no editar el anterior."""
-        consumo = MovimientoMaterial.objects.using("mes").get(
+        consumo = MovimientoMaterial.objects.using(BASE).get(
             tipo=MovimientoMaterial.Tipo.CONSUMO
         )
         servicio.devolver(movimiento=consumo, actor="ana", cantidad=1)
 
-        consumo.refresh_from_db(using="mes")
+        consumo.refresh_from_db(using=BASE)
         assert consumo.cantidad == Decimal("-4")
         assert consumo.anulado_por.count() == 1
 
     def test_no_se_puede_devolver_mas_de_lo_consumido(self, orden_con_material):
-        consumo = MovimientoMaterial.objects.using("mes").get(
+        consumo = MovimientoMaterial.objects.using(BASE).get(
             tipo=MovimientoMaterial.Tipo.CONSUMO
         )
         with pytest.raises(CantidadInvalida):
@@ -276,7 +277,7 @@ class TestAjustesYMermas:
             motivo=motivo("inventario_inicial"), lote=lote,
         )
         assert servicio.existencia(material) == Decimal("7")
-        movimiento = MovimientoMaterial.objects.using("mes").get()
+        movimiento = MovimientoMaterial.objects.using(BASE).get()
         assert movimiento.motivo.codigo == "inventario_inicial"
 
     def test_la_merma_es_un_tipo_propio_y_no_un_ajuste(self, material, almacen):
@@ -294,7 +295,7 @@ class TestAjustesYMermas:
         )
 
         assert servicio.existencia(material) == Decimal("8")
-        assert MovimientoMaterial.objects.using("mes").filter(
+        assert MovimientoMaterial.objects.using(BASE).filter(
             tipo=MovimientoMaterial.Tipo.MERMA
         ).count() == 1
 
@@ -302,7 +303,7 @@ class TestAjustesYMermas:
 class TestTraslados:
     def test_mueve_material_entre_almacenes_con_dos_apuntes(self, material, almacen):
         """Dos apuntes para que cada almacén tenga su historial completo."""
-        otro = Almacen.objects.using("mes").create(codigo="obra", nombre="Bodega de obra")
+        otro = Almacen.objects.using(BASE).create(codigo="obra", nombre="Bodega de obra")
         lote = crear_lote(material, "L-1", "H-1", "1000", dia=5)
         servicio.registrar_entrada(lote=lote, cantidad=10, actor="ana")
 
@@ -316,7 +317,7 @@ class TestTraslados:
         assert salida.traslado == entrada.traslado, "los dos apuntes van emparejados"
 
     def test_no_se_traslada_lo_que_no_hay(self, material, almacen):
-        otro = Almacen.objects.using("mes").create(codigo="obra", nombre="Bodega de obra")
+        otro = Almacen.objects.using(BASE).create(codigo="obra", nombre="Bodega de obra")
         lote = crear_lote(material, "L-1", "H-1", "1000", dia=5)
         servicio.registrar_entrada(lote=lote, cantidad=2, actor="ana")
 
@@ -332,12 +333,12 @@ class TestListaDeMateriales:
 
     @pytest.fixture
     def con_lista(self, material, almacen):
-        linea = LineaNegocio.objects.using("mes").get(codigo="corta")
-        pieza = PiezaCatalogo.objects.using("mes").create(
+        linea = LineaNegocio.objects.using(BASE).get(codigo="corta")
+        pieza = PiezaCatalogo.objects.using(BASE).create(
             linea=linea, nombre="Tapa D04", nombre_normalizado="TAPA D04"
         )
-        lista = ListaMateriales.objects.using("mes").create(pieza=pieza, version=1)
-        RenglonListaMateriales.objects.using("mes").create(
+        lista = ListaMateriales.objects.using(BASE).create(pieza=pieza, version=1)
+        RenglonListaMateriales.objects.using(BASE).create(
             lista=lista, material=material,
             cantidad_por_pieza=Decimal("0.5"), merma_porcentaje=Decimal("10"),
         )
@@ -363,7 +364,7 @@ class TestListaDeMateriales:
     def test_compara_lo_previsto_con_lo_gastado(self, material, con_lista):
         """El informe que decide si se puede automatizar el descuento."""
         pieza, _ = con_lista
-        linea = LineaNegocio.objects.using("mes").get(codigo="corta")
+        linea = LineaNegocio.objects.using(BASE).get(codigo="corta")
         orden = produccion.crear_orden(
             linea=linea, actor="ana", codigo="C-1", total_piezas=10,
             cantidad_objetivo=10, pieza=pieza,
@@ -384,7 +385,7 @@ class TestCacheYVerificacion:
         """La verdad es el historial; la existencia es una caché."""
         lote = crear_lote(material, "L-1", "H-1", "1000", dia=5)
         servicio.registrar_entrada(lote=lote, cantidad=10, actor="ana")
-        Existencia.objects.using("mes").filter(material=material).update(
+        Existencia.objects.using(BASE).filter(material=material).update(
             cantidad=Decimal("99")
         )
 
@@ -397,7 +398,7 @@ class TestCacheYVerificacion:
     def test_el_comando_falla_cuando_no_cuadran(self, material, almacen):
         lote = crear_lote(material, "L-1", "H-1", "1000", dia=5)
         servicio.registrar_entrada(lote=lote, cantidad=10, actor="ana")
-        Existencia.objects.using("mes").filter(material=material).update(
+        Existencia.objects.using(BASE).filter(material=material).update(
             cantidad=Decimal("99")
         )
 

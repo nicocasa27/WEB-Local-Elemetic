@@ -21,8 +21,8 @@ from django.shortcuts import render
 from django.urls import reverse
 
 from core import banderas
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 LISTO = "listo"
 FALTA = "falta"

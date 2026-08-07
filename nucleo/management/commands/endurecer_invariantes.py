@@ -39,8 +39,8 @@ from django.core.management.base import BaseCommand
 from django.db import connections
 
 from nucleo.models import OrdenProduccion
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 RESTRICCION = "orden_contadores_en_cascada"
 
 CONDICION = """

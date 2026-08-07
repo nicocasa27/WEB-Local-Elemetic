@@ -34,10 +34,10 @@ from catalogos.models import (
 )
 from core.servicios import trabajo
 from produccion.models import Viga
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
-BASE = "mes"
 Usuario = get_user_model()
 
 

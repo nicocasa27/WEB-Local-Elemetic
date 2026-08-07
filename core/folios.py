@@ -24,8 +24,8 @@ renumeran jamás.
 import re
 
 from django.db import connections
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Los códigos de línea vienen de un `SlugField`, pero el nombre de la
 #: secuencia se interpola en SQL y los identificadores no admiten parámetros.

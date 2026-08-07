@@ -50,8 +50,8 @@ from datetime import timedelta, timezone as dt_timezone
 from django.utils import timezone
 
 from core import estados
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Las etapas en las que alguien está trabajando. El tiempo que una pieza pasa
 #: aquí es trabajo de una persona.

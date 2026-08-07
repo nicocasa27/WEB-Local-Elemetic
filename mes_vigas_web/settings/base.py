@@ -170,9 +170,9 @@ WSGI_APPLICATION = "mes_vigas_web.wsgi.application"
 # la identidad se guarda como texto en 28 campos de 22 modelos.
 #
 # **Con `MES_UNA_SOLA_BASE=1`.** Una sola base PostgreSQL, con las tablas del
-# negocio en un esquema propio. `mes` sigue existiendo como **alias del mismo
-# sitio**, para que las 346 llamadas `.using("mes")` que hay repartidas por el
-# código sigan funcionando sin tocar ni una. Retirarlas es un commit aparte.
+# negocio en un esquema propio. El alias por el que se escribe lo dice
+# `MES_DB_ALIAS` más abajo, y el código lo lee de `core.bases.BASE`: nadie
+# escribe el nombre a mano.
 #
 # La contraseña no tiene valor por defecto aquí. dev.py pone uno para trabajar
 # en local; prod.py exige que venga del entorno.
@@ -226,6 +226,24 @@ else:
     }
 
 DATABASE_ROUTERS = ["mes_vigas_web.db_router.MESRouter"]
+
+#: El alias por el que se escribe el negocio. **Se usa siempre a través de
+#: `core.bases.BASE`**, nunca escrito a mano.
+#:
+#: Existe porque el alias no puede quedarse fijo en `"mes"`. Django abre **una
+#: conexión por alias**, así que con una sola base dos alias son dos
+#: transacciones contra el mismo PostgreSQL: lo que escribe una no lo ve la
+#: otra, y `transaction.atomic(using="mes")` dejaría de cubrir lo que se
+#: escribe por `default`. Eso no falla ruidosamente; sólo deja los datos a
+#: medias de vez en cuando.
+#:
+#: Y al revés tampoco vale dejarlo en `"default"` mientras haya dos bases: sería
+#: abrir la transacción sobre SQLite mientras se escribe en PostgreSQL, que es
+#: la «atomicidad falsa» que este proyecto ya arregló una vez.
+#:
+#: Por eso lo decide la configuración, y cambiar de base es **un solo
+#: movimiento** en vez de una migración a medias.
+MES_DB_ALIAS = "default" if UNA_SOLA_BASE else "mes"
 
 
 # ----------------------------------------------------------------- usuarios

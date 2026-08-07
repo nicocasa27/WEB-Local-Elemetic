@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.servicios import almacen_terminado as servicio
+from core.bases import BASE  # noqa: F401
 
 pytestmark = pytest.mark.django_db(databases=["default", "mes"])
 
@@ -200,7 +201,7 @@ class TestElMinimo:
 
         servicio.fijar_minimo(servicio.HERRERIA, ANDAMIO, 0)
 
-        assert NivelMinimo.objects.using("mes").filter(minimo=0).exists()
+        assert NivelMinimo.objects.using(BASE).filter(minimo=0).exists()
 
     def test_un_producto_que_no_existe_no_se_puede_fijar(self):
         assert servicio.fijar_minimo(servicio.HERRERIA, "   ", 5) is None

@@ -41,8 +41,8 @@ from django.utils import timezone
 
 from core import estados as est
 from core import roles
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Con la misma semilla sale el mismo taller.
 SEMILLA = 20260804

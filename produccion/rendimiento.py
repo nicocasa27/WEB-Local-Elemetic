@@ -18,8 +18,8 @@ from django.utils import timezone
 
 from core import roles
 from core.servicios import rendimiento as servicio
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: Cuántos días se miran si nadie dice otra cosa.
 DIAS_POR_DEFECTO = 30

@@ -30,8 +30,8 @@ revés falla a la mitad, dejando la base medio vacía.
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connections, transaction
+from core.bases import BASE  # noqa: F401
 
-BASE = "mes"
 
 #: De lo más dependiente a lo menos. Cada grupo se borra entero antes de pasar
 #: al siguiente.
